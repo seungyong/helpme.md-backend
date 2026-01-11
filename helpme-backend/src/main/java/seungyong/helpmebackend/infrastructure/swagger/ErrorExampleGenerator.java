@@ -3,9 +3,9 @@ package seungyong.helpmebackend.infrastructure.swagger;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.models.examples.Example;
 import lombok.extern.slf4j.Slf4j;
-import wakeup.sprout.spring.common.exception.ErrorCode;
-import wakeup.sprout.spring.common.exception.ErrorResponse;
-import wakeup.sprout.spring.common.util.mapper.CustomTimeStamp;
+import seungyong.helpmebackend.common.exception.ErrorCode;
+import seungyong.helpmebackend.common.exception.ErrorResponse;
+import seungyong.helpmebackend.infrastructure.mapper.CustomTimeStamp;
 
 import java.util.HashMap;
 import java.util.Map;

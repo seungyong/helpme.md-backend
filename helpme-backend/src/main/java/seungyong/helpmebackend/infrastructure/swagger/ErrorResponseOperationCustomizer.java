@@ -10,8 +10,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springdoc.core.customizers.OperationCustomizer;
 import org.springframework.stereotype.Component;
 import org.springframework.web.method.HandlerMethod;
-import wakeup.sprout.spring.common.annotation.swagger.ApiErrorResponse;
-import wakeup.sprout.spring.common.annotation.swagger.ApiErrorResponses;
+import seungyong.helpmebackend.common.annotation.swagger.ApiErrorResponse;
+import seungyong.helpmebackend.common.annotation.swagger.ApiErrorResponses;
 
 import java.util.Arrays;
 import java.util.Map;
