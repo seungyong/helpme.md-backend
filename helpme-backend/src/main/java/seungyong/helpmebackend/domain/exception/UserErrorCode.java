@@ -8,6 +8,7 @@ import seungyong.helpmebackend.common.exception.ErrorCode;
 @Getter
 @RequiredArgsConstructor
 public enum UserErrorCode implements ErrorCode {
+    USER_NOT_FOUND(HttpStatus.NOT_FOUND, "유저를 찾을 수 없습니다.", "USER_40401")
     ;
 
     private final String name = this.name();

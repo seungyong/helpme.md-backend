@@ -3,6 +3,7 @@ package seungyong.helpmebackend.adapter.out.persistence.entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
@@ -17,9 +18,11 @@ public class UserJpaEntity {
     @Column(name = "id")
     private Long id;
 
+    @Setter
     @Column(name = "github_id", nullable = false, unique = true)
     private Long githubId;
 
+    @Setter
     @Column(name = "github_token", nullable = false, unique = true)
     private String githubToken;
 
