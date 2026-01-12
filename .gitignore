@@ -29,3 +29,4 @@ replay_pid*
 application.properties
 application-dev.properties
 application-prod.properties
+/helpme-backend/src/main/resources/static/index.html

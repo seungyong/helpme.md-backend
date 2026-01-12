@@ -17,7 +17,6 @@ import java.util.UUID;
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class RequestLoggingFilter implements Filter {
-
     @Override
     public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws IOException, ServletException {
         HttpServletRequest request = (HttpServletRequest) servletRequest;
@@ -70,8 +69,7 @@ public class RequestLoggingFilter implements Filter {
 
         return ("POST".equals(method) || "PUT".equals(method) || "PATCH".equals(method)) &&
                 contentType != null &&
-                (contentType.contains("application/json") ||
-                        contentType.contains("application/x-www-form-urlencoded"));
+                contentType.contains("application/json");
     }
 
     private String getRequestBody(ContentCachingRequestWrapper request) {
