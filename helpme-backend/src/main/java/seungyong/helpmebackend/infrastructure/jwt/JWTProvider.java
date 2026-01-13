@@ -104,9 +104,9 @@ public class JWTProvider implements JwtGenerator<JWT> {
      * @param token AccessToken
      * @return 만료 여부
      */
-    public Boolean isExpired(String token){
+    public Boolean isExpired(String token, Date current){
         Claims claims = parseClaims(token, false);
-        return claims.getExpiration().before(new Date());
+        return claims.getExpiration().before(current);
     }
 
     private Claims parseClaims(String token, boolean validate) {

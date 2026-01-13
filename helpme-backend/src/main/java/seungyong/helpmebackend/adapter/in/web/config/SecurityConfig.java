@@ -36,6 +36,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(
                                 "/api/v1/oauth2/github/callback",
+                                "/api/v1/oauth2/github/installation",
                                 "/api/v1/users/reissue"
                         ).permitAll()
                         .requestMatchers(SWAGGER_PATHS).permitAll()

@@ -86,6 +86,7 @@ public class AuthController {
 
         String redirectUrl = UriComponentsBuilder.fromUriString("http://localhost:3000/oauth/github/callback")
                 .queryParam("accessToken", jwt.getAccessToken())
+                .queryParam("accessTokenExpireTime", jwt.getAccessTokenExpireTime().toString())
                 .build()
                 .toUriString();
 

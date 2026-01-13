@@ -33,6 +33,7 @@ public class AuthenticationFilter extends OncePerRequestFilter {
 
         return (path.equals("/api/v1/oauth2/github/callback") && method.equals("GET"))
                 || (path.equals("/api/v1/oauth2/github/installation") && method.equals("GET"))
+                || (path.equals("/api/v1/users/reissue") && method.equals("POST"))
                 || path.endsWith(".html")
                 || path.startsWith("/swagger-ui")
                 || path.startsWith("/v3/api-docs");
