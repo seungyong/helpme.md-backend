@@ -1,4 +1,4 @@
-package seungyong.helpmebackend.config;
+package seungyong.helpmebackend.infrastructure.swagger.config;
 
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
@@ -57,8 +57,8 @@ public class SwaggerConfig {
 
     private Info apiInfo() {
         return new Info()
-                .title("깨워줘, 새싹! API")
-                .description("깨워줘, 새싹! API Documents")
+                .title("Helpme.md API")
+                .description("Helpme.md API Documents")
                 .version("1.0.0");
     }
 }

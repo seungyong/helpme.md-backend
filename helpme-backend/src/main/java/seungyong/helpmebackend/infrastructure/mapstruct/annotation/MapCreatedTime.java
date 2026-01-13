@@ -1,4 +1,4 @@
-package seungyong.helpmebackend.common.annotation.mapper;
+package seungyong.helpmebackend.infrastructure.mapstruct.annotation;
 
 import org.mapstruct.Qualifier;
 

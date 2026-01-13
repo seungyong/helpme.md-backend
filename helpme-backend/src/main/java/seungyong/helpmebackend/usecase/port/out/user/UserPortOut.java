@@ -8,5 +8,6 @@ public interface UserPortOut {
     User save(User user);
     void delete(User user);
 
+    User getById(Long id);
     Optional<User> getByGithubId(Long githubId);
 }

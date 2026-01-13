@@ -1,4 +1,4 @@
-package seungyong.helpmebackend.config;
+package seungyong.helpmebackend.adapter.in.web.config;
 
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.MediaType;

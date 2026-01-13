@@ -11,6 +11,7 @@ import seungyong.helpmebackend.domain.entity.user.User;
 public interface UserPortOutMapper {
     UserPortOutMapper INSTANCE = Mappers.getMapper(UserPortOutMapper.class);
 
+    @Mapping(target = "id", source = "id")
     @Mapping(target = "name", source = "githubUser.name")
     @Mapping(target = "githubId", source = "githubUser.githubId")
     @Mapping(target = "githubToken", source = "githubUser.githubToken")

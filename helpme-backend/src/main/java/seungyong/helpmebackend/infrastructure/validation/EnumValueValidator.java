@@ -1,8 +1,8 @@
-package seungyong.helpmebackend.adapter.in.web.validation;
+package seungyong.helpmebackend.infrastructure.validation;
 
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
-import seungyong.helpmebackend.common.annotation.validation.EnumValue;
+import seungyong.helpmebackend.infrastructure.validation.annotation.EnumValue;
 
 public class EnumValueValidator implements ConstraintValidator<EnumValue, String> {
     private EnumValue annotation;

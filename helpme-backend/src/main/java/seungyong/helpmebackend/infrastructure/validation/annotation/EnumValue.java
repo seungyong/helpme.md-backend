@@ -1,8 +1,8 @@
-package seungyong.helpmebackend.common.annotation.validation;
+package seungyong.helpmebackend.infrastructure.validation.annotation;
 
 import jakarta.validation.Constraint;
 import jakarta.validation.Payload;
-import seungyong.helpmebackend.adapter.in.web.validation.EnumValueValidator;
+import seungyong.helpmebackend.infrastructure.validation.EnumValueValidator;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

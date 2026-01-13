@@ -5,7 +5,9 @@ import org.springframework.stereotype.Repository;
 import seungyong.helpmebackend.adapter.out.persistence.entity.UserJpaEntity;
 import seungyong.helpmebackend.adapter.out.persistence.mapper.UserPortOutMapper;
 import seungyong.helpmebackend.adapter.out.persistence.repository.UserJpaRepository;
+import seungyong.helpmebackend.common.exception.CustomException;
 import seungyong.helpmebackend.domain.entity.user.User;
+import seungyong.helpmebackend.domain.exception.UserErrorCode;
 import seungyong.helpmebackend.usecase.port.out.user.UserPortOut;
 
 import java.util.Optional;
@@ -26,6 +28,14 @@ public class UserAdapter implements UserPortOut {
     public void delete(User user) {
         UserJpaEntity userJpaEntity = UserPortOutMapper.INSTANCE.toJpaEntity(user);
         userJpaRepository.delete(userJpaEntity);
+    }
+
+    @Override
+    public User getById(Long id) {
+        UserJpaEntity userJpaEntity = userJpaRepository.findById(id)
+                .orElseThrow(() -> new CustomException(UserErrorCode.USER_NOT_FOUND));
+
+        return UserPortOutMapper.INSTANCE.toDomainEntity(userJpaEntity);
     }
 
     @Override

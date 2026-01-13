@@ -1,4 +1,4 @@
-package seungyong.helpmebackend.common.annotation.swagger;
+package seungyong.helpmebackend.infrastructure.swagger.annotation;
 
 import seungyong.helpmebackend.common.exception.ErrorCode;
 

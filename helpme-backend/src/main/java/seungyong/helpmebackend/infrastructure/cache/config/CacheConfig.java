@@ -1,4 +1,4 @@
-package seungyong.helpmebackend.config;
+package seungyong.helpmebackend.infrastructure.cache.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;

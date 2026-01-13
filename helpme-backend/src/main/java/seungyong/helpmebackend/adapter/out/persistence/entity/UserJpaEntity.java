@@ -9,6 +9,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.time.LocalDateTime;
 
 @Getter
+@Setter
 @NoArgsConstructor
 @Table(name = "users")
 @Entity(name = "User")
@@ -18,15 +19,12 @@ public class UserJpaEntity {
     @Column(name = "id")
     private Long id;
 
-    @Setter
     @Column(name = "name", nullable = false)
     private String name;
 
-    @Setter
     @Column(name = "github_id", nullable = false, unique = true)
     private Long githubId;
 
-    @Setter
     @Column(name = "github_token", nullable = false, unique = true)
     private String githubToken;
 
