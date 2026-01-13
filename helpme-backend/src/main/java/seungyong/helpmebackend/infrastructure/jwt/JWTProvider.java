@@ -11,7 +11,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import seungyong.helpmebackend.common.exception.CustomException;
 import seungyong.helpmebackend.common.exception.GlobalErrorCode;
-import seungyong.helpmebackend.infrastructure.mapper.CustomTimeStamp;
+import seungyong.helpmebackend.domain.mapper.CustomTimeStamp;
 
 import java.security.Key;
 import java.time.LocalDateTime;

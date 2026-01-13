@@ -6,7 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Builder;
 import lombok.Getter;
 import org.springframework.http.ResponseEntity;
-import seungyong.helpmebackend.infrastructure.mapper.CustomTimeStamp;
+import seungyong.helpmebackend.domain.mapper.CustomTimeStamp;
 
 @Getter
 @Builder

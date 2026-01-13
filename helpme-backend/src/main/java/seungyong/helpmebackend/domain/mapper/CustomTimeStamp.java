@@ -1,4 +1,4 @@
-package seungyong.helpmebackend.infrastructure.mapper;
+package seungyong.helpmebackend.domain.mapper;
 
 import lombok.Getter;
 import lombok.Setter;

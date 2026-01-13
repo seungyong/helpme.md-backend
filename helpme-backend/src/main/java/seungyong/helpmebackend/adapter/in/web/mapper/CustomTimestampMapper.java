@@ -2,7 +2,7 @@ package seungyong.helpmebackend.adapter.in.web.mapper;
 
 import org.mapstruct.Mapper;
 import seungyong.helpmebackend.common.annotation.mapper.MapCreatedTime;
-import seungyong.helpmebackend.infrastructure.mapper.CustomTimeStamp;
+import seungyong.helpmebackend.domain.mapper.CustomTimeStamp;
 
 import java.time.LocalDateTime;
 

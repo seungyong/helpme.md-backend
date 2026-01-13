@@ -19,6 +19,10 @@ public class UserJpaEntity {
     private Long id;
 
     @Setter
+    @Column(name = "name", nullable = false)
+    private String name;
+
+    @Setter
     @Column(name = "github_id", nullable = false, unique = true)
     private Long githubId;
 

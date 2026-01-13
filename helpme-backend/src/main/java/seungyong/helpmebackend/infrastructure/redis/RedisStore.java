@@ -6,9 +6,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 import seungyong.helpmebackend.common.exception.CustomException;
 import seungyong.helpmebackend.common.exception.GlobalErrorCode;
-import seungyong.helpmebackend.infrastructure.mapper.CustomTimeStamp;
 
-import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.concurrent.TimeUnit;
@@ -32,10 +30,15 @@ public class RedisStore {
             throw new CustomException(GlobalErrorCode.REDIS_ERROR);
         }
 
-        Duration duration = Duration.between(LocalDateTime.now(), expireTime);
-        long ttlInSeconds = duration.getSeconds();
+        try {
+            Duration duration = Duration.between(LocalDateTime.now(), expireTime);
+            long ttlInSeconds = duration.getSeconds();
 
-        redisTemplate.opsForValue().set(key, value, ttlInSeconds, TimeUnit.SECONDS);
+            redisTemplate.opsForValue().set(key, value, ttlInSeconds, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.error("Redis set error. key = {}, value = {}, expireTime = {}", key, value, expireTime, e);
+            throw new CustomException(GlobalErrorCode.REDIS_ERROR);
+        }
     }
 
     /**

@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 import seungyong.helpmebackend.common.exception.CustomException;
 import seungyong.helpmebackend.common.exception.GlobalErrorCode;
+import seungyong.helpmebackend.domain.entity.user.GithubUser;
 import seungyong.helpmebackend.usecase.port.out.github.GithubPortOut;
 
 import java.util.HashMap;
@@ -62,7 +63,7 @@ public class GithubAdapter implements GithubPortOut {
     }
 
     @Override
-    public Long getGithubId(String accessToken) {
+    public GithubUser getGithubUser(String accessToken) {
         String url = "https://api.github.com/user";
 
         HttpHeaders headers = new HttpHeaders();
@@ -81,7 +82,11 @@ public class GithubAdapter implements GithubPortOut {
 
         try {
             JsonNode jsonNode = objectMapper.readTree(responseBody);
-            return jsonNode.get("id").asLong();
+            return new GithubUser(
+                    jsonNode.get("login").asText(),
+                    jsonNode.get("id").asLong(),
+                    accessToken
+            );
         } catch (Exception e) {
             log.error("Error parsing GitHub user response = {}", responseBody);
             throw new CustomException(GlobalErrorCode.GITHUB_ERROR);

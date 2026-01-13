@@ -7,7 +7,8 @@ import lombok.Setter;
 @Getter
 @Setter
 @AllArgsConstructor
-public class User {
-    private Long id;
-    private GithubUser githubUser;
+public class GithubUser {
+    private String name;
+    private Long githubId;
+    private String githubToken;
 }
