@@ -1,7 +1,7 @@
 package seungyong.helpmebackend.usecase.port.in.github;
 
-import seungyong.helpmebackend.infrastructure.jwt.JWT;
+import seungyong.helpmebackend.adapter.in.web.dto.repo.response.ResponseRepositories;
 
 public interface GithubPortIn {
-    JWT signupOrLogin(String code);
+    ResponseRepositories getRepositories(Long userId);
 }

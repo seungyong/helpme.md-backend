@@ -9,11 +9,11 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
-import seungyong.helpmebackend.infrastructure.swagger.annotation.ApiErrorResponse;
-import seungyong.helpmebackend.infrastructure.swagger.annotation.ApiErrorResponses;
 import seungyong.helpmebackend.common.exception.GlobalErrorCode;
 import seungyong.helpmebackend.infrastructure.jwt.JWT;
-import seungyong.helpmebackend.usecase.port.in.github.GithubPortIn;
+import seungyong.helpmebackend.infrastructure.swagger.annotation.ApiErrorResponse;
+import seungyong.helpmebackend.infrastructure.swagger.annotation.ApiErrorResponses;
+import seungyong.helpmebackend.usecase.port.in.oauth2.OAuth2PortIn;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -26,7 +26,7 @@ import java.time.ZoneOffset;
 @ResponseBody
 @RequiredArgsConstructor
 public class AuthController {
-    private final GithubPortIn githubService;
+    private final OAuth2PortIn oAuth2PortIn;
 
     @Operation(
             summary = "GitHub OAuth2 콜백 처리",
@@ -68,7 +68,7 @@ public class AuthController {
             @RequestParam("code") String code,
             HttpServletResponse response
     ) throws IOException {
-        JWT jwt = githubService.signupOrLogin(code);
+        JWT jwt = oAuth2PortIn.signupOrLogin(code);
 
         Instant now = Instant.now();
         Instant expire = jwt.getRefreshTokenExpireTime().toInstant(ZoneOffset.UTC);
