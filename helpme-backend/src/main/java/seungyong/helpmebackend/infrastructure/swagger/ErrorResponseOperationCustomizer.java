@@ -32,6 +32,10 @@ public class ErrorResponseOperationCustomizer implements OperationCustomizer {
     private void processApiErrorResponses(Operation operation, HandlerMethod handlerMethod) {
         ApiErrorResponses annotation = handlerMethod.getMethodAnnotation(ApiErrorResponses.class);
 
+        if (annotation == null) {
+            return;
+        }
+
         for (ApiErrorResponse errorResponse : annotation.value()) {
             addErrorResponseToOperation(operation, errorResponse);
         }

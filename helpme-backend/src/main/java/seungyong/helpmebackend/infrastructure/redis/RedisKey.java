@@ -9,9 +9,6 @@ public enum RedisKey {
     // refresh_token:{userId}
     REFRESH_KEY("refresh_token:"),
 
-    // installation_token:{installationId}
-    INSTALLATION_ACCESS_TOKEN("installation_token:"),
-
     // user:repositories:{userId}
     REPOSITORIES_KEY("user:repositories:")
     ;

@@ -18,13 +18,13 @@ import java.util.Map;
 @Slf4j
 @Component
 public class GithubAdapter implements GithubPortOut {
-    @Value("${oauth2.github.client-id}")
+    @Value("${oauth2.github.apps.client_id}")
     private String clientId;
 
-    @Value("${oauth2.github.client-secret}")
+    @Value("${oauth2.github.apps.client_secret}")
     private String clientSecret;
 
-    @Value("${oauth2.github.redirect-uri}")
+    @Value("${oauth2.github.apps.redirect_uri}")
     private String redirectUri;
 
     private final ObjectMapper objectMapper = new ObjectMapper();

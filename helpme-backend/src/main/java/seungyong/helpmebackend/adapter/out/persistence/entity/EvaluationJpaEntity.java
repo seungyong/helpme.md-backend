@@ -24,10 +24,8 @@ public class EvaluationJpaEntity {
     @JoinColumn(name = "user_id", nullable = false)
     private UserJpaEntity user;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @OnDelete(action = OnDeleteAction.CASCADE)
-    @JoinColumn(name = "repo_id", nullable = false)
-    private RepositoryJpaEntity repository;
+    @Column(name = "repo_id", nullable = false)
+    private Long repoId;
 
     @Column(name = "rating", nullable = false)
     private Float rating;
