@@ -3,16 +3,19 @@ package seungyong.helpmebackend.adapter.out.persistence.entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
 import java.time.LocalDateTime;
 
 @Getter
+@Setter
 @NoArgsConstructor
-@Table(name = "components")
-@Entity(name = "Component")
-public class ComponentJpaEntity {
+@Table(name = "repositories")
+@Entity(name = "Repository")
+public class RepositoryJpaEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id")
@@ -23,20 +26,16 @@ public class ComponentJpaEntity {
     @JoinColumn(name = "user_id", nullable = false)
     private UserJpaEntity user;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @OnDelete(action = OnDeleteAction.CASCADE)
-    @JoinColumn(name = "repo_id", nullable = false)
-    private RepositoryJpaEntity repository;
+    @Column(name = "owner", nullable = false)
+    private String owner;
 
-    @Column(name = "title", nullable = false)
-    private String title;
+    @Column(name = "name", nullable = false)
+    private String name;
 
-    @Column(name = "content", nullable = false, columnDefinition = "TEXT")
-    private String content;
-
+    @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false, columnDefinition = "TIMESTAMPZ DEFAULT now()")
     private LocalDateTime createdAt;
 
-    @Column(name = "updated_at", nullable = false, columnDefinition = "TIMESTAMPZ DEFAULT now()")
-    private LocalDateTime updatedAt;
+    @Column(name = "synced_at", nullable = false, columnDefinition = "TIMESTAMPZ DEFAULT now()")
+    private LocalDateTime syncedAt;
 }
