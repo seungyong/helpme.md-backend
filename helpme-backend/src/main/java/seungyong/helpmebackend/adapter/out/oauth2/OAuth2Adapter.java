@@ -1,22 +1,20 @@
 package seungyong.helpmebackend.adapter.out.oauth2;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestTemplate;
 import seungyong.helpmebackend.common.exception.CustomException;
 import seungyong.helpmebackend.common.exception.GlobalErrorCode;
 import seungyong.helpmebackend.domain.entity.installation.Installation;
 import seungyong.helpmebackend.domain.entity.user.GithubUser;
 import seungyong.helpmebackend.infrastructure.github.GithubAPI;
-import seungyong.helpmebackend.usecase.port.out.github.OAuth2PortOut;
+import seungyong.helpmebackend.usecase.port.out.github.GithubPortConfig;
+import seungyong.helpmebackend.usecase.port.out.github.oauth2.OAuth2PortOut;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -25,24 +23,12 @@ import java.util.Map;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class OAuth2Adapter implements OAuth2PortOut {
-    @Value("${oauth2.github.apps.client_id}")
-    private String clientId;
-
-    @Value("${oauth2.github.apps.client_secret}")
-    private String clientSecret;
-
-    @Value("${oauth2.github.apps.redirect_uri}")
-    private String redirectUri;
-
+public class OAuth2Adapter extends GithubPortConfig implements OAuth2PortOut {
     private final GithubAPI githubAPI;
-
-    private final ObjectMapper objectMapper = new ObjectMapper();
-    private final RestTemplate restTemplate = new RestTemplate();
 
     @Override
     public String generateLoginUrl(String state) {
-        return "https://github.com/login/oauth/authorize?client_id=" + clientId
+        return "https://github.com/login/oauth/authorize?client_id=" + super.getClientId()
                 + "&scope=read:user"
                 + "&state=" + state;
     }
@@ -56,13 +42,13 @@ public class OAuth2Adapter implements OAuth2PortOut {
         headers.set("Content-Type", MediaType.APPLICATION_JSON_VALUE);
 
         Map<String, String> body = new HashMap<>();
-        body.put("client_id", clientId);
-        body.put("client_secret", clientSecret);
+        body.put("client_id", super.getClientId());
+        body.put("client_secret", super.getClientSecret());
         body.put("code", code);
-        body.put("redirect_uri", redirectUri);
+        body.put("redirect_uri", super.getRedirectUri());
 
         HttpEntity<Map<String, String>> request = new HttpEntity<>(body, headers);
-        ResponseEntity<String> response = restTemplate.postForEntity(
+        ResponseEntity<String> response = super.getRestTemplate().postForEntity(
                 url,
                 request,
                 String.class
@@ -71,7 +57,7 @@ public class OAuth2Adapter implements OAuth2PortOut {
         String responseBody = response.getBody();
 
         try {
-            JsonNode jsonNode = objectMapper.readTree(responseBody);
+            JsonNode jsonNode = super.getObjectMapper().readTree(responseBody);
             return jsonNode.get("access_token").asText();
         } catch (Exception e) {
             log.error("Error parsing GitHub access token response = {}", responseBody);
@@ -85,7 +71,7 @@ public class OAuth2Adapter implements OAuth2PortOut {
         String responseBody = githubAPI.fetchGetMethod(url, accessToken);
 
         try {
-            JsonNode jsonNode = objectMapper.readTree(responseBody);
+            JsonNode jsonNode = super.getObjectMapper().readTree(responseBody);
             return new GithubUser(
                     jsonNode.get("login").asText(),
                     jsonNode.get("id").asLong(),
@@ -103,7 +89,7 @@ public class OAuth2Adapter implements OAuth2PortOut {
         String responseBody = githubAPI.fetchGetMethod(url, accessToken);
 
         try {
-            JsonNode jsonNode = objectMapper.readTree(responseBody);
+            JsonNode jsonNode = super.getObjectMapper().readTree(responseBody);
             ArrayList<Installation> installations = new ArrayList<>();
 
             for (JsonNode item : jsonNode.get("installations")) {
@@ -116,7 +102,7 @@ public class OAuth2Adapter implements OAuth2PortOut {
 
             return installations;
         } catch (Exception e) {
-            log.error("Error parsing GitHub installations response = {}", responseBody);
+            log.error("Error parsing GitHub installations response = {}", responseBody, e);
             throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
         }
     }

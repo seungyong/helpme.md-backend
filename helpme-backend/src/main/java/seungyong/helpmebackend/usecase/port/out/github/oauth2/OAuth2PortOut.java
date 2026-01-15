@@ -1,4 +1,4 @@
-package seungyong.helpmebackend.usecase.port.out.github;
+package seungyong.helpmebackend.usecase.port.out.github.oauth2;
 
 import seungyong.helpmebackend.domain.entity.installation.Installation;
 import seungyong.helpmebackend.domain.entity.user.GithubUser;
