@@ -1,18 +1,24 @@
 package seungyong.helpmebackend.adapter.in.web.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseCookie;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
+import seungyong.helpmebackend.adapter.in.web.dto.installation.response.ResponseInstallations;
 import seungyong.helpmebackend.adapter.in.web.dto.user.common.CustomUserDetails;
 import seungyong.helpmebackend.common.exception.GlobalErrorCode;
+import seungyong.helpmebackend.domain.exception.UserErrorCode;
 import seungyong.helpmebackend.infrastructure.jwt.JWT;
 import seungyong.helpmebackend.infrastructure.swagger.annotation.ApiErrorResponse;
 import seungyong.helpmebackend.infrastructure.swagger.annotation.ApiErrorResponses;
@@ -70,8 +76,8 @@ public class AuthController {
                     )
             }
     )
-    @GetMapping("/github/installation")
-    public void githubAppInstallationCallback(
+    @GetMapping("/callback")
+    public void githubAppCallback(
             @RequestParam("code") String code,
             @RequestParam(value = "state") String state,
             @RequestParam(value = "installation_id", required = false) String installationId,
@@ -82,13 +88,56 @@ public class AuthController {
         boolean isInstallation = installationId != null && !installationId.isEmpty() && setupAction != null && !setupAction.isEmpty();
 
         if (isInstallation) {
-            redirectUrl = UriComponentsBuilder.fromUriString("http://localhost:3000/oauth/github/installation")
+            redirectUrl = UriComponentsBuilder.fromUriString("http://localhost:3000/oauth2/callback")
                     .build()
                     .toUriString();
         }
         else { redirectUrl = loginOrSignup(code, state, response); }
 
         response.sendRedirect(redirectUrl);
+    }
+
+    @Operation(
+            summary = "접근 가능한 GitHub App 설치 정보 조회",
+            description = "사용자가 접근 가능한 GitHub App 설치 정보를 조회합니다.",
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "설치 정보 조회 성공",
+                            content = @Content(
+                                    mediaType = MediaType.APPLICATION_JSON_VALUE,
+                                    schema = @Schema(implementation = ResponseInstallations.class)
+                            )
+
+                    )
+            }
+    )
+    @ApiErrorResponses({
+            @ApiErrorResponse(
+                    responseCode = "401",
+                    description = "인증되지 않은 사용자입니다.",
+                    errorCodeClass = GlobalErrorCode.class,
+                    errorCodes = { "UNAUTHORIZED", "INVALID_TOKEN", "EXPIRED_ACCESS_TOKEN" }
+            ),
+            @ApiErrorResponse(
+                    responseCode = "404",
+                    description = "유저를 찾을 수 없습니다.",
+                    errorCodeClass = UserErrorCode.class,
+                    errorCodes = { "USER_NOT_FOUND" }
+            ),
+            @ApiErrorResponse(
+                    responseCode = "500",
+                    description = "예기치 못한 서버 에러입니다.",
+                    errorCodeClass = GlobalErrorCode.class,
+                    errorCodes = { "INTERNAL_SERVER_ERROR", "GITHUB_ERROR" }
+            )
+    })
+    @GetMapping("/installation")
+    public ResponseEntity<ResponseInstallations> getInstallation(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        ResponseInstallations installation = oAuth2PortIn.getInstallations(userDetails.getUserId());
+        return ResponseEntity.ok(installation);
     }
 
     private String loginOrSignup(String code, String state, HttpServletResponse response) {
@@ -109,7 +158,7 @@ public class AuthController {
                     .build();
             response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
 
-            return UriComponentsBuilder.fromUriString("http://localhost:3000/oauth/github/callback")
+            return UriComponentsBuilder.fromUriString("http://localhost:3000/oauth2/callback")
                     .queryParam("accessToken", jwt.getAccessToken())
                     .queryParam("accessTokenExpireTime", jwt.getAccessTokenExpireTime().toString())
                     .build()
@@ -117,7 +166,7 @@ public class AuthController {
         } catch (Exception e) {
             log.error("OAuth2 login/signup failed", e);
 
-            return UriComponentsBuilder.fromUriString("http://localhost:3000/oauth/github/installation")
+            return UriComponentsBuilder.fromUriString("http://localhost:3000/oauth2/callback")
                     .queryParam("error", "authentication_failed")
                     .build()
                     .toUriString();

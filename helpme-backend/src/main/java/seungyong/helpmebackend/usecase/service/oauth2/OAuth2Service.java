@@ -3,6 +3,7 @@ package seungyong.helpmebackend.usecase.service.oauth2;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import seungyong.helpmebackend.adapter.in.web.dto.installation.response.ResponseInstallations;
 import seungyong.helpmebackend.adapter.out.persistence.mapper.UserPortOutMapper;
 import seungyong.helpmebackend.common.exception.CustomException;
 import seungyong.helpmebackend.common.exception.GlobalErrorCode;
@@ -12,7 +13,7 @@ import seungyong.helpmebackend.infrastructure.jwt.JWT;
 import seungyong.helpmebackend.infrastructure.redis.RedisKey;
 import seungyong.helpmebackend.usecase.port.in.oauth2.OAuth2PortIn;
 import seungyong.helpmebackend.usecase.port.out.cipher.CipherPortOut;
-import seungyong.helpmebackend.usecase.port.out.github.GithubPortOut;
+import seungyong.helpmebackend.usecase.port.out.github.OAuth2PortOut;
 import seungyong.helpmebackend.usecase.port.out.jwt.JWTPortOut;
 import seungyong.helpmebackend.usecase.port.out.redis.RedisPortOut;
 import seungyong.helpmebackend.usecase.port.out.user.UserPortOut;
@@ -24,7 +25,7 @@ import java.util.Base64;
 @Service
 @RequiredArgsConstructor
 public class OAuth2Service implements OAuth2PortIn {
-    private final GithubPortOut githubPortOut;
+    private final OAuth2PortOut oAuth2PortOut;
     private final RedisPortOut redisPortOut;
     private final CipherPortOut cipherPortOut;
     private final JWTPortOut jwtPortOut;
@@ -48,7 +49,7 @@ public class OAuth2Service implements OAuth2PortIn {
 
         redisPortOut.save(key, "valid", expireTime);
 
-        return githubPortOut.generateLoginUrl(state);
+        return oAuth2PortOut.generateLoginUrl(state);
     }
 
     @Override
@@ -58,8 +59,8 @@ public class OAuth2Service implements OAuth2PortIn {
         if (!redisPortOut.exists(stateKey)) { throw new CustomException(GlobalErrorCode.INVALID_OAUTH2_STATE); }
         redisPortOut.delete(stateKey);
 
-        String accessToken = githubPortOut.getAccessToken(code);
-        GithubUser githubUser = githubPortOut.getGithubUser(accessToken);
+        String accessToken = oAuth2PortOut.getAccessToken(code);
+        GithubUser githubUser = oAuth2PortOut.getGithubUser(accessToken);
         String encryptedAccessToken = cipherPortOut.encrypt(accessToken);
         githubUser.setGithubToken(encryptedAccessToken);
 
@@ -72,5 +73,12 @@ public class OAuth2Service implements OAuth2PortIn {
         redisPortOut.save(key, jwt.getRefreshToken(), jwt.getRefreshTokenExpireTime());
 
         return jwt;
+    }
+
+    @Override
+    public ResponseInstallations getInstallations(Long userId) {
+        User user = userPortOut.getById(userId);
+        String decryptedToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken());
+        return new ResponseInstallations(oAuth2PortOut.getInstallations(decryptedToken));
     }
 }

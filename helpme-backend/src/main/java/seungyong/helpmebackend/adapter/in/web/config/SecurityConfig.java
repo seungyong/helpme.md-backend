@@ -35,7 +35,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(
-                                "/api/v1/oauth2/github/installation",
+                                "/api/v1/oauth2/callback",
                                 "/api/v1/oauth2/login",
                                 "/api/v1/users/reissue"
                         ).permitAll()

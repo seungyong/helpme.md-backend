@@ -1,23 +1,31 @@
-package seungyong.helpmebackend.adapter.out.github;
+package seungyong.helpmebackend.adapter.out.oauth2;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.*;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 import seungyong.helpmebackend.common.exception.CustomException;
 import seungyong.helpmebackend.common.exception.GlobalErrorCode;
+import seungyong.helpmebackend.domain.entity.installation.Installation;
 import seungyong.helpmebackend.domain.entity.user.GithubUser;
-import seungyong.helpmebackend.usecase.port.out.github.GithubPortOut;
+import seungyong.helpmebackend.infrastructure.github.GithubAPI;
+import seungyong.helpmebackend.usecase.port.out.github.OAuth2PortOut;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
 @Slf4j
 @Component
-public class GithubAdapter implements GithubPortOut {
+@RequiredArgsConstructor
+public class OAuth2Adapter implements OAuth2PortOut {
     @Value("${oauth2.github.apps.client_id}")
     private String clientId;
 
@@ -26,6 +34,8 @@ public class GithubAdapter implements GithubPortOut {
 
     @Value("${oauth2.github.apps.redirect_uri}")
     private String redirectUri;
+
+    private final GithubAPI githubAPI;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final RestTemplate restTemplate = new RestTemplate();
@@ -72,20 +82,7 @@ public class GithubAdapter implements GithubPortOut {
     @Override
     public GithubUser getGithubUser(String accessToken) {
         String url = "https://api.github.com/user";
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Authorization", "Bearer " + accessToken);
-        headers.set("Accept", "application/vnd.github+json");
-        headers.set("X-GitHub-Api-Version", "2022-11-28");
-
-        HttpEntity<Void> entity = new HttpEntity<>(headers);
-        ResponseEntity<String> response = restTemplate.exchange(
-                url,
-                HttpMethod.GET,
-                entity,
-                String.class
-        );
-        String responseBody = response.getBody();
+        String responseBody = githubAPI.fetchGetMethod(url, accessToken);
 
         try {
             JsonNode jsonNode = objectMapper.readTree(responseBody);
@@ -96,6 +93,30 @@ public class GithubAdapter implements GithubPortOut {
             );
         } catch (Exception e) {
             log.error("Error parsing GitHub user response = {}", responseBody);
+            throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
+        }
+    }
+
+    @Override
+    public ArrayList<Installation> getInstallations(String accessToken) {
+        String url = "https://api.github.com/user/installations?per_page=100";
+        String responseBody = githubAPI.fetchGetMethod(url, accessToken);
+
+        try {
+            JsonNode jsonNode = objectMapper.readTree(responseBody);
+            ArrayList<Installation> installations = new ArrayList<>();
+
+            for (JsonNode item : jsonNode.get("installations")) {
+                installations.add(new Installation(
+                        item.get("id").asText(),
+                        item.get("account").get("avatar_url").asText(),
+                        item.get("account").get("login").asText()
+                ));
+            }
+
+            return installations;
+        } catch (Exception e) {
+            log.error("Error parsing GitHub installations response = {}", responseBody);
             throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
         }
     }
