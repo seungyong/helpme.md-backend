@@ -33,17 +33,35 @@ public class AuthController {
     private final OAuth2PortIn oAuth2PortIn;
 
     @Operation(
+            summary = "OAuth2 로그인 URL 생성 및 리다이렉트",
+            description = """
+                    OAuth2 로그인 URL을 생성하고 해당 URL로 리다이렉트합니다.
+                    - 랜덤한 `State`를 생성하여 Redis에 저장합니다. (10분)
+                    """,
+            responses = {
+                    @ApiResponse(
+                            responseCode = "302",
+                            description = "리다이렉트 성공"
+                    )
+            }
+    )
+    @GetMapping("/login")
+    public void login(HttpServletResponse response) throws IOException {
+        String loginUrl = oAuth2PortIn.generateLoginUrl();
+        response.sendRedirect(loginUrl);
+    }
+
+    @Operation(
             summary = "GitHub App 콜백 처리",
             description = """
                     GitHub App 설치 후 콜백을 처리합니다.
+                    - State 검증을 수행합니다.
                     - OAuth2 인증 및 회원가입/로그인을 처리합니다.
                       - 성공 시, `Access Token`을 쿼리 파라미터로 전달하여 리다이렉트합니다.
                         - `Refresh Token`은 `HttpOnly Cookie`로 설정됩니다.
                       - 실패 시, 에러 정보를 쿼리 파라미터(`authentication_failed`)로 전달하여 리다이렉트합니다.
                     - GitHub App 설치를 처리합니다.
-                        - 성공 시, 설치 완료 페이지로 리다이렉트합니다.
-                        - 실패 시, 에러 정보를 쿼리 파라미터(`registration_failed`)로 전달하여 리다이렉트합니다.
-                        - 설치, 업데이트와 상관 없이 접근 가능한 모든 repository의 동기화가 이루어집니다.  
+                        - 레포 선택 페이지로 리다이렉트합니다.
                     """,
             responses = {
                     @ApiResponse(
@@ -75,7 +93,7 @@ public class AuthController {
 
     private String loginOrSignup(String code, String state, HttpServletResponse response) {
         try {
-            JWT jwt = oAuth2PortIn.signupOrLogin(code);
+            JWT jwt = oAuth2PortIn.signupOrLogin(code, state);
 
             Instant now = Instant.now();
             Instant expire = jwt.getRefreshTokenExpireTime().toInstant(ZoneOffset.UTC);
@@ -97,6 +115,8 @@ public class AuthController {
                     .build()
                     .toUriString();
         } catch (Exception e) {
+            log.error("OAuth2 login/signup failed", e);
+
             return UriComponentsBuilder.fromUriString("http://localhost:3000/oauth/github/installation")
                     .queryParam("error", "authentication_failed")
                     .build()

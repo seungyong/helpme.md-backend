@@ -31,6 +31,13 @@ public class GithubAdapter implements GithubPortOut {
     private final RestTemplate restTemplate = new RestTemplate();
 
     @Override
+    public String generateLoginUrl(String state) {
+        return "https://github.com/login/oauth/authorize?client_id=" + clientId
+                + "&scope=read:user"
+                + "&state=" + state;
+    }
+
+    @Override
     public String getAccessToken(String code) {
         String url = "https://github.com/login/oauth/access_token";
 
