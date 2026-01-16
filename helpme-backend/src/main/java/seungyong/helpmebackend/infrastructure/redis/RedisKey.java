@@ -11,9 +11,6 @@ public enum RedisKey {
 
     // oauth2:state:{state}
     OAUTH2_STATE_KEY("oauth2:state:"),
-
-    // user:repositories:{userId}
-    REPOSITORIES_KEY("user:repositories:")
     ;
 
     private final String value;

@@ -59,7 +59,7 @@ public class OAuth2Service implements OAuth2PortIn {
         if (!redisPortOut.exists(stateKey)) { throw new CustomException(GlobalErrorCode.INVALID_OAUTH2_STATE); }
         redisPortOut.delete(stateKey);
 
-        String accessToken = oAuth2PortOut.getAccessToken(code);
+        String accessToken = oAuth2PortOut.getAccessToken(code).accessToken();
         GithubUser githubUser = oAuth2PortOut.getGithubUser(accessToken);
         String encryptedAccessToken = cipherPortOut.encrypt(accessToken);
         githubUser.setGithubToken(encryptedAccessToken);

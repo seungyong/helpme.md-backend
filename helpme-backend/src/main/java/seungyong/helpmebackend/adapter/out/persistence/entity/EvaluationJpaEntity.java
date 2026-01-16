@@ -1,14 +1,17 @@
 package seungyong.helpmebackend.adapter.out.persistence.entity;
 
 import jakarta.persistence.*;
+import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.OnDelete;
-import org.hibernate.annotations.OnDeleteAction;
+import lombok.Setter;
+import org.hibernate.annotations.*;
+import org.hibernate.type.SqlTypes;
 import seungyong.helpmebackend.domain.vo.EvaluationStatus;
 
 import java.time.LocalDateTime;
 
+@Setter
 @Getter
 @NoArgsConstructor
 @Table(name = "evaluations")
@@ -21,25 +24,28 @@ public class EvaluationJpaEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @OnDelete(action = OnDeleteAction.CASCADE)
-    @JoinColumn(name = "user_id", nullable = false)
-    private UserJpaEntity user;
+    @JoinColumn(name = "uploader_id", nullable = false)
+    private UserJpaEntity uploader;
 
-    @Column(name = "repo_id", nullable = false)
-    private Long repoId;
+    @Column(name = "repo_fullname", nullable = false, unique = true, columnDefinition = "TEXT")
+    private String repoFullName;
 
-    @Column(name = "rating", nullable = false)
+    @Column(name = "rating")
     private Float rating;
 
-    @Column(name = "content", nullable = false, columnDefinition = "JSONB")
+    @Column(name = "content", columnDefinition = "TEXT")
     private String content;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "status", nullable = false, columnDefinition = "evaluations_status")
     private EvaluationStatus status;
 
+    @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false, columnDefinition = "TIMESTAMPZ DEFAULT now()")
     private LocalDateTime createdAt;
 
+    @UpdateTimestamp
     @Column(name = "updated_at", nullable = false, columnDefinition = "TIMESTAMPZ DEFAULT now()")
     private LocalDateTime updatedAt;
 }

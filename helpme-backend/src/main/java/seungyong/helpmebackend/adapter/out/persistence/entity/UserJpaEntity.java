@@ -19,13 +19,13 @@ public class UserJpaEntity {
     @Column(name = "id")
     private Long id;
 
-    @Column(name = "name", nullable = false)
+    @Column(name = "name", nullable = false, columnDefinition = "TEXT")
     private String name;
 
     @Column(name = "github_id", nullable = false, unique = true)
     private Long githubId;
 
-    @Column(name = "github_token", nullable = false, unique = true)
+    @Column(name = "github_token", nullable = false, unique = true, columnDefinition = "TEXT")
     private String githubToken;
 
     @CreationTimestamp

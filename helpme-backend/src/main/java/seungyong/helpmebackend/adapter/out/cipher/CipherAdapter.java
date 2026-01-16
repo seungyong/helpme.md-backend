@@ -59,6 +59,10 @@ public class CipherAdapter implements CipherPortOut {
 
     @Override
     public String decrypt(String cipherText) {
+        if (cipherText == null || cipherText.isBlank()) {
+            return null;
+        }
+
         SecretKeySpec keySpec = getKeySpec();
 
         try {

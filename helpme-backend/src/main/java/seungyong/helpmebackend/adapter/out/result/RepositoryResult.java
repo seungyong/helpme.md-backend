@@ -1,11 +1,11 @@
 package seungyong.helpmebackend.adapter.out.result;
 
-import seungyong.helpmebackend.domain.entity.Repository;
+import seungyong.helpmebackend.domain.entity.repository.Repository;
 
-import java.util.ArrayList;
+import java.util.List;
 
 public record RepositoryResult(
-        ArrayList<Repository> repositories,
+        List<Repository> repositories,
         Integer totalCount
 ) {
 }

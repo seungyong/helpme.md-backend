@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import seungyong.helpmebackend.adapter.in.web.dto.repository.response.ResponseRepositories;
+import seungyong.helpmebackend.adapter.in.web.dto.repository.response.ResponseRepository;
 import seungyong.helpmebackend.adapter.in.web.dto.user.common.CustomUserDetails;
 import seungyong.helpmebackend.usecase.port.in.repository.RepositoryPortIn;
 
@@ -32,6 +33,17 @@ public class RepoController {
     ) {
         return ResponseEntity.ok(
                 repositoryPortIn.getRepositories(details.getUserId(), installationId, page)
+        );
+    }
+
+    @GetMapping("/{owner}/{name}")
+    public ResponseEntity<ResponseRepository> getRepository(
+            @PathVariable("owner") String owner,
+            @PathVariable("name") String name,
+            @AuthenticationPrincipal CustomUserDetails details
+    ) {
+        return ResponseEntity.ok(
+                repositoryPortIn.getRepository(details.getUserId(), owner, name)
         );
     }
 }

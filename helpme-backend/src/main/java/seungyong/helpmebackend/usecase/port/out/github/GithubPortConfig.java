@@ -11,13 +11,13 @@ import org.springframework.web.client.RestTemplate;
 @Component
 @RequiredArgsConstructor
 public class GithubPortConfig {
-    @Value("${oauth2.github.apps.client_id}")
+    @Value("${oauth2.github.apps.client-id}")
     private String clientId;
 
-    @Value("${oauth2.github.apps.client_secret}")
+    @Value("${oauth2.github.apps.client-secret}")
     private String clientSecret;
 
-    @Value("${oauth2.github.apps.redirect_uri}")
+    @Value("${oauth2.github.apps.redirect-uri}")
     private String redirectUri;
 
     private final ObjectMapper objectMapper = new ObjectMapper();

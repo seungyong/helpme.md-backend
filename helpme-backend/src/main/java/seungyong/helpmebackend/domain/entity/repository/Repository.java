@@ -1,4 +1,4 @@
-package seungyong.helpmebackend.domain.entity;
+package seungyong.helpmebackend.domain.entity.repository;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
