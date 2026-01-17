@@ -11,7 +11,7 @@ import seungyong.helpmebackend.common.exception.CustomException;
 import seungyong.helpmebackend.common.exception.GlobalErrorCode;
 import seungyong.helpmebackend.domain.entity.installation.Installation;
 import seungyong.helpmebackend.domain.entity.user.GithubUser;
-import seungyong.helpmebackend.infrastructure.github.GithubAPI;
+import seungyong.helpmebackend.infrastructure.github.GithubClient;
 import seungyong.helpmebackend.usecase.port.out.github.GithubPortConfig;
 import seungyong.helpmebackend.usecase.port.out.github.oauth2.OAuth2PortOut;
 
@@ -22,7 +22,7 @@ import java.util.Map;
 @Component
 @RequiredArgsConstructor
 public class OAuth2Adapter extends GithubPortConfig implements OAuth2PortOut {
-    private final GithubAPI githubAPI;
+    private final GithubClient githubClient;
 
     @Override
     public String generateLoginUrl(String state) {
@@ -46,7 +46,7 @@ public class OAuth2Adapter extends GithubPortConfig implements OAuth2PortOut {
                 "redirect_uri", super.getRedirectUri()
         );
 
-        OAuthTokenResult response = githubAPI.postNoAuth(url, headers, body, OAuthTokenResult.class);
+        OAuthTokenResult response = githubClient.postNoAuth(url, headers, body, OAuthTokenResult.class);
 
         if (response == null || response.accessToken() == null || response.accessToken().isBlank()) {
             log.error("Error fetching GitHub access token with code = {}", code);
@@ -59,7 +59,7 @@ public class OAuth2Adapter extends GithubPortConfig implements OAuth2PortOut {
     @Override
     public GithubUser getGithubUser(String accessToken) {
         String url = "https://api.github.com/user";
-        String responseBody = githubAPI.fetchGetMethodForBody(url, accessToken);
+        String responseBody = githubClient.fetchGetMethodForBody(url, accessToken);
 
         try {
             JsonNode jsonNode = super.getObjectMapper().readTree(responseBody);
@@ -77,7 +77,7 @@ public class OAuth2Adapter extends GithubPortConfig implements OAuth2PortOut {
     @Override
     public ArrayList<Installation> getInstallations(String accessToken) {
         String url = "https://api.github.com/user/installations?per_page=100";
-        String responseBody = githubAPI.fetchGetMethodForBody(url, accessToken);
+        String responseBody = githubClient.fetchGetMethodForBody(url, accessToken);
 
         try {
             JsonNode jsonNode = super.getObjectMapper().readTree(responseBody);

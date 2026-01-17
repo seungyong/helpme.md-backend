@@ -1,10 +1,13 @@
 package seungyong.helpmebackend.adapter.in.web.controller;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import seungyong.helpmebackend.adapter.in.web.dto.repository.request.RequestDraftEvaluation;
+import seungyong.helpmebackend.adapter.in.web.dto.repository.response.ResponseEvaluation;
 import seungyong.helpmebackend.adapter.in.web.dto.repository.response.ResponseRepositories;
 import seungyong.helpmebackend.adapter.in.web.dto.repository.response.ResponseRepository;
 import seungyong.helpmebackend.adapter.in.web.dto.user.common.CustomUserDetails;
@@ -44,6 +47,18 @@ public class RepoController {
     ) {
         return ResponseEntity.ok(
                 repositoryPortIn.getRepository(details.getUserId(), owner, name)
+        );
+    }
+
+    @PostMapping("/repos/{owner}/{name}/evaluate")
+    public ResponseEntity<ResponseEvaluation> evaluateDraftReadme(
+            @Valid @RequestBody RequestDraftEvaluation request,
+            @PathVariable("owner") String owner,
+            @PathVariable("name") String name,
+            @AuthenticationPrincipal CustomUserDetails details
+    ) {
+        return ResponseEntity.ok(
+                repositoryPortIn.evaluateDraftReadme(request, details.getUserId(), owner, name)
         );
     }
 }

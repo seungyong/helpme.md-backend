@@ -4,22 +4,29 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import seungyong.helpmebackend.adapter.in.web.dto.repository.request.RequestDraftEvaluation;
+import seungyong.helpmebackend.adapter.in.web.dto.repository.response.ResponseEvaluation;
 import seungyong.helpmebackend.adapter.in.web.dto.repository.response.ResponseRepositories;
 import seungyong.helpmebackend.adapter.in.web.dto.repository.response.ResponseRepository;
 import seungyong.helpmebackend.adapter.in.web.mapper.RepositoryPortInMapper;
 import seungyong.helpmebackend.adapter.out.result.RepositoryDetailResult;
+import seungyong.helpmebackend.adapter.out.result.RepositoryFileContentResult;
 import seungyong.helpmebackend.adapter.out.result.RepositoryResult;
+import seungyong.helpmebackend.adapter.out.result.RepositoryTreeResult;
 import seungyong.helpmebackend.domain.entity.component.Component;
 import seungyong.helpmebackend.domain.entity.evaluation.Evaluation;
 import seungyong.helpmebackend.domain.entity.user.User;
 import seungyong.helpmebackend.domain.vo.EvaluationStatus;
+import seungyong.helpmebackend.infrastructure.gpt.EvaluationContent;
 import seungyong.helpmebackend.usecase.port.in.repository.RepositoryPortIn;
 import seungyong.helpmebackend.usecase.port.out.cipher.CipherPortOut;
 import seungyong.helpmebackend.usecase.port.out.component.ComponentPortOut;
 import seungyong.helpmebackend.usecase.port.out.evaluation.EvaluationPortOut;
 import seungyong.helpmebackend.usecase.port.out.github.repository.RepositoryPortOut;
+import seungyong.helpmebackend.usecase.port.out.gpt.GPTPortOut;
 import seungyong.helpmebackend.usecase.port.out.user.UserPortOut;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
@@ -31,6 +38,7 @@ public class RepositoryService implements RepositoryPortIn {
     private final EvaluationPortOut evaluationPortOut;
     private final ComponentPortOut componentPortOut;
     private final CipherPortOut cipherPortOut;
+    private final GPTPortOut gptPortOut;
 
     @Override
     public ResponseRepositories getRepositories(Long userId, Long installationId, Integer page) {
@@ -97,6 +105,52 @@ public class RepositoryService implements RepositoryPortIn {
                         .toList(),
                 String.join(",", branches),
                 content
+        );
+    }
+
+    @Override
+    public ResponseEvaluation evaluateDraftReadme(RequestDraftEvaluation request, Long userId, String owner, String name) {
+        String fullName = owner + "/" + name;
+        User user = userPortOut.getById(userId);
+        String accessToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken());
+
+        // 커밋 목록 조회 (최신 200개)
+        List<String> commits = repositoryPortOut.getCommitsByBranch(accessToken, owner, name, request.branch());
+
+        // 프로젝트 구조 조회
+        List<RepositoryTreeResult> trees = repositoryPortOut.getRepositoryTree(accessToken, owner, name, request.branch());
+
+        // 핵심 파일 선별 (구조 -> 파일명으로 판단)
+        List<RepositoryTreeResult> importantFiles = gptPortOut.getImportantFiles(trees);
+
+        // 코드 내용 조회
+        List<RepositoryFileContentResult> fileContents = new ArrayList<>();
+        for (RepositoryTreeResult file : importantFiles) {
+            RepositoryFileContentResult contentResult = repositoryPortOut.getFileContent(
+                    accessToken,
+                    owner,
+                    name,
+                    file
+            );
+
+            if (contentResult == null || contentResult.content().isBlank()) {
+                continue;
+            }
+
+            fileContents.add(contentResult);
+        }
+
+        // AI 평가 요청 및 결과 수신 (request 사용하여, 초안 평가 요청)
+        EvaluationContent evaluationResponse = gptPortOut.evaluateReadme(
+                request.content(),
+                commits,
+                trees,
+                fileContents
+        );
+
+        return new ResponseEvaluation(
+                evaluationResponse.rating(),
+                evaluationResponse.contents()
         );
     }
 }

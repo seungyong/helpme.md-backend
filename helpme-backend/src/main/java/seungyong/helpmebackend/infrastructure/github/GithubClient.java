@@ -8,13 +8,11 @@ import org.springframework.web.client.RestTemplate;
 import seungyong.helpmebackend.common.exception.CustomException;
 import seungyong.helpmebackend.common.exception.GlobalErrorCode;
 
-import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 
 @Slf4j
 @Component
-public class GithubAPI {
+public class GithubClient {
     private final RestTemplate restTemplate = new RestTemplate();
     private static final String API_VERSION = "2022-11-28";
 
