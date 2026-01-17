@@ -110,7 +110,6 @@ public class RepositoryService implements RepositoryPortIn {
 
     @Override
     public ResponseEvaluation evaluateDraftReadme(RequestDraftEvaluation request, Long userId, String owner, String name) {
-        String fullName = owner + "/" + name;
         User user = userPortOut.getById(userId);
         String accessToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken());
 

@@ -1,5 +1,6 @@
 package seungyong.helpmebackend.adapter.in.web.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -11,6 +12,10 @@ import seungyong.helpmebackend.adapter.in.web.dto.repository.response.ResponseEv
 import seungyong.helpmebackend.adapter.in.web.dto.repository.response.ResponseRepositories;
 import seungyong.helpmebackend.adapter.in.web.dto.repository.response.ResponseRepository;
 import seungyong.helpmebackend.adapter.in.web.dto.user.common.CustomUserDetails;
+import seungyong.helpmebackend.common.exception.GlobalErrorCode;
+import seungyong.helpmebackend.domain.exception.UserErrorCode;
+import seungyong.helpmebackend.infrastructure.swagger.annotation.ApiErrorResponse;
+import seungyong.helpmebackend.infrastructure.swagger.annotation.ApiErrorResponses;
 import seungyong.helpmebackend.usecase.port.in.repository.RepositoryPortIn;
 
 @Tag(
@@ -28,6 +33,35 @@ import seungyong.helpmebackend.usecase.port.in.repository.RepositoryPortIn;
 public class RepoController {
     private final RepositoryPortIn repositoryPortIn;
 
+    @Operation(
+            summary = "레포지토리 목록 조회",
+            description = """
+                    Github App이 설치된 특정 계정의 레포지토리 목록을 조회합니다.
+                    
+                    - 각 요청 시점에 `GitHub API`를 호출하여 실시간으로 데이터를 가져옵니다.
+                    - DB에 레포지토리 정보가 저장되지 않습니다.
+                    """
+    )
+    @ApiErrorResponses({
+            @ApiErrorResponse(
+                    responseCode = "400",
+                    description = "잘못된 요청입니다.",
+                    errorCodeClass = GlobalErrorCode.class,
+                    errorCodes = {"BAD_REQUEST"}
+            ),
+            @ApiErrorResponse(
+                    responseCode = "404",
+                    description = "리소스를 찾을 수 없습니다.",
+                    errorCodeClass = UserErrorCode.class,
+                    errorCodes = {"USER_NOT_FOUND"}
+            ),
+            @ApiErrorResponse(
+                    responseCode = "500",
+                    description = "서버 에러입니다.",
+                    errorCodeClass = GlobalErrorCode.class,
+                    errorCodes = {"INTERNAL_SERVER_ERROR", "GITHUB_ERROR"}
+            )
+    })
     @GetMapping
     public ResponseEntity<ResponseRepositories> getRepositories(
             @RequestParam("installationId") Long installationId,
@@ -39,6 +73,29 @@ public class RepoController {
         );
     }
 
+    @Operation(
+            summary = "레포지토리 상세 조회",
+            description = """
+                    특정 레포지토리의 상세 정보를 조회합니다.
+                    
+                    - 각 요청 시점에 `GitHub API`를 호출하여 실시간으로 데이터를 가져옵니다.
+                    - DB에 레포지토리 정보가 저장되지 않습니다.
+                    """
+    )
+    @ApiErrorResponses({
+            @ApiErrorResponse(
+                    responseCode = "404",
+                    description = "리소스를 찾을 수 없습니다.",
+                    errorCodeClass = UserErrorCode.class,
+                    errorCodes = {"USER_NOT_FOUND"}
+            ),
+            @ApiErrorResponse(
+                    responseCode = "500",
+                    description = "서버 에러입니다.",
+                    errorCodeClass = GlobalErrorCode.class,
+                    errorCodes = {"INTERNAL_SERVER_ERROR", "GITHUB_ERROR"}
+            )
+    })
     @GetMapping("/{owner}/{name}")
     public ResponseEntity<ResponseRepository> getRepository(
             @PathVariable("owner") String owner,
@@ -50,7 +107,20 @@ public class RepoController {
         );
     }
 
-    @PostMapping("/repos/{owner}/{name}/evaluate")
+    @Operation(
+            summary = "사용자가 작성한 README 평가",
+            description = """
+                    사용자가 작성한 README 초안에 대해 평가를 수행합니다.
+                    - 평가 요청 시점에 `GitHub API`를 호출하여 특정 브랜치의 데이터를 실시간으로 가져옵니다.
+                        - 최근 커밋 내역 (200개 이내)를 조회합니다.
+                        - 프로젝트 트리(구조)를 조회합니다.
+                        - 중요 파일을 추출합니다.
+                        - 중요 파일의 내용을 조회합니다.
+                    - DB에 레포지토리 정보가 저장되지 않습니다.
+                    - DB에 평가 결과 정보가 저장되지 않습니다.
+                    """
+    )
+    @PostMapping("/repos/{owner}/{name}/evaluate/draft")
     public ResponseEntity<ResponseEvaluation> evaluateDraftReadme(
             @Valid @RequestBody RequestDraftEvaluation request,
             @PathVariable("owner") String owner,
