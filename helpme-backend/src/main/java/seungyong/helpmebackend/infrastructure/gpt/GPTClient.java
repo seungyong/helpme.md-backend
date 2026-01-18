@@ -13,13 +13,16 @@ import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.openai.api.ResponseFormat;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import seungyong.helpmebackend.adapter.out.result.RepositoryFileContentResult;
 import seungyong.helpmebackend.adapter.out.result.RepositoryTreeResult;
 import seungyong.helpmebackend.common.exception.CustomException;
 import seungyong.helpmebackend.common.exception.GlobalErrorCode;
 
+import javax.validation.Valid;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Component
@@ -46,9 +49,6 @@ public class GPTClient {
             }
             """;
 
-    /*
-    * { "rating": float, "contents": ["string", "string"] }
-    * */
     private static final String evaluationSchema = """
             {
               "type": "object",
@@ -72,6 +72,12 @@ public class GPTClient {
 
     private final OpenAiChatModel openAiChatModel;
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    @Value("${spring.ai.openai.chat.cache-key.reviewer.prefix}")
+    private String reviewerCacheKeyPrefix;
+
+    @Value("${spring.ai.openai.chat.cache-key.important.prefix}")
+    private String importantCacheKeyPrefix;
 
     public List<ImportantFile> importantFiles(List<RepositoryTreeResult> trees) throws JsonProcessingException {
         String systemPrompt = """
@@ -106,6 +112,7 @@ public class GPTClient {
         treeBuilder.setLength(Math.max(treeBuilder.length() - 2, 0));
 
         List<Message> messages = List.of(
+                // System 메시지 캐싱
                 new SystemMessage(systemPrompt),
                 new UserMessage("파일 트리 목록: " + treeBuilder)
         );
@@ -113,6 +120,7 @@ public class GPTClient {
         Prompt prompt = new Prompt(messages,
                 OpenAiChatOptions.builder()
                         .responseFormat(new ResponseFormat(ResponseFormat.Type.JSON_SCHEMA, importantFilesSchema))
+                        .promptCacheKey(importantCacheKeyPrefix)
                         .build());
 
         ChatResponse response = openAiChatModel.call(prompt);
@@ -138,8 +146,9 @@ public class GPTClient {
     ) throws JsonProcessingException {
         String systemPrompt = """
                 너는 이제부터 유명한 소프트웨어 엔지니어이자 깃허브 전문가야.
-                사용자가 제공하는 README.md 파일의 내용을 분석해서, 그 저장소에 대한 평가를 내려야해.
+                사용자가 제공하는 Markdown 형식의 README.md 파일의 내용을 분석해서, 그 저장소에 대한 평가를 내려야해.
                 평가 점수는 0.0에서 5.0 사이의 실수로 표현해야 하고, 구체적인 피드백 내용도 함께 제공해야해.
+                말투는 존댓말 형태가 아닌 요약 형태로 작성해야하고, 종합적인 평가는 필요 없어.
                 
                 사용자가 너에게 제공하는 정보는 다음과 같아:
                 1. README.md 파일의 내용
@@ -243,6 +252,7 @@ public class GPTClient {
         Prompt prompt = new Prompt(messages,
                 OpenAiChatOptions.builder()
                         .responseFormat(new ResponseFormat(ResponseFormat.Type.JSON_SCHEMA, evaluationSchema))
+                        .promptCacheKey(reviewerCacheKeyPrefix)
                         .build());
 
         ChatResponse response = openAiChatModel.call(prompt);

@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import seungyong.helpmebackend.adapter.in.web.dto.repository.request.RequestDraftEvaluation;
+import seungyong.helpmebackend.adapter.in.web.dto.repository.request.RequestEvaluation;
 import seungyong.helpmebackend.adapter.in.web.dto.repository.response.ResponseEvaluation;
 import seungyong.helpmebackend.adapter.in.web.dto.repository.response.ResponseRepositories;
 import seungyong.helpmebackend.adapter.in.web.dto.repository.response.ResponseRepository;
@@ -28,6 +29,7 @@ import seungyong.helpmebackend.usecase.port.out.user.UserPortOut;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -59,10 +61,11 @@ public class RepositoryService implements RepositoryPortIn {
         String fullName = owner + "/" + name;
 
         // ReadME.md 내용 조회
-        String content = repositoryPortOut.getReadmeContent(accessToken, owner, name);
+        String content = repositoryPortOut.getReadmeContent(accessToken, owner, name, repository.defaultBranch());
 
         // Evaluation 정보 조회 및 없으면 생성
-        Evaluation evaluation = evaluationPortOut.getByFullName(fullName);
+        Evaluation evaluation = evaluationPortOut.getByFullName(fullName)
+                .orElse(null);
 
         /*
         * 1. Evaluation이 없고, ReadME.md 내용이 비어있는 경우 -> NONE 상태의 Evaluation 생성
@@ -77,9 +80,8 @@ public class RepositoryService implements RepositoryPortIn {
             evaluation = Evaluation.createWithStatusEvaluation(
                     user.getId(),
                     fullName,
-                    0.0f,
-                    "",
-                    EvaluationStatus.CREATED
+                    null,
+                    null
             );
             evaluation = evaluationPortOut.save(evaluation);
         } else if (!evaluation.getStatus().equals(EvaluationStatus.NONE) && content.isBlank()) {
@@ -103,9 +105,48 @@ public class RepositoryService implements RepositoryPortIn {
                 components.stream()
                         .map(RepositoryPortInMapper.INSTANCE::toResponseComponent)
                         .toList(),
-                String.join(",", branches),
+                branches.toArray(String[]::new),
                 content
         );
+    }
+
+    @Override
+    public ResponseEvaluation evaluateReadme(RequestEvaluation request, Long userId, String owner, String name) {
+        User user = userPortOut.getById(userId);
+        String accessToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken());
+
+        // readme 내용 조회
+        String readmeContent = repositoryPortOut.getReadmeContent(accessToken, owner, name, request.branch());
+
+        ResponseEvaluation responseEvaluation = evaluateReadmeContent(
+                owner,
+                name,
+                accessToken,
+                readmeContent,
+                request.branch()
+        );
+
+        EvaluationStatus status = responseEvaluation.rating() > 4.0 ?
+                EvaluationStatus.GOOD :
+                EvaluationStatus.IMPROVEMENT;
+
+        Evaluation evaluation = evaluationPortOut.getByFullName(owner + "/" + name)
+                .orElseGet(() -> Evaluation.createWithStatusEvaluation(
+                        user.getId(),
+                        owner + "/" + name,
+                        responseEvaluation.rating(),
+                        String.join("\n", responseEvaluation.contents())
+                ));
+
+        // 기존 Evaluation 업데이트
+        evaluation.changeEvaluation(
+                responseEvaluation.rating(),
+                String.join("\n", responseEvaluation.contents()),
+                status
+        );
+        evaluationPortOut.save(evaluation);
+
+        return responseEvaluation;
     }
 
     @Override
@@ -113,11 +154,27 @@ public class RepositoryService implements RepositoryPortIn {
         User user = userPortOut.getById(userId);
         String accessToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken());
 
+        return evaluateReadmeContent(
+                owner,
+                name,
+                accessToken,
+                request.content(),
+                request.branch()
+        );
+    }
+
+    private ResponseEvaluation evaluateReadmeContent(
+            String owner,
+            String name,
+            String accessToken,
+            String readmeContent,
+            String branch
+    ) {
         // 커밋 목록 조회 (최신 200개)
-        List<String> commits = repositoryPortOut.getCommitsByBranch(accessToken, owner, name, request.branch());
+        List<String> commits = repositoryPortOut.getCommitsByBranch(accessToken, owner, name, branch);
 
         // 프로젝트 구조 조회
-        List<RepositoryTreeResult> trees = repositoryPortOut.getRepositoryTree(accessToken, owner, name, request.branch());
+        List<RepositoryTreeResult> trees = repositoryPortOut.getRepositoryTree(accessToken, owner, name, branch);
 
         // 핵심 파일 선별 (구조 -> 파일명으로 판단)
         List<RepositoryTreeResult> importantFiles = gptPortOut.getImportantFiles(trees);
@@ -141,7 +198,7 @@ public class RepositoryService implements RepositoryPortIn {
 
         // AI 평가 요청 및 결과 수신 (request 사용하여, 초안 평가 요청)
         EvaluationContent evaluationResponse = gptPortOut.evaluateReadme(
-                request.content(),
+                readmeContent,
                 commits,
                 trees,
                 fileContents

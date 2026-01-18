@@ -68,8 +68,8 @@ public class RepositoryAdapter extends GithubPortConfig implements RepositoryPor
     }
 
     @Override
-    public String getReadmeContent(String accessToken, String owner, String name) {
-        String url = String.format("https://api.github.com/repos/%s/%s/readme", owner, name);
+    public String getReadmeContent(String accessToken, String owner, String name, String branch) {
+        String url = String.format("https://api.github.com/repos/%s/%s/readme?ref=%s", owner, name, branch);
 
         try {
             return githubClient.fetchGetMethodForBody(url, accessToken, GithubClient.Accept.APPLICATION_GITHUB_VND_GITHUB_RAW_JSON);

@@ -27,14 +27,14 @@ public interface RepositoryPortInMapper {
             RepositoryDetailResult repositoryDetailResult,
             ResponseRepository.Evaluation evaluation,
             List<ResponseRepository.Component> components,
-            String branches,
+            String[] branches,
             String content
     );
 
 
     @Mapping(target = "status", expression = "java(evaluation.getStatusMessage())")
     @Mapping(target = "rating", source = "rating")
-    @Mapping(target = "content", source = "content")
+    @Mapping(target = "content", expression = "java(evaluation.getContentToArray())")
     ResponseRepository.Evaluation toResponseEvaluation(Evaluation evaluation);
 
     @Mapping(target = "id", source = "id")

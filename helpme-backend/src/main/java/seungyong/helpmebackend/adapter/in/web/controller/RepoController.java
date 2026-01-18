@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import seungyong.helpmebackend.adapter.in.web.dto.repository.request.RequestDraftEvaluation;
+import seungyong.helpmebackend.adapter.in.web.dto.repository.request.RequestEvaluation;
 import seungyong.helpmebackend.adapter.in.web.dto.repository.response.ResponseEvaluation;
 import seungyong.helpmebackend.adapter.in.web.dto.repository.response.ResponseRepositories;
 import seungyong.helpmebackend.adapter.in.web.dto.repository.response.ResponseRepository;
@@ -104,6 +105,18 @@ public class RepoController {
     ) {
         return ResponseEntity.ok(
                 repositoryPortIn.getRepository(details.getUserId(), owner, name)
+        );
+    }
+
+    @PostMapping("/{owner}/{name}/evaluate/readme")
+    public ResponseEntity<ResponseEvaluation> evaluateReadme(
+            @Valid @RequestBody RequestEvaluation request,
+            @PathVariable("owner") String owner,
+            @PathVariable("name") String name,
+            @AuthenticationPrincipal CustomUserDetails details
+            ) {
+        return ResponseEntity.ok(
+                repositoryPortIn.evaluateReadme(request, details.getUserId(), owner, name)
         );
     }
 

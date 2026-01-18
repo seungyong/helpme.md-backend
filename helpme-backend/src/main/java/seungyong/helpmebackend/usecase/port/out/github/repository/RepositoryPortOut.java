@@ -10,7 +10,7 @@ import java.util.List;
 public interface RepositoryPortOut {
     RepositoryResult getRepositoriesByInstallationId(String accessToken, Long installationId, Integer page);
     RepositoryDetailResult getRepository(String accessToken, String owner, String name);
-    String getReadmeContent(String accessToken, String owner, String name);
+    String getReadmeContent(String accessToken, String owner, String name, String branch);
     List<String> getAllBranches(String accessToken, String owner, String name);
     List<String> getCommitsByBranch(String accessToken, String owner, String name, String branch);
     List<RepositoryTreeResult> getRepositoryTree(String accessToken, String owner, String name, String branch);

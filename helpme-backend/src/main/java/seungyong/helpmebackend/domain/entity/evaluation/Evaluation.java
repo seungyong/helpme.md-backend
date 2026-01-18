@@ -37,26 +37,36 @@ public class Evaluation {
         );
     }
 
+    /**
+     * 주어진 평점에 따라 적절한 평가 상태를 설정하여 Evaluation 객체를 생성합니다. <br>
+     * - 평점이 null인 경우: CREATED 상태 <br>
+     * - 평점이 4.0 이상인 경우: GOOD 상태 <br>
+     * - 평점이 4.0 미만인 경우: IMPROVEMENT 상태 <br>
+     * - None 상태를 원한다면 {@link #createNoneStatusEvaluation} 메서드를 사용하세요.
+     * @param uploaderId 평가를 업로드한 사용자 ID
+     * @param repoFullName 평가 대상 저장소의 전체 이름
+     * @param rating 평가 점수
+     * @param content 평가 내용
+     * @return 생성된 Evaluation 객체
+     * @throws IllegalArgumentException 잘못된 입력 값이 제공된 경우
+     */
     public static Evaluation createWithStatusEvaluation(
             Long uploaderId,
             String repoFullName,
             Float rating,
-            String content,
-            EvaluationStatus status
+            String content
     ) {
         if (uploaderId == null) {
             throw new IllegalArgumentException("Uploader ID cannot be null.");
-        } else if (status == EvaluationStatus.NONE) {
-            throw new IllegalArgumentException("Status cannot be NONE for this method.");
-        } else if (status == null) {
-            throw new IllegalArgumentException("Status cannot be null.");
-        } if (rating != null && (rating < 0.0f || rating > 5.0f)) {
+        } else if (rating != null && (rating < 0.0f || rating > 5.0f)) {
             if (content == null) {
                 throw new IllegalArgumentException("Content cannot be null when rating is provided.");
             }
 
             throw new IllegalArgumentException("Rating must be between 0.0 and 5.0.");
         }
+
+        EvaluationStatus status = getEvaluationStatus(rating);
 
         return new Evaluation(
                 null,
@@ -87,6 +97,29 @@ public class Evaluation {
     }
 
     /**
+     * 평가의 평점, 내용 및 상태를 변경합니다.
+     * @param rating 새로운 평점
+     * @param content 새로운 내용
+     * @param status 새로운 평가 상태
+     */
+    public void changeEvaluation(Float rating, String content, EvaluationStatus status) {
+        this.rating = rating;
+        this.content = content;
+        this.status = status;
+    }
+
+    /**
+     * 평점에 따라 평가 상태를 반환합니다.
+     * @param rating 평가 점수
+     * @return 평가 상태
+     */
+    public static EvaluationStatus getEvaluationStatus(Float rating) {
+        if (rating == null) { return EvaluationStatus.CREATED; }
+        else if (rating >= 4.0f) { return EvaluationStatus.GOOD; }
+        else { return EvaluationStatus.IMPROVEMENT; }
+    }
+
+    /**
      * 평가 상태에 따른 메시지를 반환합니다.
      * @return 평가 상태 메시지
      */
@@ -97,5 +130,17 @@ public class Evaluation {
             case IMPROVEMENT -> "개선 필요";
             case NONE -> "README 없음";
         };
+    }
+
+    /**
+     * content 필드를 쉼표(,)를 기준으로 분리하여 문자열 배열로 반환합니다.
+     * @return content를 쉼표로 분리한 문자열 배열
+     */
+    public String[] getContentToArray() {
+        if (this.content == null || this.content.isEmpty()) {
+            return null;
+        }
+
+        return this.content.split("\n");
     }
 }

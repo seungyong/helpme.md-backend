@@ -4,7 +4,7 @@ import java.util.List;
 
 public record ResponseRepository(
     String content,
-    String branches,
+    String[] branches,
     String defaultBranch,
     String owner,
     String name,
@@ -21,6 +21,6 @@ public record ResponseRepository(
     public record Evaluation(
             String status,
             Float rating,
-            String content
+            String[] content
     ) {}
 }
