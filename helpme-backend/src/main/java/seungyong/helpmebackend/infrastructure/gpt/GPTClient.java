@@ -86,19 +86,53 @@ public class GPTClient {
                 단, 디렉토리, 빈 파일, 이미지 파일 등은 소스 코드 분석에 도움이 되지 않으니 제외해야해.
                 
                 사용자가 제공하는 파일 트리 목록은 다음과 같아:
-                [파일 경로, 파일 유형, 파일 URL], [...]
+                [파일 경로, 파일 유형], [...]
                 
                 중요한 파일을 고를 때는 다음 기준을 따라야해:
-                1. 프로젝트의 핵심 기능과 관련된 파일 (예: 주요 소스 코드 파일, 핵심 모듈 등)
-                - 프로젝트가 어떤 기능을 가지고 있는지 유추할 수 있게 하는 항목
-                2. 의존성 파일 (예: package.json, pom.xml, gradle.build 등)
-                - 프로젝트가 어떤 외부 라이브러리나 프레임워크를 사용하는지 알 수 있게 하는 항목
-                3. 문서 파일 (예: README.md, CONTRIBUTING.md 등)
-                - 프로젝트의 목적, 사용법, 기여 방법 등을 이해하는 데 도움이 되는 항목
-                4. 프로젝트의 구조와 흐름을 이해하는 데 도움이 되는 파일 (예: 주요 클래스 파일, 모듈 파일, 디자인 패턴 등)
-                - 프로젝트가 어떻게 구성되어 있는지 알 수 있게 하고, 흐름을 파악하는 데 도움이 되는 항목
                 
-                최소 5개 이상 선정해야 하고, 많아도 상관 없어.
+                1. 프로젝트의 핵심 기능과 관련된 파일
+                - 프로젝트가 어떤 기능을 가지고 있는지 유추할 수 있게 하는 항목
+                - 예시: Controller, Service, Repository 클래스
+                - 예시: API 엔드포인트 정의 파일
+                - 예시: 비즈니스 로직이 담긴 핵심 모듈
+                
+                2. 의존성 파일
+                - 프로젝트가 어떤 외부 라이브러리나 프레임워크를 사용하는지 알 수 있게 하는 항목
+                - Java/Kotlin: pom.xml, build.gradle, build.gradle.kts
+                - Node.js: package.json, package-lock.json
+                - Python: requirements.txt, pyproject.toml, Pipfile
+                - Ruby: Gemfile
+                - Go: go.mod
+                - Rust: Cargo.toml
+                - 각 언어별 주요 의존성 파일
+                
+                3. 문서 파일
+                - 프로젝트의 목적, 사용법, 기여 방법 등을 이해하는 데 도움이 되는 항목
+                - README.md (필수)
+                - CONTRIBUTING.md
+                - CHANGELOG.md
+                - API 문서 (예: openapi.yaml, swagger.json)
+                
+                4. 프로젝트의 구조와 흐름을 이해하는 데 도움이 되는 파일
+                - 프로젝트가 어떻게 구성되어 있는지 알 수 있게 하고, 흐름을 파악하는 데 도움이 되는 항목
+                - 진입점 파일: main.java, index.js, app.py, main.go 등
+                - 라우팅 파일: routes.js, urls.py 등
+                - 주요 클래스 파일
+                - 디자인 패턴 구현 파일
+                
+                제외해야 할 파일:
+                - 이미지/미디어 파일 (.png, .jpg, .gif, .mp4 등)
+                - 컴파일된 파일 (.class, .pyc, .o 등)
+                - 로그 파일 (.log)
+                - 캐시 파일
+                - node_modules, .git, build, dist 등의 디렉토리 내 파일
+                - 중요한 환경 설정이 있는 파일 (예: .env, application.properties 등) 제외
+                
+                선정 기준:
+                - 최소 5개 이상 선정해야 함
+                - 최대 개수 제한 없음 (필요하다면 10-20개도 가능)
+                
+                출력 형식은 JSON Schema를 따라야 해.
                 """;
 
         StringBuilder treeBuilder = new StringBuilder();
