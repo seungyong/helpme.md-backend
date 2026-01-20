@@ -7,9 +7,9 @@ import seungyong.helpmebackend.adapter.out.result.RepositoryFileContentResult;
 import seungyong.helpmebackend.adapter.out.result.RepositoryTreeResult;
 import seungyong.helpmebackend.common.exception.CustomException;
 import seungyong.helpmebackend.common.exception.GlobalErrorCode;
-import seungyong.helpmebackend.infrastructure.gpt.EvaluationContent;
+import seungyong.helpmebackend.infrastructure.gpt.dto.EvaluationContent;
 import seungyong.helpmebackend.infrastructure.gpt.GPTClient;
-import seungyong.helpmebackend.infrastructure.gpt.ImportantFile;
+import seungyong.helpmebackend.infrastructure.gpt.dto.ImportantFile;
 import seungyong.helpmebackend.usecase.port.out.gpt.GPTPortOut;
 
 import java.util.List;

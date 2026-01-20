@@ -18,7 +18,7 @@ import seungyong.helpmebackend.domain.entity.component.Component;
 import seungyong.helpmebackend.domain.entity.evaluation.Evaluation;
 import seungyong.helpmebackend.domain.entity.user.User;
 import seungyong.helpmebackend.domain.vo.EvaluationStatus;
-import seungyong.helpmebackend.infrastructure.gpt.EvaluationContent;
+import seungyong.helpmebackend.infrastructure.gpt.dto.EvaluationContent;
 import seungyong.helpmebackend.usecase.port.in.repository.RepositoryPortIn;
 import seungyong.helpmebackend.usecase.port.out.cipher.CipherPortOut;
 import seungyong.helpmebackend.usecase.port.out.component.ComponentPortOut;
@@ -29,7 +29,6 @@ import seungyong.helpmebackend.usecase.port.out.user.UserPortOut;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 @Slf4j
 @Service

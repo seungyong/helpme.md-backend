@@ -2,7 +2,7 @@ package seungyong.helpmebackend.usecase.port.out.gpt;
 
 import seungyong.helpmebackend.adapter.out.result.RepositoryFileContentResult;
 import seungyong.helpmebackend.adapter.out.result.RepositoryTreeResult;
-import seungyong.helpmebackend.infrastructure.gpt.EvaluationContent;
+import seungyong.helpmebackend.infrastructure.gpt.dto.EvaluationContent;
 
 import java.util.List;
 

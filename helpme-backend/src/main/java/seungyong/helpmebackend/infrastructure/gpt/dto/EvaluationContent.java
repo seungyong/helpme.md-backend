@@ -1,4 +1,4 @@
-package seungyong.helpmebackend.infrastructure.gpt;
+package seungyong.helpmebackend.infrastructure.gpt.dto;
 
 import java.util.List;
 
