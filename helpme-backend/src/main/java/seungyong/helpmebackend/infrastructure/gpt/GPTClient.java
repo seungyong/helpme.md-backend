@@ -145,20 +145,11 @@ public class GPTClient {
         // 마지막 ", " 제거 (Math.max는 빈 문자열일 경우를 대비)
         treeBuilder.setLength(Math.max(treeBuilder.length() - 2, 0));
 
-        List<Message> messages = List.of(
-                // System 메시지 캐싱
-                new SystemMessage(systemPrompt),
-                new UserMessage("파일 트리 목록: " + treeBuilder)
+        List<Message> messages = buildMessages(
+                systemPrompt,
+                "파일 트리 목록:\n[" + treeBuilder + "]"
         );
-
-        Prompt prompt = new Prompt(messages,
-                OpenAiChatOptions.builder()
-                        .responseFormat(new ResponseFormat(ResponseFormat.Type.JSON_SCHEMA, importantFilesSchema))
-                        .promptCacheKey(importantCacheKeyPrefix)
-                        .build());
-
-        ChatResponse response = openAiChatModel.call(prompt);
-        String json = response.getResult().getOutput().getText();
+        String json = getResponseText(importantFilesSchema, importantCacheKeyPrefix, messages);
 
         JsonNode root = objectMapper.readTree(json);
         JsonNode itemsNode = root.get("items");
@@ -241,8 +232,8 @@ public class GPTClient {
             commitsBuilder.append(commit).append(", ");
         }
 
-        commitsBuilder.append("]\n");
         commitsBuilder.setLength(Math.max(commitsBuilder.length() - 2, 0));
+        commitsBuilder.append("]\n");
 
         // 2. 파일 트리 목록 문자열 생성
         StringBuilder treeBuilder = new StringBuilder();
@@ -254,8 +245,8 @@ public class GPTClient {
                     .append(tree.type()).append("], ");
         }
 
-        treeBuilder.append("]\n");
         treeBuilder.setLength(Math.max(treeBuilder.length() - 2, 0));
+        treeBuilder.append("]\n");
 
         // 3. 중요한 파일들 문자열 생성
         StringBuilder importantFilesBuilder = new StringBuilder();
@@ -267,8 +258,8 @@ public class GPTClient {
                     .append(file.content().replace("\n", "\\n")).append("], ");
         }
 
-        importantFilesBuilder.append("]\n");
         importantFilesBuilder.setLength(Math.max(importantFilesBuilder.length() - 2, 0));
+        importantFilesBuilder.append("]\n");
 
         String fullPrompt = String.format(
                 "README.md 내용:\n<<<<README_START>>>>\n%s\n<<<<README_END>>>>\n\n%s\n%s\n%s",
@@ -278,19 +269,8 @@ public class GPTClient {
                 importantFilesBuilder
         );
 
-        List<Message> messages = List.of(
-                new SystemMessage(systemPrompt),
-                new UserMessage(fullPrompt)
-        );
-
-        Prompt prompt = new Prompt(messages,
-                OpenAiChatOptions.builder()
-                        .responseFormat(new ResponseFormat(ResponseFormat.Type.JSON_SCHEMA, evaluationSchema))
-                        .promptCacheKey(reviewerCacheKeyPrefix)
-                        .build());
-
-        ChatResponse response = openAiChatModel.call(prompt);
-        String json = response.getResult().getOutput().getText();
+        List<Message> messages = buildMessages(systemPrompt, fullPrompt);
+        String json = getResponseText(evaluationSchema, reviewerCacheKeyPrefix, messages);
 
         JsonNode root = objectMapper.readTree(json);
         JsonNode ratingNode = root.get("rating");
@@ -309,5 +289,34 @@ public class GPTClient {
                 rating,
                 contents
         );
+    }
+
+    private List<Message> buildMessages(String systemPrompt, String userPrompt) {
+        return List.of(
+                new SystemMessage(systemPrompt),
+                new UserMessage(userPrompt)
+        );
+    }
+
+    private String getResponseText(String schema, String promptCacheKey, List<Message> messages) {
+        Prompt prompt = new Prompt(messages,
+                OpenAiChatOptions.builder()
+                        .responseFormat(new ResponseFormat(ResponseFormat.Type.JSON_SCHEMA, schema))
+                        .promptCacheKey(promptCacheKey)
+                        .build());
+
+        ChatResponse response = openAiChatModel.call(prompt);
+
+        log.info("""
+                GPT used for tokens.
+                Prompt tokens: {}
+                Completion tokens: {}
+                Total tokens: {}
+                """,
+                response.getMetadata().getUsage().getPromptTokens(),
+                response.getMetadata().getUsage().getCompletionTokens(),
+                response.getMetadata().getUsage().getTotalTokens());
+
+        return response.getResult().getOutput().getText();
     }
 }

@@ -79,7 +79,7 @@ public class AuthController {
     @GetMapping("/callback")
     public void githubAppCallback(
             @RequestParam("code") String code,
-            @RequestParam(value = "state") String state,
+            @RequestParam(value = "state", required = false) String state,
             @RequestParam(value = "installation_id", required = false) String installationId,
             @RequestParam(value = "setup_action", required = false) String setupAction,
             HttpServletResponse response
