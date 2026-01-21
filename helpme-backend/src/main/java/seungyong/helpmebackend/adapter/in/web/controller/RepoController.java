@@ -10,6 +10,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import seungyong.helpmebackend.adapter.in.web.dto.repository.request.RequestDraftEvaluation;
 import seungyong.helpmebackend.adapter.in.web.dto.repository.request.RequestEvaluation;
+import seungyong.helpmebackend.adapter.in.web.dto.repository.response.ResponseDraftReadme;
 import seungyong.helpmebackend.adapter.in.web.dto.repository.response.ResponseEvaluation;
 import seungyong.helpmebackend.adapter.in.web.dto.repository.response.ResponseRepositories;
 import seungyong.helpmebackend.adapter.in.web.dto.repository.response.ResponseRepository;
@@ -121,20 +122,7 @@ public class RepoController {
         );
     }
 
-    @Operation(
-            summary = "사용자가 작성한 README 평가",
-            description = """
-                    사용자가 작성한 README 초안에 대해 평가를 수행합니다.
-                    - 평가 요청 시점에 `GitHub API`를 호출하여 특정 브랜치의 데이터를 실시간으로 가져옵니다.
-                        - 최근 커밋 내역 (200개 이내)를 조회합니다.
-                        - 프로젝트 트리(구조)를 조회합니다.
-                        - 중요 파일을 추출합니다.
-                        - 중요 파일의 내용을 조회합니다.
-                    - DB에 레포지토리 정보가 저장되지 않습니다.
-                    - DB에 평가 결과 정보가 저장되지 않습니다.
-                    """
-    )
-    @PostMapping("/repos/{owner}/{name}/evaluate/draft")
+    @PostMapping("/{owner}/{name}/evaluate/draft")
     public ResponseEntity<ResponseEvaluation> evaluateDraftReadme(
             @Valid @RequestBody RequestDraftEvaluation request,
             @PathVariable("owner") String owner,
@@ -143,6 +131,18 @@ public class RepoController {
     ) throws JsonProcessingException {
         return ResponseEntity.ok(
                 repositoryPortIn.evaluateDraftReadme(request, details.getUserId(), owner, name)
+        );
+    }
+
+    @PostMapping("/{owner}/{name}/generate")
+    public ResponseEntity<ResponseDraftReadme> generateDraftReadme(
+            @Valid @RequestBody RequestEvaluation request,
+            @PathVariable("owner") String owner,
+            @PathVariable("name") String name,
+            @AuthenticationPrincipal CustomUserDetails details
+    ) throws JsonProcessingException {
+        return ResponseEntity.ok(
+                repositoryPortIn.generateDraftReadme(request, details.getUserId(), owner, name)
         );
     }
 }

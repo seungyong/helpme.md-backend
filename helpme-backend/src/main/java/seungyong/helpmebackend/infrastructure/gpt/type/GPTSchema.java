@@ -71,4 +71,18 @@ public final class GPTSchema {
               "additionalProperties": false
             }
             """;
+
+    public static final String DRAFT_README_GENERATION_SCHEMA = """
+            {
+              "type": "object",
+              "properties": {
+                "content": {
+                  "type": "string",
+                  "description": "Markdown 형식으로 생성된 README 초안의 내용"
+                }
+              },
+              "required": ["content"],
+              "additionalProperties": false
+            }
+            """;
 }

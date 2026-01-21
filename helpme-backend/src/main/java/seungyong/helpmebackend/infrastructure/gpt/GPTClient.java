@@ -16,6 +16,7 @@ import org.springframework.ai.openai.api.ResponseFormat;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import seungyong.helpmebackend.adapter.out.command.EvaluationCommand;
+import seungyong.helpmebackend.adapter.out.command.GenerateReadmeCommand;
 import seungyong.helpmebackend.adapter.out.command.RepositoryImportantCommand;
 import seungyong.helpmebackend.adapter.out.command.RepositoryInfoCommand;
 import seungyong.helpmebackend.adapter.out.result.RepositoryFileContentResult;
@@ -26,9 +27,11 @@ import seungyong.helpmebackend.common.exception.GlobalErrorCode;
 import seungyong.helpmebackend.infrastructure.gpt.dto.EvaluationContent;
 import seungyong.helpmebackend.infrastructure.gpt.dto.GPTRepositoryInfo;
 import seungyong.helpmebackend.infrastructure.gpt.dto.ImportantFile;
+import seungyong.helpmebackend.infrastructure.gpt.dto.PromptContext;
 import seungyong.helpmebackend.infrastructure.gpt.type.GPTSchema;
 import seungyong.helpmebackend.infrastructure.gpt.type.GPTSystemPrompt;
 
+import java.util.Collections;
 import java.util.List;
 
 @Slf4j
@@ -72,36 +75,29 @@ public class GPTClient {
     }
 
     public List<ImportantFile> importantFiles(RepositoryImportantCommand command) throws JsonProcessingException {
-        String languageList = languagesToString(command.repoInfo().languages());
-        String latestCommits = listToString(command.repoInfo().commits().latestCommit(), "최근 커밋 메시지:\n");
-        String middleCommits = listToString(command.repoInfo().commits().middleCommit(), "중간 커밋 메시지:\n");
-        String oldCommits = listToString(command.repoInfo().commits().initialCommit(), "초기 커밋 메시지:\n");
-        String trees = treeToString(command.repoInfo().trees());
-        String entryPoints = listToString(
-                command.entryPoints().stream()
-                        .map(RepositoryFileContentResult::path)
-                        .toList(),
-                "진입점/설정 파일 또는 디렉토리 정보:\n"
+        PromptContext ctx = generateSystemPromptContext(
+                command.repoInfo(),
+                command.entryPoints(),
+                Collections.emptyList(),        // importantFiles는 여기선 필요 없음
+                command.techStack(),
+                command.projectSize()
         );
-        String techStacks = listToString(
-                List.of(command.techStack()),
-                "기술 스택 및 프레임워크:\n"
+
+        String systemPrompt = String.format(
+                "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s",
+                ctx.languages(),
+                ctx.techStacks(),
+                ctx.tree(),
+                ctx.entryPoints(),
+                ctx.projectSize(),
+                ctx.latestCommits(),
+                ctx.middleCommits(),
+                ctx.oldCommits()
         );
-        String projectSize = "프로젝트 규모:\n" + command.projectSize() + "\n";
 
         List<Message> messages = buildMessages(
                 GPTSystemPrompt.IMPORTANT_FILE_PROMPT,
-                String.format(
-                        "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s",
-                        languageList,
-                        techStacks,
-                        trees,
-                        entryPoints,
-                        projectSize,
-                        latestCommits,
-                        middleCommits,
-                        oldCommits
-                )
+                systemPrompt
         );
 
         String json = getResponseText(GPTSchema.IMPORTANT_FILES_SCHEMA, importantCacheKeyPrefix, messages, command.fullName());
@@ -117,57 +113,130 @@ public class GPTClient {
     }
 
     public EvaluationContent evaluateReadme(EvaluationCommand command) throws JsonProcessingException {
-        // 1. 프로젝트 언어
-        String languages = languagesToString(command.repoInfo().languages());
+        PromptContext ctx = generateSystemPromptContext(
+                command.repoInfo(),
+                command.entryPoints(),
+                command.importantFiles(),
+                command.techStack(),
+                command.projectSize()
+        );
 
-        // 2. 커밋 목록 문자열 생성
-        String latestCommits = listToString(command.repoInfo().commits().latestCommit(), "최근 커밋 메시지:\n");
-        String middleCommits = listToString(command.repoInfo().commits().middleCommit(), "중간 커밋 메시지:\n");
-        String oldCommits = listToString(command.repoInfo().commits().initialCommit(), "초기 커밋 메시지:\n");
+        String systemPrompt = String.format(
+                "README.md 내용:\n<<<<README_START>>>>\n%s\n<<<<README_END>>>>\n\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s",
+                command.readmeContent(),
+                ctx.languages(),
+                ctx.techStacks(),
+                ctx.tree(),
+                ctx.entryPoints(),
+                ctx.importantFiles(),
+                ctx.projectSize(),
+                ctx.latestCommits(),
+                ctx.middleCommits(),
+                ctx.oldCommits()
+        );
 
-        // 3. 파일 트리 목록 문자열 생성
-        String tree = treeToString(command.repoInfo().trees());
+        List<Message> messages = buildMessages(GPTSystemPrompt.EVALUATION_PROMPT, systemPrompt);
+        String json = getResponseText(GPTSchema.EVALUATION_SCHEMA, reviewerCacheKeyPrefix, messages, command.fullName());
+        return objectMapper.readValue(json, EvaluationContent.class);
+    }
 
-        // 4. 진입점/설정 파일 목록 문자열 생성
-        String entryPoints = listToString(
-                command.entryPoints().stream()
+    public String generateDraftReadme(GenerateReadmeCommand command) {
+        PromptContext ctx = generateSystemPromptContext(
+                command.repoInfo(),
+                command.entryPoints(),
+                command.importantFiles(),
+                command.techStack(),
+                command.projectSize()
+        );
+
+        String systemPrompt = String.format(
+                "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s",
+                ctx.languages(),
+                ctx.techStacks(),
+                ctx.tree(),
+                ctx.entryPoints(),
+                ctx.importantFiles(),
+                ctx.projectSize(),
+                ctx.latestCommits(),
+                ctx.middleCommits(),
+                ctx.oldCommits()
+        );
+
+        List<Message> messages = buildMessages(GPTSystemPrompt.DRAFT_README_GENERATION_PROMPT, systemPrompt);
+        String json = getResponseText(GPTSchema.DRAFT_README_GENERATION_SCHEMA, reviewerCacheKeyPrefix, messages, command.fullName());
+
+        try {
+            JsonNode rootNode = objectMapper.readTree(json);
+            JsonNode contentNode = rootNode.get("content");
+
+            if (contentNode == null || contentNode.isNull()) {
+                log.error("GPT draft readme response parsing error. fullname = {}, response = {}", command.fullName(), json);
+                throw new CustomException(GlobalErrorCode.GPT_ERROR);
+            }
+
+            return contentNode.asText();
+        } catch (JsonProcessingException e) {
+            log.error("GPT draft readme response parsing error. fullname = {}, error = {}", command.fullName(), e.getMessage(), e);
+            throw new CustomException(GlobalErrorCode.GPT_ERROR);
+        }
+    }
+
+    private PromptContext generateSystemPromptContext(
+            RepositoryInfoCommand repoInfo,
+            List<RepositoryFileContentResult> entryPoints,
+            List<RepositoryFileContentResult> importantFiles,
+            String[] techStack,
+            String projectSize
+    ) {
+        String languages = languagesToString(repoInfo.languages());
+
+        String latestCommits = listToString(
+                repoInfo.commits().latestCommit(),
+                "최근 커밋 메시지:\n"
+        );
+        String middleCommits = listToString(
+                repoInfo.commits().middleCommit(),
+                "중간 커밋 메시지:\n"
+        );
+        String oldCommits = listToString(
+                repoInfo.commits().initialCommit(),
+                "초기 커밋 메시지:\n"
+        );
+
+        String tree = treeToString(repoInfo.trees());
+
+        String entryPointsStr = listToString(
+                entryPoints.stream()
                         .map(RepositoryFileContentResult::path)
                         .toList(),
                 "진입점/설정 파일 또는 디렉토리 정보:\n"
         );
 
-        // 5. 중요한 파일들 문자열 생성
-        String importantFiles = listToString(
-                command.importantFiles().stream()
+        String importantFilesStr = listToString(
+                importantFiles.stream()
                         .map(RepositoryFileContentResult::path)
                         .toList(),
                 "중요 파일:\n"
         );
 
-        // 6. 기술 스택 및 프로젝트 규모 문자열 생성
         String techStacks = listToString(
-                List.of(command.techStack()),
+                List.of(techStack),
                 "기술 스택 및 프레임워크:\n"
         );
-        String projectSize = "프로젝트 규모:\n" + command.projectSize() + "\n";
 
-        String fullPrompt = String.format(
-                "README.md 내용:\n<<<<README_START>>>>\n%s\n<<<<README_END>>>>\n\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s",
-                command.readmeContent(),
+        String projectSizeStr = "프로젝트 규모:\n" + projectSize + "\n";
+
+        return new PromptContext(
                 languages,
-                techStacks,
-                tree,
-                entryPoints,
-                importantFiles,
-                projectSize,
                 latestCommits,
                 middleCommits,
-                oldCommits
+                oldCommits,
+                tree,
+                entryPointsStr,
+                importantFilesStr,
+                techStacks,
+                projectSizeStr
         );
-
-        List<Message> messages = buildMessages(GPTSystemPrompt.EVALUATION_PROMPT, fullPrompt);
-        String json = getResponseText(GPTSchema.EVALUATION_SCHEMA, reviewerCacheKeyPrefix, messages, command.fullName());
-        return objectMapper.readValue(json, EvaluationContent.class);
     }
 
     private String languagesToString(List<RepositoryLanguageResult> languages) {

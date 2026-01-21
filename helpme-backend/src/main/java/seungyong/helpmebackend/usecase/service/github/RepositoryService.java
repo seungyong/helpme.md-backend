@@ -8,11 +8,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import seungyong.helpmebackend.adapter.in.web.dto.repository.request.RequestDraftEvaluation;
 import seungyong.helpmebackend.adapter.in.web.dto.repository.request.RequestEvaluation;
+import seungyong.helpmebackend.adapter.in.web.dto.repository.response.ResponseDraftReadme;
 import seungyong.helpmebackend.adapter.in.web.dto.repository.response.ResponseEvaluation;
 import seungyong.helpmebackend.adapter.in.web.dto.repository.response.ResponseRepositories;
 import seungyong.helpmebackend.adapter.in.web.dto.repository.response.ResponseRepository;
 import seungyong.helpmebackend.adapter.in.web.mapper.RepositoryPortInMapper;
 import seungyong.helpmebackend.adapter.out.command.EvaluationCommand;
+import seungyong.helpmebackend.adapter.out.command.GenerateReadmeCommand;
 import seungyong.helpmebackend.adapter.out.command.RepositoryImportantCommand;
 import seungyong.helpmebackend.adapter.out.command.RepositoryInfoCommand;
 import seungyong.helpmebackend.adapter.out.result.*;
@@ -33,6 +35,7 @@ import seungyong.helpmebackend.usecase.port.out.gpt.GPTPortOut;
 import seungyong.helpmebackend.usecase.port.out.redis.RedisPortOut;
 import seungyong.helpmebackend.usecase.port.out.user.UserPortOut;
 import seungyong.helpmebackend.usecase.service.github.helper.CacheLoader;
+import seungyong.helpmebackend.usecase.service.github.dto.ReadmeContext;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -125,12 +128,27 @@ public class RepositoryService implements RepositoryPortIn {
         // readme 내용 조회
         String readmeContent = repositoryPortOut.getReadmeContent(accessToken, owner, name, request.branch());
 
-        ResponseEvaluation responseEvaluation = evaluateReadmeContent(
+        ReadmeContext readmeContext = generateReadmeContext(
                 owner,
                 name,
                 accessToken,
-                readmeContent,
                 request.branch()
+        );
+
+        ResponseEvaluation responseEvaluation = evaluate(
+                new EvaluationCommand(
+                        owner + "/" + name,
+                        readmeContent,
+                        new RepositoryInfoCommand(
+                                readmeContext.languages(),
+                                readmeContext.commits(),
+                                readmeContext.trees()
+                        ),
+                        readmeContext.entryContents(),
+                        readmeContext.importantFileContents(),
+                        readmeContext.repositoryInfo().techStack(),
+                        readmeContext.repositoryInfo().projectSize()
+                )
         );
 
         EvaluationStatus status = responseEvaluation.rating() >= 4.0 ?
@@ -161,20 +179,64 @@ public class RepositoryService implements RepositoryPortIn {
         User user = userPortOut.getById(userId);
         String accessToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken());
 
-        return evaluateReadmeContent(
+        ReadmeContext readmeContext = generateReadmeContext(
                 owner,
                 name,
                 accessToken,
-                request.content(),
                 request.branch()
+        );
+
+        return evaluate(
+                new EvaluationCommand(
+                        owner + "/" + name,
+                        request.content(),
+                        new RepositoryInfoCommand(
+                                readmeContext.languages(),
+                                readmeContext.commits(),
+                                readmeContext.trees()
+                        ),
+                        readmeContext.entryContents(),
+                        readmeContext.importantFileContents(),
+                        readmeContext.repositoryInfo().techStack(),
+                        readmeContext.repositoryInfo().projectSize()
+                )
         );
     }
 
-    private ResponseEvaluation evaluateReadmeContent(
+    @Override
+    public ResponseDraftReadme generateDraftReadme(RequestEvaluation request, Long userId, String owner, String name) throws JsonProcessingException {
+        User user = userPortOut.getById(userId);
+        String accessToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken());
+
+        ReadmeContext readmeContext = generateReadmeContext(
+                owner,
+                name,
+                accessToken,
+                request.branch()
+        );
+
+        String draftReadme = gptPortOut.generateDraftReadme(
+                new GenerateReadmeCommand(
+                        owner + "/" + name,
+                        new RepositoryInfoCommand(
+                                readmeContext.languages(),
+                                readmeContext.commits(),
+                                readmeContext.trees()
+                        ),
+                        readmeContext.entryContents(),
+                        readmeContext.importantFileContents(),
+                        readmeContext.repositoryInfo().techStack(),
+                        readmeContext.repositoryInfo().projectSize()
+                )
+        );
+
+        return new ResponseDraftReadme(draftReadme);
+    }
+
+    private ReadmeContext generateReadmeContext(
             String owner,
             String name,
             String accessToken,
-            String readmeContent,
             String branch
     ) throws JsonProcessingException {
         // 커밋 목록 (최신, 중간, 초기 각 30개 이내)
@@ -288,23 +350,18 @@ public class RepositoryService implements RepositoryPortIn {
             );
         }
 
-        // AI 평가 요청 및 결과 수신 (request 사용하여, 최종 평가 요청)
-        EvaluationContent evaluationResponse = gptPortOut.evaluateReadme(
-                new EvaluationCommand(
-                        owner + "/" + name,
-                        readmeContent,
-                        new RepositoryInfoCommand(
-                                languages,
-                                commitCommand,
-                                trees
-                        ),
-                        entryContents,
-                        importantFileContents,
-                        repositoryInfo.techStack(),
-                        repositoryInfo.projectSize()
-                )
+        return new ReadmeContext(
+                commitCommand,
+                repositoryInfo,
+                languages,
+                trees,
+                entryContents,
+                importantFileContents
         );
+    }
 
+    private ResponseEvaluation evaluate(EvaluationCommand command) {
+        EvaluationContent evaluationResponse = gptPortOut.evaluateReadme(command);
         return new ResponseEvaluation(
                 evaluationResponse.rating(),
                 evaluationResponse.contents()

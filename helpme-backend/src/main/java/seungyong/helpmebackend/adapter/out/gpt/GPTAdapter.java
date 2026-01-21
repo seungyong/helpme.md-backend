@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import seungyong.helpmebackend.adapter.out.command.EvaluationCommand;
+import seungyong.helpmebackend.adapter.out.command.GenerateReadmeCommand;
 import seungyong.helpmebackend.adapter.out.command.RepositoryImportantCommand;
 import seungyong.helpmebackend.adapter.out.command.RepositoryInfoCommand;
 import seungyong.helpmebackend.adapter.out.result.RepositoryTreeResult;
@@ -55,6 +56,16 @@ public class GPTAdapter implements GPTPortOut {
             return gptClient.evaluateReadme(command);
         } catch (Exception e) {
             log.error("Error GPT evaluate readme = {}", e.getMessage(), e);
+            throw new CustomException(GlobalErrorCode.GPT_ERROR);
+        }
+    }
+
+    @Override
+    public String generateDraftReadme(GenerateReadmeCommand command) {
+        try {
+            return gptClient.generateDraftReadme(command);
+        } catch (Exception e) {
+            log.error("Error GPT generate draft readme = {}", e.getMessage(), e);
             throw new CustomException(GlobalErrorCode.GPT_ERROR);
         }
     }
