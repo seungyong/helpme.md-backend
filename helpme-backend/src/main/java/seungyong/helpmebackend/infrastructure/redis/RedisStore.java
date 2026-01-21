@@ -1,5 +1,7 @@
 package seungyong.helpmebackend.infrastructure.redis;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -16,6 +18,7 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class RedisStore {
     private final RedisTemplate<String, String> redisTemplate;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     /**
      * Redis에 key, value를 저장합니다. <br />
@@ -23,6 +26,7 @@ public class RedisStore {
      *
      * @param key   저장할 key
      * @param value 저장할 value
+     * @param expireTime 만료 시간
      */
     public void set(String key, String value, LocalDateTime expireTime) {
         if (expireTime.isBefore(LocalDateTime.now())) {
@@ -37,6 +41,31 @@ public class RedisStore {
             redisTemplate.opsForValue().set(key, value, ttlInSeconds, TimeUnit.SECONDS);
         } catch (Exception e) {
             log.error("Redis set error. key = {}, value = {}, expireTime = {}", key, value, expireTime, e);
+            throw new CustomException(GlobalErrorCode.REDIS_ERROR);
+        }
+    }
+
+    /**
+     * Redis에 key, value 객체를 저장합니다. <br />
+     * 만료 시간을 지정하여 저장합니다.
+     *
+     * @param key   저장할 key
+     * @param value 저장할 value 객체
+     * @param expireTime 만료 시간
+     */
+    public void setObject(String key, Object value, LocalDateTime expireTime) {
+        if (expireTime.isBefore(LocalDateTime.now())) {
+            log.error("Don't set the past time to Redis. key = {}, expireTime = {}", key, expireTime);
+            throw new CustomException(GlobalErrorCode.REDIS_ERROR);
+        }
+
+        try {
+            Duration duration = Duration.between(LocalDateTime.now(), expireTime);
+            long ttlInSeconds = duration.getSeconds();
+
+            redisTemplate.opsForValue().set(key, objectMapper.writeValueAsString(value), ttlInSeconds, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.error("Redis setObject error. key = {}, value = {}, expireTime = {}", key, value, expireTime, e);
             throw new CustomException(GlobalErrorCode.REDIS_ERROR);
         }
     }
@@ -58,6 +87,28 @@ public class RedisStore {
      */
     public String get(String key) {
         return redisTemplate.opsForValue().get(key);
+    }
+
+    /**
+     * Redis에서 key를 기준으로 value를 객체로 가져옵니다.
+     *
+     * @param key   가져올 key
+     * @param <T>   변환할 객체 타입
+     * @return 변환된 객체
+     */
+    public <T> T getObject(String key, TypeReference<T> typeRef) {
+        String value = redisTemplate.opsForValue().get(key);
+
+        if (value == null) {
+            return null;
+        }
+
+        try {
+            return objectMapper.readValue(value, typeRef);
+        } catch (Exception e) {
+            log.error("Redis getObject error. key = {}", key, e);
+            throw new CustomException(GlobalErrorCode.REDIS_ERROR);
+        }
     }
 
     /**

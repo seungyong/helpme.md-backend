@@ -1,5 +1,6 @@
 package seungyong.helpmebackend.adapter.out.redis;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import seungyong.helpmebackend.infrastructure.redis.RedisStore;
@@ -13,8 +14,13 @@ public class RedisAdapter implements RedisPortOut {
     private final RedisStore redisStore;
 
     @Override
-    public void save(String key, String value, LocalDateTime expireTime) {
+    public void set(String key, String value, LocalDateTime expireTime) {
         redisStore.set(key, value, expireTime);
+    }
+
+    @Override
+    public void setObject(String key, Object value, LocalDateTime expireTime) {
+        redisStore.setObject(key, value, expireTime);
     }
 
     @Override
@@ -25,6 +31,11 @@ public class RedisAdapter implements RedisPortOut {
     @Override
     public String get(String key) {
         return redisStore.get(key);
+    }
+
+    @Override
+    public <T> T getObject(String key, TypeReference<T> typeRef) {
+        return redisStore.getObject(key, typeRef);
     }
 
     @Override

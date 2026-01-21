@@ -1,5 +1,6 @@
 package seungyong.helpmebackend.adapter.in.web.controller;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -114,7 +115,7 @@ public class RepoController {
             @PathVariable("owner") String owner,
             @PathVariable("name") String name,
             @AuthenticationPrincipal CustomUserDetails details
-            ) {
+            ) throws JsonProcessingException {
         return ResponseEntity.ok(
                 repositoryPortIn.evaluateReadme(request, details.getUserId(), owner, name)
         );
@@ -139,7 +140,7 @@ public class RepoController {
             @PathVariable("owner") String owner,
             @PathVariable("name") String name,
             @AuthenticationPrincipal CustomUserDetails details
-    ) {
+    ) throws JsonProcessingException {
         return ResponseEntity.ok(
                 repositoryPortIn.evaluateDraftReadme(request, details.getUserId(), owner, name)
         );

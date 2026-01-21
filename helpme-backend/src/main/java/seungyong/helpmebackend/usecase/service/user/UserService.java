@@ -41,7 +41,7 @@ public class UserService implements UserPortIn {
         }
 
         JWT jwt = jwtPortOut.generate(userId);
-        redisPortOut.save(refreshTokenKey, jwt.getRefreshToken(), jwt.getRefreshTokenExpireTime());
+        redisPortOut.set(refreshTokenKey, jwt.getRefreshToken(), jwt.getRefreshTokenExpireTime());
 
         return jwt;
     }

@@ -22,6 +22,35 @@ public final class GPTSchema {
             }
             """;
 
+    public static final String REPOSITORY_ANALYZE_SCHEMA = """
+            {
+              "type": "object",
+              "properties": {
+                "techStack": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "description": "리포지토리에서 사용된 기술 스택 또는 프레임워크 (예: React, Node.js, Django 등)"
+                  }
+                },
+                "entryPoints": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "description": "프로젝트의 진입점이 되는 파일 또는 디렉토리 경로, 설정이 있는 파일 또는 디렉토리 경로, 의존성 파일 등 (예: src/, config/, packange.json, build.gradle, app.js, main.py 등)"
+                  }
+                },
+                "projectSize": {
+                  "type": "string",
+                  "enum": ["small", "medium", "large"],
+                  "description": "프로젝트의 크기 (small, medium, large 중 하나)"
+                }
+              },
+              "required": ["techStack", "entryPoints", "projectSize"],
+              "additionalProperties": false
+            }
+            """;
+
     public static final String EVALUATION_SCHEMA = """
             {
               "type": "object",

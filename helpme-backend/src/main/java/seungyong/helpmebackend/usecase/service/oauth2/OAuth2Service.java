@@ -47,7 +47,7 @@ public class OAuth2Service implements OAuth2PortIn {
 
         LocalDateTime expireTime = LocalDateTime.now().plusMinutes(10);
 
-        redisPortOut.save(key, "valid", expireTime);
+        redisPortOut.set(key, "valid", expireTime);
 
         return oAuth2PortOut.generateLoginUrl(state);
     }
@@ -70,7 +70,7 @@ public class OAuth2Service implements OAuth2PortIn {
         JWT jwt = jwtPortOut.generate(user.getId());
 
         String key = RedisKey.REFRESH_KEY.getValue() + user.getId();
-        redisPortOut.save(key, jwt.getRefreshToken(), jwt.getRefreshTokenExpireTime());
+        redisPortOut.set(key, jwt.getRefreshToken(), jwt.getRefreshTokenExpireTime());
 
         return jwt;
     }

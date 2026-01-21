@@ -7,7 +7,11 @@ import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.RestTemplate;
 import seungyong.helpmebackend.common.exception.CustomException;
 import seungyong.helpmebackend.common.exception.GlobalErrorCode;
+import seungyong.helpmebackend.infrastructure.github.dto.PageInfo;
 
+import java.net.URI;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 @Slf4j
@@ -47,6 +51,80 @@ public class GithubClient {
         }
 
         return Optional.empty();
+    }
+
+    /**
+     * GitHub API 응답 헤더에서 'last' 페이지와 중간 페이지 번호를 추출합니다.
+     *
+     * @param headers   GitHub API 응답 헤더
+     * @return          PageInfo 객체에 'last' 페이지와 중간 페이지 번호를 담아 반환
+     */
+    public static PageInfo extractLastAndMiddlePage(HttpHeaders headers) {
+        String link = headers.getFirst(HttpHeaders.LINK);
+        if (link.isEmpty()) {
+            return new PageInfo(null, null);
+        }
+
+        Map<String, String> relToUrl = parseLinkHeader(link);
+        String lastUrl = relToUrl.get("last");
+        if (lastUrl == null) {
+            // last가 없으면 페이지 1개 뿐이거나 마지막 정보가 없는 경우
+            return new PageInfo(1, 1);
+        }
+
+        Integer lastPage = extractPageQueryParam(lastUrl);
+        if (lastPage == null || lastPage < 1) {
+            return new PageInfo(null, null);
+        }
+
+        int middlePage = (lastPage / 2) + (lastPage % 2);
+        return new PageInfo(lastPage, middlePage);
+    }
+
+    private static Map<String, String> parseLinkHeader(String linkHeader) {
+        Map<String, String> result = new HashMap<>();
+        String[] parts = linkHeader.split(",");
+
+        for (String part : parts) {
+            String[] sections = part.trim().split(";");
+            if (sections.length < 2) continue;
+
+            String urlPart = sections[0].trim();
+            String relPart = sections[1].trim();
+
+            if (urlPart.startsWith("<") && urlPart.endsWith(">")) {
+                urlPart = urlPart.substring(1, urlPart.length() - 1);
+            }
+
+            String rel = null;
+            if (relPart.startsWith("rel=\"") && relPart.endsWith("\"")) {
+                rel = relPart.substring(5, relPart.length() - 1);
+            }
+
+            if (rel != null) {
+                result.put(rel, urlPart);
+            }
+        }
+        return result;
+    }
+
+    private static Integer extractPageQueryParam(String url) {
+        try {
+            URI uri = URI.create(url);
+            String query = uri.getQuery();
+            if (query == null || query.isEmpty()) {
+                return null;
+            }
+
+            for (String param : query.split("&")) {
+                String[] kv = param.split("=");
+                if (kv.length == 2 && kv[0].equals("page")) {
+                    return Integer.parseInt(kv[1]);
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
     }
 
     /**
