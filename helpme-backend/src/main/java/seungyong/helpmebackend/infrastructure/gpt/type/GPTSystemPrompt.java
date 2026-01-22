@@ -208,20 +208,68 @@ public final class GPTSystemPrompt {
             너가 응답해야할 각 항목의 의미는 다음과 같아:
             1. content : README.md 파일 초안의 내용 (Markdown 형식)
             
-            README.md 파일 초안 작성 시 다음 기준을 따라야해:
-            1. 프로젝트 개요: 프로젝트의 목적, 주요 기능, 사용된 기술 스택 등을 간략하게 소개해야해.
-            2. 설치 및 실행 방법: 프로젝트를 설치하고 실행하는 방법에 대한 구체적인 지침을 제공해야해.
-            3. 사용법: 프로젝트의 주요 기능을 사용하는 방법에 대한 예제와 설명을 포함해야해.
-            4. 시각적 요소는 다음 기준을 따라야해:
-               - 이미지, 다이어그램, 코드 스니펫 등의 시각적 요소를 적절히 포함해야해.
-               - 시각적 요소가 프로젝트의 이해를 돕는 데 효과적으로 사용되도록 해야해.
-               - 단, 시각적 요소가 너무 많아 내용 전달을 방해하지 않도록 주의해야해.
-               - 또한, 이미지나 데모 영상 같은 경우 너가 직접 생성할 수 없으니 표시만 해줘.
-            5. 맞춤법 및 문법: README.md 파일에 맞춤법 및 문법 오류가 없도록 주의해야해. 단, 외래어 및 외국어를 한국어로 작성한 경우에는 일부 오류가 있을 수 있음을 감안해야해.
-            6. 일치성: README.md 파일의 내용이 제공한 정보와 일치하도록 해야해.
-            7. 작성된 README.md 파일 초안은 사용자가 쉽게 이해할 수 있도록 명확하고 간결하게 작성해야해.
-            8. 작성된 README.md 파일 초안은 전문적이고 신뢰할 수 있어야해.
-            9. 기여 방법, 라이선스 정보, 연락처 정보 등 정보가 없는 경우 섣불리 작성하지 말고, 섹션만 만들어 표시만 해줘.
+            README 작성 템플릿은 다음과 같아:
+            # 프로젝트 제목
+            
+            ## 소개
+            ![image](프로젝트 소개 이미지 경로)
+            위 예제는 너에게 제공하는 템플릿으로써, 프로젝트 구조를 확인해 프로젝트의 로고 또는 소개 이미지가 있다면 사용하고 없다면 이미지 부분은 넣을 수 있게만 만들어놔.
+            간단한 프로젝트 소개 및 개요 문구를 작성해.
+            
+            ## 주요 기능
+            프로젝트의 주요 기능들을 나열해.
+            
+            ## 기술 스택
+            | 구분 | 기술 스택 |
+            | :-- | :-- |
+            | **Android** | <img src="https://img.shields.io/badge/Android%20(Java)-3DDC84?logo=android&logoColor=white" /> |
+            | **Backend** | <img src="https://img.shields.io/badge/Spring%20Boot-6DB33F?logo=springboot&logoColor=white" /> <img src="https://img.shields.io/badge/Spring%20Data%20JPA-007396?logo=spring&logoColor=white" /> <img src="https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white" /> <img src="https://img.shields.io/badge/openAI/gpt-412991?logo=openai&logoColor=white" /> <img src="https://img.shields.io/badge/Whisper-4B6EAF?logo=whisper&logoColor=white" /> <img src="https://img.shields.io/badge/Kiwi-00BFFF?logoColor=white" /> |
+            | **DB** | <img src="https://img.shields.io/badge/MariaDB-003545?logo=mariadb&logoColor=white" /> <img src="https://img.shields.io/badge/Redis-DC382D?logo=redis&logoColor=white" /> |
+            | **인프라 및 배포** | <img src="https://img.shields.io/badge/AWS%20EC2-FF9900?logo=amazon-aws&logoColor=white" /> <img src="https://img.shields.io/badge/AWS%20RDS-527FFF?logo=amazon-aws&logoColor=white" /> <img src="https://img.shields.io/badge/AWS%20SQS-232F3E?logo=amazon-aws&logoColor=white" /> <img src="https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white" /> <img src="https://img.shields.io/badge/Docker%20Compose-2496ED?logo=docker&logoColor=white" /> |
+            | **형상 관리** | <img src="https://img.shields.io/badge/Git-181717?logo=git&logoColor=white" /> <img src="https://img.shields.io/badge/GitHub-181717?logo=github&logoColor=white" /> |
+            
+            위 예제는 너에게 제공하는 템플릿으로써, 기술 스택에 맞게 수정해서 작성해야해.
+            프로젝트에서 사용된 주요 기술 스택과 프레임워크를 나열해.
+            
+            ## 개발 인원
+            | 이름 | 역할 | 깃허브 |
+            | :--: | :--: | :--: |
+            | 이름 (사진) | 역할 | [GitHub](깃허브 링크) |
+            
+            위 예시는 프로젝트에 참여한 개발 인원을 소개할 거야. 대신 우리는 소개할 개발자에 대한 정보가 없으니 템플릿만 제공해.
+            
+            ## 설치 및 실행 방법
+            프로젝트의 설치 및 실행 방법을 단계별로 설명해.
+            
+            ## 사용법
+            프로젝트의 기본적인 사용법을 설명해.
+            
+            ## 구조
+            제공된 프로젝트 트리를 사용하여 프로젝트의 전체적인 구조를 간단히 설명해.
+            프로젝트의 디렉토리 구조와 주요 파일들을 간략히 소개해.
+            단, 트리 정보가 너무 길다면 주요 디렉토리와 파일들 위주로 간략히 작성해.
+            
+            ## 기여 방법
+            프로젝트에 기여하는 방법을 안내해. 단, 기여 가이드라인이 없다면 간단히 언급만 해.
+            
+            ## 라이선스
+            프로젝트의 라이선스 정보를 명시해. 단, 라이선스 정보가 없다면 간단히 언급만 해.
+            
+            주의 사항은 다음과 같아:
+            1. 프로젝트 제목은 프로젝트의 이름을 사용해야해.
+            2. 프로젝트 소개 및 개요 문구는 간결하고 명확하게 작성해야해.
+            3. 주요 기능은 프로젝트의 핵심 기능들을 간략하게 나열해야해.
+            4. 주요 기능은 불릿 포인트 형식으로 작성해야해.
+            5. 주요 기능은 최소 3개 이상 작성해야하며, 커밋 메시지에서 파악할 수 있는 기능들을 포함해야해.
+            6. 기술 스택은 프로젝트에서 사용된 주요 기술 스택과 프레임워크를 포함해야해.
+            7. 설치 및 실행 방법은 단계별로 명확하게 설명해야해.
+            8. 사용법은 프로젝트의 기본적인 사용법을 포함해야해.
+            9. 설치 및 실행 방법, 사용법은 프로젝트의 진입점/설정 파일 정보, 언어 사용 비율, 기술 스택 및 프레임워크 등 다양한 정보를 참고해서 작성해야해.
+            10. 기여 방법은 간단히 언급만 해도 무방해.
+            11. 라이선스 정보는 간단히 언급만 해도 무방해.
+            12. README.md 파일 초안은 Markdown 형식으로 작성해야해.
+            13. 맨 마지막에 추가 사항 작성은 하지 않아도 돼. (제공된 정보가 끝이라는 가정 하에 작성해야해)
+            14. 출력 형식은 JSON Schema를 따라야 해.
             
             사용자가 너에게 제공하는 정보는 다음과 같아:
             1. 프로젝트의 언어 사용 비율 (언어 이름과 작성된 코드 바이트 수)
