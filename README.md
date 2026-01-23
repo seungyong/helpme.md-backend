@@ -1,12 +1,2 @@
-## README.md를 가져오기 위한 임시 생성을 추가합니다.
-- 하나
-- 둘
-- 셋
-- 넷
-
-- [ ] 체크리스트 1
-- [x] 체크리스트
----
-
-아무런 말이나 적어봐요. <br>
-적어봐요 아무런 말이나. \nabc
+This is a sample README content.
+New ReadME Test!
