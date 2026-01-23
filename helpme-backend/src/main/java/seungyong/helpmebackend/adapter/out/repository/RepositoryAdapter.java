@@ -1,15 +1,13 @@
 package seungyong.helpmebackend.adapter.out.repository;
 
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
-import seungyong.helpmebackend.adapter.out.command.CreatePullRequestCommand;
-import seungyong.helpmebackend.adapter.out.command.ReadmePushCommand;
+import seungyong.helpmebackend.adapter.out.command.*;
 import seungyong.helpmebackend.adapter.out.result.*;
 import seungyong.helpmebackend.common.exception.CustomException;
 import seungyong.helpmebackend.common.exception.GlobalErrorCode;
@@ -20,7 +18,6 @@ import seungyong.helpmebackend.infrastructure.github.dto.PageInfo;
 import seungyong.helpmebackend.usecase.port.out.github.GithubPortConfig;
 import seungyong.helpmebackend.usecase.port.out.github.repository.RepositoryPortOut;
 
-import java.net.http.HttpResponse;
 import java.time.Instant;
 import java.util.*;
 
@@ -33,9 +30,11 @@ public class RepositoryAdapter extends GithubPortConfig implements RepositoryPor
     @Override
     public RepositoryResult getRepositoriesByInstallationId(String accessToken, Long installationId, Integer page) {
         String url = String.format("https://api.github.com/user/installations/%d/repositories?per_page=30&page=%d", installationId, page);
-        String responseBody = githubClient.fetchGetMethodForBody(url, accessToken);
 
+        String responseBody = null;
         try {
+            responseBody = githubClient.fetchGetMethodForBody(url, accessToken);
+
             JsonNode jsonNode = super.getObjectMapper().readTree(responseBody);
             List<Repository> repositories = new ArrayList<>();
 
@@ -48,94 +47,148 @@ public class RepositoryAdapter extends GithubPortConfig implements RepositoryPor
             }
 
             return new RepositoryResult(repositories, jsonNode.get("total_count").asInt());
+        } catch (JsonParseException e) {
+            log.error("Error parsing Github repositories response = {}", responseBody, e);
+            throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
         } catch (Exception e) {
-            log.error("Error parsing Github intsallations response = {}", responseBody, e);
+            log.error("Error Get repositories by installation_id = {}", installationId, e);
             throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
         }
     }
 
     @Override
-    public RepositoryDetailResult getRepository(String accessToken, String owner, String name) {
-        String url = String.format("https://api.github.com/repos/%s/%s", owner, name);
-        String responseBody = githubClient.fetchGetMethodForBody(url, accessToken);
+    public RepositoryDetailResult getRepository(RepoInfoCommand command) {
+        String url = String.format("https://api.github.com/repos/%s/%s", command.owner(), command.name());
 
+        String responseBody = null;
         try {
+            responseBody = githubClient.fetchGetMethodForBody(url, command.accessToken());
+
             JsonNode repo = super.getObjectMapper().readTree(responseBody);
 
             String avatarUrl = repo.get("owner").get("avatar_url").asText();
             String defaultBranch = repo.get("default_branch").asText();
 
-            return new RepositoryDetailResult(avatarUrl, name, owner, defaultBranch);
-        } catch (Exception e) {
+            return new RepositoryDetailResult(avatarUrl, command.owner(), command.name(), defaultBranch);
+        } catch (JsonParseException e) {
             log.error("Error parsing Github repository response = {}", responseBody, e);
+            throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
+        } catch (Exception e) {
+            log.error("Error Get repository info {}/{}", command.owner(), command.name(), e);
             throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
         }
     }
 
     @Override
-    public String getDefaultBranch(String accessToken, String owner, String name) {
-        String url = String.format("https://api.github.com/repos/%s/%s", owner, name);
-        String responseBody = githubClient.fetchGetMethodForBody(url, accessToken);
+    public String getRecentSHA(RepoBranchCommand command) {
+        String url = String.format(
+                "https://api.github.com/repos/%s/%s/git/refs/heads/%s",
+                command.repoInfo().owner(),
+                command.repoInfo().name(),
+                command.branch()
+        );
 
+        String responseBody = null;
         try {
-            JsonNode repo = super.getObjectMapper().readTree(responseBody);
-            return repo.get("default_branch").asText();
-        } catch (Exception e) {
-            log.error("Error parsing Github repository response = {}", responseBody, e);
-            throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
-        }
-    }
+            responseBody = githubClient.fetchGetMethodForBody(url, command.repoInfo().accessToken());
 
-    @Override
-    public String getRecentSHA(String accessToken, String owner, String name, String branch) {
-        String url = String.format("https://api.github.com/repos/%s/%s/git/refs/heads/%s", owner, name, branch);
-        String responseBody = githubClient.fetchGetMethodForBody(url, accessToken);
-
-        try {
             JsonNode ref = super.getObjectMapper().readTree(responseBody);
             return ref.get("object").get("sha").asText();
-        } catch (Exception e) {
+        } catch (JsonParseException e) {
             log.error("Error parsing Github recent SHA response = {}", responseBody, e);
             throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
+        } catch (HttpClientErrorException.NotFound e) {
+            log.error(
+                    "Branch {} not found in Github repository {}/{}",
+                    command.branch(),
+                    command.repoInfo().owner(),
+                    command.repoInfo().name(),
+                    e
+            );
+            throw new CustomException(RepositoryErrorCode.BRANCH_NOT_FOUND);
+        } catch (Exception e) {
+            log.error(
+                    "Error fetching recent SHA from Github repository {}/{} on branch {}",
+                    command.repoInfo().owner(),
+                    command.repoInfo().name(),
+                    command.branch(),
+                    e
+            );
+            throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
         }
     }
 
     @Override
-    public void createBranch(String accessToken, String owner, String name, String newBranchName, String sha) {
-        String url = String.format("https://api.github.com/repos/%s/%s/git/refs", owner, name);
+    public void createBranch(CreateBranchCommand command) {
+        String url = String.format(
+                "https://api.github.com/repos/%s/%s/git/refs",
+                command.repoInfo().owner(),
+                command.repoInfo().name()
+        );
         Map<String, String> requestBody = new HashMap<>();
-        requestBody.put("ref", "refs/heads/" + newBranchName);
-        requestBody.put("sha", sha);
+        requestBody.put("ref", "refs/heads/" + command.newBranchName());
+        requestBody.put("sha", command.sha());
 
         try {
-            githubClient.postWithBearer(url, accessToken, requestBody, String.class);
+            githubClient.postWithBearer(url, command.repoInfo().accessToken(), requestBody, String.class);
         } catch (HttpClientErrorException e) {
-            log.error("Error creating branch {} in Github repository {}/{}", newBranchName, owner, name, e);
+            log.error(
+                    "Error creating branch {} in Github repository {}/{}",
+                    command.newBranchName(),
+                    command.repoInfo().owner(),
+                    command.repoInfo().name(),
+                    e
+            );
             throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
         }
     }
 
     @Override
-    public void deleteBranch(String accessToken, String owner, String name, String branch) {
-        String url = String.format("https://api.github.com/repos/%s/%s/git/refs/heads/%s", owner, name, branch);
+    public void deleteBranch(RepoBranchCommand command) {
+        String url = String.format(
+                "https://api.github.com/repos/%s/%s/git/refs/heads/%s",
+                command.repoInfo().owner(),
+                command.repoInfo().name(),
+                command.branch()
+        );
 
         try {
-            githubClient.deleteWithBearer(url, accessToken);
+            githubClient.deleteWithBearer(url, command.repoInfo().accessToken());
         } catch (HttpClientErrorException e) {
-            log.error("Error deleting branch {} in Github repository {}/{}", branch, owner, name, e);
+            log.error(
+                    "Error deleting branch {} in Github repository {}/{}",
+                    command.branch(),
+                    command.repoInfo().owner(),
+                    command.repoInfo().name(),
+                    e
+            );
             throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
         }
     }
 
     @Override
-    public String getReadmeSHA(String accessToken, String owner, String name, String branch) {
-        String url = String.format("https://api.github.com/repos/%s/%s/contents/README.md?ref=%s", owner, name, branch);
+    public String getReadmeSHA(RepoBranchCommand command) {
+        String url = String.format(
+                "https://api.github.com/repos/%s/%s/contents/README.md?ref=%s",
+                command.repoInfo().owner(),
+                command.repoInfo().name(),
+                command.branch()
+        );
 
         String responseBody;
         try {
-            responseBody = githubClient.fetchGetMethodForBody(url, accessToken);
+            responseBody = githubClient.fetchGetMethodForBody(url, command.repoInfo().accessToken());
         } catch (HttpClientErrorException.NotFound e) {
             return null;
+        } catch (HttpClientErrorException e) {
+            log.error(
+                    "Error fetching README SHA from Github repository {}/{} on branch {}",
+                    command.repoInfo().owner(),
+                    command.repoInfo().name(),
+                    command.branch(),
+                    e
+            );
+            throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
         }
 
         try {
@@ -223,11 +276,17 @@ public class RepositoryAdapter extends GithubPortConfig implements RepositoryPor
     }
 
     @Override
-    public List<RepositoryLanguageResult> getRepositoryLanguages(String accessToken, String owner, String name) {
-        String url = String.format("https://api.github.com/repos/%s/%s/languages", owner, name);
-        String responseBody = githubClient.fetchGetMethodForBody(url, accessToken);
+    public List<RepositoryLanguageResult> getRepositoryLanguages(RepoInfoCommand command) {
+        String url = String.format(
+                "https://api.github.com/repos/%s/%s/languages",
+                command.owner(),
+                command.name()
+        );
 
+        String responseBody = null;
         try {
+            responseBody = githubClient.fetchGetMethodForBody(url, command.accessToken());
+
             JsonNode jsonNode = super.getObjectMapper().readTree(responseBody);
             List<RepositoryLanguageResult> languages = new ArrayList<>();
 
@@ -238,41 +297,71 @@ public class RepositoryAdapter extends GithubPortConfig implements RepositoryPor
             }
 
             return languages;
-        } catch (Exception e) {
+        } catch (JsonParseException e) {
             log.error("Error parsing Github repository languages response = {}", responseBody, e);
+            throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
+        } catch (Exception e) {
+            log.error("Error fetching repository languages for {}/{}", command.owner(), command.name(), e);
             throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
         }
     }
 
     @Override
-    public String getReadmeContent(String accessToken, String owner, String name, String branch) {
-        String url = String.format("https://api.github.com/repos/%s/%s/readme?ref=%s", owner, name, branch);
+    public String getReadmeContent(RepoBranchCommand command) {
+        String url = String.format(
+                "https://api.github.com/repos/%s/%s/readme?ref=%s",
+                command.repoInfo().owner(),
+                command.repoInfo().name(),
+                command.branch()
+        );
 
         try {
-            return githubClient.fetchGetMethodForBody(url, accessToken, GithubClient.Accept.APPLICATION_GITHUB_VND_GITHUB_RAW_JSON);
+            return githubClient.fetchGetMethodForBody(url, command.repoInfo().accessToken(), GithubClient.Accept.APPLICATION_GITHUB_VND_GITHUB_RAW_JSON);
         } catch (HttpClientErrorException.NotFound e) {
             return "";
+        } catch (HttpClientErrorException e) {
+            log.error(
+                    "Error fetching README content from Github repository {}/{} on branch {}",
+                    command.repoInfo().owner(),
+                    command.repoInfo().name(),
+                    command.branch(),
+                    e
+            );
+            throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
         }
     }
 
     @Override
-    public List<String> getAllBranches(String accessToken, String owner, String name) {
+    public List<String> getAllBranches(RepoInfoCommand command) {
         Set<String> branches = new LinkedHashSet<>();
-        String url = String.format("https://api.github.com/repos/%s/%s/branches?per_page=1", owner, name);
+        String url = String.format(
+                "https://api.github.com/repos/%s/%s/branches?per_page=1",
+                command.owner(),
+                command.name()
+        );
 
         final int MAX_REQUIRES = 10;
         int requestCount = 0;
 
         while (url != null) {
             if (++requestCount > MAX_REQUIRES) {
-                log.error("Exceeded maximum number of requests to fetch all branches for {}/{}", owner, name);
+                log.error(
+                        "Exceeded maximum number of requests to fetch all branches for {}/{}",
+                        command.owner(),
+                        command.name()
+                );
                 throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
             }
 
-            ResponseEntity<String> response = githubClient.fetchGet(url, accessToken, GithubClient.Accept.APPLICATION_GITHUB_VND_GITHUB_RAW_JSON, String.class);
-            String responseBody = response.getBody();
-
             try {
+                ResponseEntity<String> response = githubClient.fetchGet(
+                        url,
+                        command.accessToken(),
+                        GithubClient.Accept.APPLICATION_GITHUB_VND_GITHUB_RAW_JSON,
+                        String.class
+                );
+                String responseBody = response.getBody();
+
                 JsonNode jsonNode = super.getObjectMapper().readTree(responseBody);
                 for (JsonNode branchNode : jsonNode) {
                     branches.add(branchNode.get("name").asText());
@@ -280,8 +369,11 @@ public class RepositoryAdapter extends GithubPortConfig implements RepositoryPor
 
                 url = GithubClient.extractNextUrl(response.getHeaders())
                         .orElse(null);
+            } catch (JsonParseException e) {
+                log.error("Error parsing Github branches response for {}/{}", command.owner(), command.name(), e);
+                throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
             } catch (Exception e) {
-                log.error("Error parsing Github branches response = {}", responseBody, e);
+                log.error("Error fetching branches for {}/{}", command.owner(), command.name(), e);
                 throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
             }
         }
@@ -290,11 +382,11 @@ public class RepositoryAdapter extends GithubPortConfig implements RepositoryPor
     }
 
     @Override
-    public Optional<CommitResult> getCommitsByBranch(String accessToken, String owner, String name, String branch) {
+    public Optional<CommitResult> getCommitsByBranch(RepoBranchCommand command) {
         int page = 1;
 
         try {
-            ResponseEntity<String> latestResponse = fetchCommit(accessToken, owner, name, branch, page);
+            ResponseEntity<String> latestResponse = fetchCommit(command, page);
             String latestResponseBody = latestResponse.getBody();
 
             PageInfo link = GithubClient.extractLastAndMiddlePage(latestResponse.getHeaders());
@@ -315,15 +407,15 @@ public class RepositoryAdapter extends GithubPortConfig implements RepositoryPor
             List<CommitResult.Commit> latestCommits = parseJsonCommit(latestResponseBody);
 
             // 중간 페이지와 마지막 페이지를 모두 가져오기
-            ResponseEntity<String> middleResponse = fetchCommit(accessToken, owner, name, branch, link.middlePage());
+            ResponseEntity<String> middleResponse = fetchCommit(command, link.middlePage());
             List<CommitResult.Commit> middleCommits = parseJsonCommit(middleResponse.getBody());
 
-            ResponseEntity<String> initialResponse = fetchCommit(accessToken, owner, name, branch, link.lastPage());
+            ResponseEntity<String> initialResponse = fetchCommit(command, link.lastPage());
             List<CommitResult.Commit> initialCommits = parseJsonCommit(initialResponse.getBody());
 
             // 30개보다 적은 경우 추가 요청하여 30개 맞추기
             if (initialCommits.size() < 30) {
-                ResponseEntity<String> penultimateResponse = fetchCommit(accessToken, owner, name, branch, link.lastPage() - 1);
+                ResponseEntity<String> penultimateResponse = fetchCommit(command, link.lastPage() - 1);
                 List<CommitResult.Commit> penultimateCommits = parseJsonCommit(penultimateResponse.getBody());
                 int needed = 30 - initialCommits.size();
 
@@ -338,19 +430,26 @@ public class RepositoryAdapter extends GithubPortConfig implements RepositoryPor
                     middleCommits
             ));
         } catch (Exception e) {
-            if (e instanceof HttpClientErrorException.NotFound) {
-                return Optional.empty();
-            }
-
-            log.error("Error fetching Github commits for {}/{} on branch {}", owner, name, branch, e);
+            log.error(
+                    "Error fetching commits for {}/{} on branch {}",
+                    command.repoInfo().owner(),
+                    command.repoInfo().name(),
+                    command.branch(),
+                    e
+            );
             throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
         }
     }
 
     @Override
-    public List<RepositoryTreeResult> getRepositoryTree(String accessToken, String owner, String name, String branch) {
-        String url = String.format("https://api.github.com/repos/%s/%s/git/trees/%s?recursive=1", owner, name, branch);
-        String responseBody = githubClient.fetchGetMethodForBody(url, accessToken);
+    public List<RepositoryTreeResult> getRepositoryTree(RepoBranchCommand command) {
+        String url = String.format(
+                "https://api.github.com/repos/%s/%s/git/trees/%s?recursive=1",
+                command.repoInfo().owner(),
+                command.repoInfo().name(),
+                command.branch()
+        );
+        String responseBody = githubClient.fetchGetMethodForBody(url, command.repoInfo().accessToken());
 
         try {
             JsonNode jsonNode = super.getObjectMapper().readTree(responseBody);
@@ -371,22 +470,53 @@ public class RepositoryAdapter extends GithubPortConfig implements RepositoryPor
     }
 
     @Override
-    public RepositoryFileContentResult getFileContent(String accessToken, String owner, String name, RepositoryTreeResult file) {
-        String url = String.format("https://api.github.com/repos/%s/%s/contents/%s", owner, name, file.path());
+    public RepositoryFileContentResult getFileContent(RepoBranchCommand command, RepositoryTreeResult file) {
+        String url = String.format(
+                "https://api.github.com/repos/%s/%s/contents/%s?ref=%s",
+                command.repoInfo().owner(),
+                command.repoInfo().name(),
+                file.path(),
+                command.branch()
+        );
 
         try {
             return new RepositoryFileContentResult(
                     file.path(),
-                    githubClient.fetchGetMethodForBody(url, accessToken, GithubClient.Accept.APPLICATION_GITHUB_VND_GITHUB_RAW_JSON)
+                    githubClient.fetchGetMethodForBody(
+                            url,
+                            command.repoInfo().accessToken(),
+                            GithubClient.Accept.APPLICATION_GITHUB_VND_GITHUB_RAW_JSON
+                    )
             );
         } catch (HttpClientErrorException.NotFound e) {
             return null;
+        } catch (HttpClientErrorException e) {
+            log.error(
+                    "Error fetching file content for {} in Github repository {}/{} on branch {}",
+                    file.path(),
+                    command.repoInfo().owner(),
+                    command.repoInfo().name(),
+                    command.branch(),
+                    e
+            );
+            throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
         }
     }
 
-    private ResponseEntity<String> fetchCommit(String accessToken, String owner, String name, String branch, int page) {
-        String url = String.format("https://api.github.com/repos/%s/%s/commits?sha=%s&page=%s", owner, name, branch, page);
-        return githubClient.fetchGet(url, accessToken, GithubClient.Accept.APPLICATION_GITHUB_VND_GITHUB_JSON, String.class);
+    private ResponseEntity<String> fetchCommit(RepoBranchCommand command, int page) {
+        String url = String.format(
+                "https://api.github.com/repos/%s/%s/commits?sha=%s&per_page=30&page=%d",
+                command.repoInfo().owner(),
+                command.repoInfo().name(),
+                command.branch(),
+                page
+        );
+        return githubClient.fetchGet(
+                url,
+                command.repoInfo().accessToken(),
+                GithubClient.Accept.APPLICATION_GITHUB_VND_GITHUB_JSON,
+                String.class
+        );
     }
 
     private List<CommitResult.Commit> parseJsonCommit(String body) {

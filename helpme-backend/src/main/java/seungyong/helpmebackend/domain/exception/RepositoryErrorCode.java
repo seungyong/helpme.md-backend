@@ -11,6 +11,7 @@ public enum RepositoryErrorCode implements ErrorCode {
     BAD_REQUEST_SAME_BRANCH(HttpStatus.BAD_REQUEST, "같은 브랜치에 Pull Request를 요청할 수 없습니다.", "REPO_40001"),
 
     REPOSITORY_README_NOT_FOUND(HttpStatus.NOT_FOUND, "레포지토리의 README.md를 찾을 수 없습니다.", "REPO_40401"),
+    BRANCH_NOT_FOUND(HttpStatus.NOT_FOUND, "레포지토리의 브랜치를 찾을 수 없습니다.", "REPO_40402"),
 
     REPOSITORY_CANNOT_PULL(HttpStatus.FORBIDDEN, "레포지토리 정보를 가져올 권한이 없습니다.", "REPO_40301"),
 

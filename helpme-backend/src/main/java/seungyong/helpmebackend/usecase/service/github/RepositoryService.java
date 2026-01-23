@@ -29,8 +29,8 @@ import seungyong.helpmebackend.usecase.port.out.github.repository.RepositoryPort
 import seungyong.helpmebackend.usecase.port.out.gpt.GPTPortOut;
 import seungyong.helpmebackend.usecase.port.out.redis.RedisPortOut;
 import seungyong.helpmebackend.usecase.port.out.user.UserPortOut;
-import seungyong.helpmebackend.usecase.service.github.helper.CacheLoader;
 import seungyong.helpmebackend.usecase.service.github.dto.ReadmeContext;
+import seungyong.helpmebackend.usecase.service.github.helper.CacheLoader;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -61,12 +61,23 @@ public class RepositoryService implements RepositoryPortIn {
         User user = userPortOut.getById(userId);
         String accessToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken());
 
+        RepoInfoCommand repoInfo = new RepoInfoCommand(
+                accessToken,
+                owner,
+                name
+        );
+
         // Repository 정보 조회
-        RepositoryDetailResult repository = repositoryPortOut.getRepository(accessToken, owner, name);
+        RepositoryDetailResult repository = repositoryPortOut.getRepository(repoInfo);
         String fullName = owner + "/" + name;
 
         // ReadME.md 내용 조회
-        String content = repositoryPortOut.getReadmeContent(accessToken, owner, name, repository.defaultBranch());
+        String content = repositoryPortOut.getReadmeContent(
+                new RepoBranchCommand(
+                        repoInfo,
+                        repository.defaultBranch()
+                )
+        );
 
         // Evaluation 정보 조회 및 없으면 생성
         Evaluation evaluation = evaluationPortOut.getByFullName(fullName)
@@ -101,7 +112,7 @@ public class RepositoryService implements RepositoryPortIn {
         List<Component> components = componentPortOut.getAllComponents(fullName);
 
         // Branch 목록 조회
-        List<String> branches = repositoryPortOut.getAllBranches(accessToken, owner, name);
+        List<String> branches = repositoryPortOut.getAllBranches(repoInfo);
 
         // Response 생성
         return RepositoryPortInMapper.INSTANCE.toResponseRepository(
@@ -120,35 +131,39 @@ public class RepositoryService implements RepositoryPortIn {
         User user = userPortOut.getById(userId);
         String accessToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken());
 
-        // 1. 기본 브랜치 조회
-        String defaultBranch = repositoryPortOut.getDefaultBranch(accessToken, owner, name);
-
-        // 2. 최신 커밋 SHA 조회
-        String recentSHA = repositoryPortOut.getRecentSHA(accessToken, owner, name, defaultBranch);
-
-        // 3. 새로운 브랜치 생성 (Readme 수정 내용 반영용)
-        String newBranchName = "readme-proposals/" + UUID.randomUUID();
-        repositoryPortOut.createBranch(
+        RepoInfoCommand repoInfo = new RepoInfoCommand(
                 accessToken,
                 owner,
-                name,
-                newBranchName,
-                recentSHA
+                name
+        );
+
+        RepoBranchCommand branchCommand = new RepoBranchCommand(
+                repoInfo,
+                request.branch()
+        );
+
+        // 1. 최신 커밋 SHA 조회
+        String recentSHA = repositoryPortOut.getRecentSHA(branchCommand);
+
+        // 2. 새로운 브랜치 생성 (Readme 수정 내용 반영용)
+        String newBranchName = "readme-proposals/" + UUID.randomUUID();
+        repositoryPortOut.createBranch(
+                new CreateBranchCommand(
+                        repoInfo,
+                        newBranchName,
+                        recentSHA
+                )
         );
 
         try {
-            // 4. README.md 파일의 SHA 조회
-            String readmeSHA = repositoryPortOut.getReadmeSHA(accessToken, owner, name, newBranchName);
+            // 3. README.md 파일의 SHA 조회
+            String readmeSHA = repositoryPortOut.getReadmeSHA(branchCommand);
 
             // 4. README.md 파일 수정 푸시
             String commitMessage = "Update README.md via HelpMe";
             repositoryPortOut.push(
                     new ReadmePushCommand(
-                            new CommonRepoCommand(
-                                    accessToken,
-                                    owner,
-                                    name
-                            ),
+                            repoInfo,
                             newBranchName,
                             request.content(),
                             readmeSHA,
@@ -161,13 +176,9 @@ public class RepositoryService implements RepositoryPortIn {
             String prBody = "This pull request is created automatically by HelpMe to improve the README.md file.";
             String prUrl = repositoryPortOut.createPullRequest(
                     new CreatePullRequestCommand(
-                            new CommonRepoCommand(
-                                    accessToken,
-                                    owner,
-                                    name
-                            ),
+                            repoInfo,
                             newBranchName,
-                            defaultBranch,
+                            request.branch(),
                             prTitle,
                             prBody
                     )
@@ -178,7 +189,7 @@ public class RepositoryService implements RepositoryPortIn {
             log.error("Deleting branch due to error during pull request creation: {}", newBranchName, e);
 
             // 에러 발생 시 생성한 브랜치 삭제
-            repositoryPortOut.deleteBranch(accessToken, owner, name, newBranchName);
+            repositoryPortOut.deleteBranch(branchCommand);
 
             throw e;
         }
@@ -190,7 +201,16 @@ public class RepositoryService implements RepositoryPortIn {
         String accessToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken());
 
         // readme 내용 조회
-        String readmeContent = repositoryPortOut.getReadmeContent(accessToken, owner, name, request.branch());
+        String readmeContent = repositoryPortOut.getReadmeContent(
+                new RepoBranchCommand(
+                        new RepoInfoCommand(
+                                accessToken,
+                                owner,
+                                name
+                        ),
+                        request.branch()
+                )
+        );
 
         ReadmeContext readmeContext = generateReadmeContext(
                 owner,
@@ -303,8 +323,19 @@ public class RepositoryService implements RepositoryPortIn {
             String accessToken,
             String branch
     ) throws JsonProcessingException {
+        RepoInfoCommand repoInfoCommand = new RepoInfoCommand(
+                accessToken,
+                owner,
+                name
+        );
+
+        RepoBranchCommand branchCommand = new RepoBranchCommand(
+                repoInfoCommand,
+                branch
+        );
+
         // 커밋 목록 (최신, 중간, 초기 각 30개 이내)
-        Optional<CommitResult> commitsOpt = repositoryPortOut.getCommitsByBranch(accessToken, owner, name, branch);
+        Optional<CommitResult> commitsOpt = repositoryPortOut.getCommitsByBranch(branchCommand);
 
         RepositoryInfoCommand.CommitCommand commitCommand = commitsOpt
                 .map(commitResult -> new RepositoryInfoCommand.CommitCommand(
@@ -343,8 +374,8 @@ public class RepositoryService implements RepositoryPortIn {
         if (latestShaKey != null) {
             LocalDateTime expiration = new CustomTimeStamp().getTimestamp().plusDays(3);
 
-            languages = getLanguagesWithCache(accessToken, owner, name, latestShaKey, expiration);
-            trees = getTreesWithCache(accessToken, owner, name, latestShaKey, expiration);
+            languages = getLanguagesWithCache(repoInfoCommand, latestShaKey, expiration);
+            trees = getTreesWithCache(branchCommand, latestShaKey, expiration);
             repositoryInfo = getTechStackWithCache(
                     owner, name, latestShaKey,
                     new RepositoryInfoCommand(
@@ -354,9 +385,9 @@ public class RepositoryService implements RepositoryPortIn {
                     ),
                     expiration
             );
-            entryContents = getEntryContentsWithCache(accessToken, owner, name, repositoryInfo, latestShaKey, expiration);
+            entryContents = getEntryContentsWithCache(branchCommand, repositoryInfo, latestShaKey, expiration);
             importantFileContents = getImportantFileContentsWithCache(
-                    accessToken, owner, name,
+                    branchCommand,
                     new RepositoryImportantCommand(
                             owner + "/" + name,
                             new RepositoryInfoCommand(
@@ -371,8 +402,8 @@ public class RepositoryService implements RepositoryPortIn {
                     latestShaKey, expiration
             );
         } else {
-            languages = repositoryPortOut.getRepositoryLanguages(accessToken, owner, name);
-            trees = repositoryPortOut.getRepositoryTree(accessToken, owner, name, branch);
+            languages = repositoryPortOut.getRepositoryLanguages(repoInfoCommand);
+            trees = repositoryPortOut.getRepositoryTree(branchCommand);
 
             repositoryInfo = gptPortOut.getRepositoryInfo(
                     owner + "/" + name,
@@ -384,9 +415,7 @@ public class RepositoryService implements RepositoryPortIn {
             );
 
             entryContents = fetchFileContents(
-                    accessToken,
-                    owner,
-                    name,
+                    branchCommand,
                     getFilePaths(repositoryInfo)
             );
 
@@ -405,9 +434,7 @@ public class RepositoryService implements RepositoryPortIn {
             );
 
             importantFileContents = fetchFileContents(
-                    accessToken,
-                    owner,
-                    name,
+                    branchCommand,
                     importantFiles.stream()
                             .map(RepositoryTreeResult::path)
                             .toList()
@@ -457,34 +484,38 @@ public class RepositoryService implements RepositoryPortIn {
     }
 
     private List<RepositoryLanguageResult> getLanguagesWithCache(
-            String accessToken,
-            String owner,
-            String name,
+            RepoInfoCommand command,
             String sha,
             LocalDateTime expiration
     ) throws JsonProcessingException {
-        String key = RedisKeyFactory.createLanguageKey(owner, name, sha);
+        String key = RedisKeyFactory.createLanguageKey(
+                command.owner(),
+                command.name(),
+                sha
+        );
 
         return getOrLoadAndCache(
                 key,
-                () -> repositoryPortOut.getRepositoryLanguages(accessToken, owner, name),
+                () -> repositoryPortOut.getRepositoryLanguages(command),
                 new TypeReference<List<RepositoryLanguageResult>>() {},
                 expiration
         );
     }
 
     private List<RepositoryTreeResult> getTreesWithCache(
-            String accessToken,
-            String owner,
-            String name,
+            RepoBranchCommand command,
             String sha,
             LocalDateTime expiration
     ) throws JsonProcessingException {
-        String key = RedisKeyFactory.createTreeKey(owner, name, sha);
+        String key = RedisKeyFactory.createTreeKey(
+                command.repoInfo().owner(),
+                command.repoInfo().name(),
+                sha
+        );
 
         return getOrLoadAndCache(
                 key,
-                () -> repositoryPortOut.getRepositoryTree(accessToken, owner, name, sha),
+                () -> repositoryPortOut.getRepositoryTree(command),
                 new TypeReference<List<RepositoryTreeResult>>() {},
                 expiration
         );
@@ -511,21 +542,21 @@ public class RepositoryService implements RepositoryPortIn {
     }
 
     private List<RepositoryFileContentResult> getEntryContentsWithCache(
-            String accessToken,
-            String owner,
-            String name,
+            RepoBranchCommand command,
             GPTRepositoryInfo repositoryInfo,
             String sha,
             LocalDateTime expiration
     ) throws JsonProcessingException {
-        String key = RedisKeyFactory.createFileV1Key(owner, name, sha);
+        String key = RedisKeyFactory.createFileV1Key(
+                command.repoInfo().owner(),
+                command.repoInfo().name(),
+                sha
+        );
 
         return getOrLoadAndCache(
                 key,
                 () -> fetchFileContents(
-                        accessToken,
-                        owner,
-                        name,
+                        command,
                         getFilePaths(repositoryInfo)
                 ),
                 new TypeReference<List<RepositoryFileContentResult>>() {},
@@ -534,14 +565,16 @@ public class RepositoryService implements RepositoryPortIn {
     }
 
     private List<RepositoryFileContentResult> getImportantFileContentsWithCache(
-            String accessToken,
-            String owner,
-            String name,
+            RepoBranchCommand command,
             RepositoryImportantCommand importantCommand,
             String sha,
             LocalDateTime expiration
     ) throws JsonProcessingException {
-        String key = RedisKeyFactory.createFileV2Key(owner, name, sha);
+        String key = RedisKeyFactory.createFileV2Key(
+                command.repoInfo().owner(),
+                command.repoInfo().name(),
+                sha
+        );
 
         return getOrLoadAndCache(
                 key,
@@ -549,9 +582,7 @@ public class RepositoryService implements RepositoryPortIn {
                     List<RepositoryTreeResult> importantFiles = gptPortOut.getImportantFiles(importantCommand);
 
                     return fetchFileContents(
-                            accessToken,
-                            owner,
-                            name,
+                            command,
                             importantFiles.stream()
                                     .map(RepositoryTreeResult::path)
                                     .toList()
@@ -572,18 +603,14 @@ public class RepositoryService implements RepositoryPortIn {
     }
 
     private List<RepositoryFileContentResult> fetchFileContents(
-            String accessToken,
-            String owner,
-            String name,
+            RepoBranchCommand command,
             List<String> paths
     ) {
         List<RepositoryFileContentResult> fileContents = new ArrayList<>();
 
         for (String path : paths) {
             RepositoryFileContentResult contentResult = repositoryPortOut.getFileContent(
-                    accessToken,
-                    owner,
-                    name,
+                    command,
                     new RepositoryTreeResult(
                             path,
                             "file"

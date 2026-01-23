@@ -1,7 +1,7 @@
 package seungyong.helpmebackend.adapter.out.command;
 
 public record ReadmePushCommand(
-        CommonRepoCommand repoInfo,
+        RepoInfoCommand repoInfo,
         String branch,
         String newContent,
         String readmeSha,

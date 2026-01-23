@@ -109,7 +109,7 @@ public class RepoController {
     }
 
     @PostMapping("/{owner}/{name}")
-    public ResponseEntity<ResponsePull> pullRepository(
+    public ResponseEntity<ResponsePull> createPullRequest(
             @Valid @RequestBody RequestPull request,
             @PathVariable("owner") String owner,
             @PathVariable("name") String name,

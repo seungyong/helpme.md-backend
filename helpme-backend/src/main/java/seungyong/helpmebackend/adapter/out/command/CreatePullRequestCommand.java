@@ -1,7 +1,7 @@
 package seungyong.helpmebackend.adapter.out.command;
 
 public record CreatePullRequestCommand(
-        CommonRepoCommand repoInfo,
+        RepoInfoCommand repoInfo,
         String head,
         String base,
         String title,
