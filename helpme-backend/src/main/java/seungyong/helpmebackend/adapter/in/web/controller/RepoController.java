@@ -10,10 +10,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import seungyong.helpmebackend.adapter.in.web.dto.repository.request.RequestDraftEvaluation;
 import seungyong.helpmebackend.adapter.in.web.dto.repository.request.RequestEvaluation;
-import seungyong.helpmebackend.adapter.in.web.dto.repository.response.ResponseDraftReadme;
-import seungyong.helpmebackend.adapter.in.web.dto.repository.response.ResponseEvaluation;
-import seungyong.helpmebackend.adapter.in.web.dto.repository.response.ResponseRepositories;
-import seungyong.helpmebackend.adapter.in.web.dto.repository.response.ResponseRepository;
+import seungyong.helpmebackend.adapter.in.web.dto.repository.request.RequestPull;
+import seungyong.helpmebackend.adapter.in.web.dto.repository.response.*;
 import seungyong.helpmebackend.adapter.in.web.dto.user.common.CustomUserDetails;
 import seungyong.helpmebackend.common.exception.GlobalErrorCode;
 import seungyong.helpmebackend.domain.exception.UserErrorCode;
@@ -107,6 +105,18 @@ public class RepoController {
     ) {
         return ResponseEntity.ok(
                 repositoryPortIn.getRepository(details.getUserId(), owner, name)
+        );
+    }
+
+    @PostMapping("/{owner}/{name}")
+    public ResponseEntity<ResponsePull> pullRepository(
+            @Valid @RequestBody RequestPull request,
+            @PathVariable("owner") String owner,
+            @PathVariable("name") String name,
+            @AuthenticationPrincipal CustomUserDetails details
+    ) {
+        return ResponseEntity.ok(
+                repositoryPortIn.createPullRequest(request, details.getUserId(), owner, name)
         );
     }
 

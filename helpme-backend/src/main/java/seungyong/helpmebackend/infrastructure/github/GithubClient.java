@@ -241,4 +241,65 @@ public class GithubClient {
             throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
         }
     }
+
+    public <T> void putWithBearer(String url, String token, Object body, Class<T> responseType) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token);
+        put(url, headers, body, responseType);
+    }
+
+    public <T> void put(String url, HttpHeaders headers, Object body, Class<T> responseType) {
+        headers.set(HttpHeaders.ACCEPT, Accept.APPLICATION_GITHUB_VND_GITHUB_JSON);
+        headers.set("X-GitHub-Api-Version", API_VERSION);
+
+        HttpEntity<Object> request = new HttpEntity<>(body, headers);
+
+        try {
+            ResponseEntity<T> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.PUT,
+                    request,
+                    responseType
+            );
+
+            response.getBody();
+        } catch (RestClientResponseException e) {
+            log.error("Error during PUT request to GitHub API. URL = {}, Status code = {}, Response body = {}",
+                    url,
+                    e.getStatusCode(),
+                    e.getResponseBodyAsString()
+            );
+
+            throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
+        }
+    }
+
+    public void deleteWithBearer(String url, String token) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token);
+        delete(url, headers);
+    }
+
+    public void delete(String url, HttpHeaders headers) {
+        HttpEntity<Void> request = new HttpEntity<>(headers);
+        headers.set(HttpHeaders.ACCEPT, Accept.APPLICATION_GITHUB_VND_GITHUB_JSON);
+        headers.set("X-GitHub-Api-Version", API_VERSION);
+
+        try {
+            restTemplate.exchange(
+                    url,
+                    HttpMethod.DELETE,
+                    request,
+                    Void.class
+            );
+        } catch (RestClientResponseException e) {
+            log.error("Error during DELETE request to GitHub API. URL = {}, Status code = {}, Response body = {}",
+                    url,
+                    e.getStatusCode(),
+                    e.getResponseBodyAsString()
+            );
+
+            throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
+        }
+    }
 }

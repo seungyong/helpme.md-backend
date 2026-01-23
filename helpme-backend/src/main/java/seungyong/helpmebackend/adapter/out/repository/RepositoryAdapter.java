@@ -8,10 +8,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
+import seungyong.helpmebackend.adapter.out.command.CreatePullRequestCommand;
+import seungyong.helpmebackend.adapter.out.command.ReadmePushCommand;
 import seungyong.helpmebackend.adapter.out.result.*;
 import seungyong.helpmebackend.common.exception.CustomException;
 import seungyong.helpmebackend.common.exception.GlobalErrorCode;
 import seungyong.helpmebackend.domain.entity.repository.Repository;
+import seungyong.helpmebackend.domain.exception.RepositoryErrorCode;
 import seungyong.helpmebackend.infrastructure.github.GithubClient;
 import seungyong.helpmebackend.infrastructure.github.dto.PageInfo;
 import seungyong.helpmebackend.usecase.port.out.github.GithubPortConfig;
@@ -65,6 +68,156 @@ public class RepositoryAdapter extends GithubPortConfig implements RepositoryPor
             return new RepositoryDetailResult(avatarUrl, name, owner, defaultBranch);
         } catch (Exception e) {
             log.error("Error parsing Github repository response = {}", responseBody, e);
+            throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
+        }
+    }
+
+    @Override
+    public String getDefaultBranch(String accessToken, String owner, String name) {
+        String url = String.format("https://api.github.com/repos/%s/%s", owner, name);
+        String responseBody = githubClient.fetchGetMethodForBody(url, accessToken);
+
+        try {
+            JsonNode repo = super.getObjectMapper().readTree(responseBody);
+            return repo.get("default_branch").asText();
+        } catch (Exception e) {
+            log.error("Error parsing Github repository response = {}", responseBody, e);
+            throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
+        }
+    }
+
+    @Override
+    public String getRecentSHA(String accessToken, String owner, String name, String branch) {
+        String url = String.format("https://api.github.com/repos/%s/%s/git/refs/heads/%s", owner, name, branch);
+        String responseBody = githubClient.fetchGetMethodForBody(url, accessToken);
+
+        try {
+            JsonNode ref = super.getObjectMapper().readTree(responseBody);
+            return ref.get("object").get("sha").asText();
+        } catch (Exception e) {
+            log.error("Error parsing Github recent SHA response = {}", responseBody, e);
+            throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
+        }
+    }
+
+    @Override
+    public void createBranch(String accessToken, String owner, String name, String newBranchName, String sha) {
+        String url = String.format("https://api.github.com/repos/%s/%s/git/refs", owner, name);
+        Map<String, String> requestBody = new HashMap<>();
+        requestBody.put("ref", "refs/heads/" + newBranchName);
+        requestBody.put("sha", sha);
+
+        try {
+            githubClient.postWithBearer(url, accessToken, requestBody, String.class);
+        } catch (HttpClientErrorException e) {
+            log.error("Error creating branch {} in Github repository {}/{}", newBranchName, owner, name, e);
+            throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
+        }
+    }
+
+    @Override
+    public void deleteBranch(String accessToken, String owner, String name, String branch) {
+        String url = String.format("https://api.github.com/repos/%s/%s/git/refs/heads/%s", owner, name, branch);
+
+        try {
+            githubClient.deleteWithBearer(url, accessToken);
+        } catch (HttpClientErrorException e) {
+            log.error("Error deleting branch {} in Github repository {}/{}", branch, owner, name, e);
+            throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
+        }
+    }
+
+    @Override
+    public String getReadmeSHA(String accessToken, String owner, String name, String branch) {
+        String url = String.format("https://api.github.com/repos/%s/%s/contents/README.md?ref=%s", owner, name, branch);
+
+        String responseBody;
+        try {
+            responseBody = githubClient.fetchGetMethodForBody(url, accessToken);
+        } catch (HttpClientErrorException.NotFound e) {
+            return null;
+        }
+
+        try {
+            JsonNode readme = super.getObjectMapper().readTree(responseBody);
+            return readme.get("sha").asText();
+        } catch (Exception e) {
+            log.error("Error parsing Github readme SHA response = {}", responseBody, e);
+            throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
+        }
+    }
+
+    @Override
+    public void push(ReadmePushCommand command) {
+        String url = String.format(
+                "https://api.github.com/repos/%s/%s/contents/%s",
+                command.repoInfo().owner(),
+                command.repoInfo().name(),
+                "README.md"
+        );
+
+        Map<String, String> requestBody = new HashMap<>();
+        requestBody.put("message", command.commitMessage());
+        requestBody.put("content", Base64.getEncoder().encodeToString(command.newContent().getBytes()));
+        requestBody.put("branch", command.branch());
+
+        // 기존 README가 있는 경우에만 sha 포함
+        if (command.readmeSha() != null) {
+            requestBody.put("sha", command.readmeSha());
+        }
+
+        try {
+            githubClient.putWithBearer(url, command.repoInfo().accessToken(), requestBody, String.class);
+        } catch (HttpClientErrorException e) {
+            log.error("Error pushing README to Github repository {}/{} on branch {}", command.repoInfo().owner(), command.repoInfo().name(), command.branch(), e);
+            throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
+        }
+    }
+
+    @Override
+    public String createPullRequest(CreatePullRequestCommand command) {
+        String url = String.format(
+                "https://api.github.com/repos/%s/%s/pulls",
+                command.repoInfo().owner(),
+                command.repoInfo().name()
+        );
+
+        Map<String, String> requestBody = new HashMap<>();
+        requestBody.put("head", command.head());
+        requestBody.put("base", command.base());
+        requestBody.put("title", command.title());
+        requestBody.put("body", command.body());
+
+        String responseBody;
+        try {
+            responseBody = githubClient.postWithBearer(url, command.repoInfo().accessToken(), requestBody, String.class);
+        } catch (HttpClientErrorException.UnprocessableEntity e) {
+            log.error(
+                    "Error creating Github pull request for {}/{} from {} to {}: {}",
+                    command.repoInfo().owner(),
+                    command.repoInfo().name(),
+                    command.head(),
+                    command.base(),
+                    e.getResponseBodyAsString()
+            );
+            throw new CustomException(RepositoryErrorCode.BAD_REQUEST_SAME_BRANCH);
+        } catch (HttpClientErrorException e) {
+            log.error(
+                    "Error creating Github pull request for {}/{} from {} to {}",
+                    command.repoInfo().owner(),
+                    command.repoInfo().name(),
+                    command.head(),
+                    command.base(),
+                    e
+            );
+            throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
+        }
+
+        try {
+            JsonNode pr = super.getObjectMapper().readTree(responseBody);
+            return pr.get("html_url").asText();
+        } catch (Exception e) {
+            log.error("Error parsing Github pull request response = {}", responseBody, e);
             throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
         }
     }

@@ -8,15 +8,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import seungyong.helpmebackend.adapter.in.web.dto.repository.request.RequestDraftEvaluation;
 import seungyong.helpmebackend.adapter.in.web.dto.repository.request.RequestEvaluation;
-import seungyong.helpmebackend.adapter.in.web.dto.repository.response.ResponseDraftReadme;
-import seungyong.helpmebackend.adapter.in.web.dto.repository.response.ResponseEvaluation;
-import seungyong.helpmebackend.adapter.in.web.dto.repository.response.ResponseRepositories;
-import seungyong.helpmebackend.adapter.in.web.dto.repository.response.ResponseRepository;
+import seungyong.helpmebackend.adapter.in.web.dto.repository.request.RequestPull;
+import seungyong.helpmebackend.adapter.in.web.dto.repository.response.*;
 import seungyong.helpmebackend.adapter.in.web.mapper.RepositoryPortInMapper;
-import seungyong.helpmebackend.adapter.out.command.EvaluationCommand;
-import seungyong.helpmebackend.adapter.out.command.GenerateReadmeCommand;
-import seungyong.helpmebackend.adapter.out.command.RepositoryImportantCommand;
-import seungyong.helpmebackend.adapter.out.command.RepositoryInfoCommand;
+import seungyong.helpmebackend.adapter.out.command.*;
 import seungyong.helpmebackend.adapter.out.result.*;
 import seungyong.helpmebackend.domain.entity.component.Component;
 import seungyong.helpmebackend.domain.entity.evaluation.Evaluation;
@@ -118,6 +113,75 @@ public class RepositoryService implements RepositoryPortIn {
                 branches.toArray(String[]::new),
                 content
         );
+    }
+
+    @Override
+    public ResponsePull createPullRequest(RequestPull request, Long userId, String owner, String name) {
+        User user = userPortOut.getById(userId);
+        String accessToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken());
+
+        // 1. 기본 브랜치 조회
+        String defaultBranch = repositoryPortOut.getDefaultBranch(accessToken, owner, name);
+
+        // 2. 최신 커밋 SHA 조회
+        String recentSHA = repositoryPortOut.getRecentSHA(accessToken, owner, name, defaultBranch);
+
+        // 3. 새로운 브랜치 생성 (Readme 수정 내용 반영용)
+        String newBranchName = "readme-proposals/" + UUID.randomUUID();
+        repositoryPortOut.createBranch(
+                accessToken,
+                owner,
+                name,
+                newBranchName,
+                recentSHA
+        );
+
+        try {
+            // 4. README.md 파일의 SHA 조회
+            String readmeSHA = repositoryPortOut.getReadmeSHA(accessToken, owner, name, newBranchName);
+
+            // 4. README.md 파일 수정 푸시
+            String commitMessage = "Update README.md via HelpMe";
+            repositoryPortOut.push(
+                    new ReadmePushCommand(
+                            new CommonRepoCommand(
+                                    accessToken,
+                                    owner,
+                                    name
+                            ),
+                            newBranchName,
+                            request.content(),
+                            readmeSHA,
+                            commitMessage
+                    )
+            );
+
+            // 5. Pull Request 생성
+            String prTitle = "[HelpMe] Improve README.md";
+            String prBody = "This pull request is created automatically by HelpMe to improve the README.md file.";
+            String prUrl = repositoryPortOut.createPullRequest(
+                    new CreatePullRequestCommand(
+                            new CommonRepoCommand(
+                                    accessToken,
+                                    owner,
+                                    name
+                            ),
+                            newBranchName,
+                            defaultBranch,
+                            prTitle,
+                            prBody
+                    )
+            );
+
+            return new ResponsePull(prUrl);
+        } catch (Exception e) {
+            log.error("Deleting branch due to error during pull request creation: {}", newBranchName, e);
+
+            // 에러 발생 시 생성한 브랜치 삭제
+            repositoryPortOut.deleteBranch(accessToken, owner, name, newBranchName);
+
+            throw e;
+        }
     }
 
     @Override
