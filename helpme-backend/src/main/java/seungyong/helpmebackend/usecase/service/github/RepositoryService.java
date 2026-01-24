@@ -189,7 +189,12 @@ public class RepositoryService implements RepositoryPortIn {
             log.error("Deleting branch due to error during pull request creation: {}", newBranchName, e);
 
             // 에러 발생 시 생성한 브랜치 삭제
-            repositoryPortOut.deleteBranch(branchCommand);
+            repositoryPortOut.deleteBranch(
+                    new RepoBranchCommand(
+                            repoInfo,
+                            newBranchName
+                    )
+            );
 
             throw e;
         }

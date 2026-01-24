@@ -10,4 +10,12 @@ import lombok.Setter;
 public class User {
     private Long id;
     private GithubUser githubUser;
+
+    public boolean isDiffToken(String newToken) {
+        return !this.githubUser.getGithubToken().equals(newToken);
+    }
+
+    public void updateGithubToken(String newToken) {
+        this.githubUser.setGithubToken(newToken);
+    }
 }

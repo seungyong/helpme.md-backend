@@ -16,6 +16,8 @@ public enum RepositoryErrorCode implements ErrorCode {
 
     REPOSITORY_README_NOT_FOUND(HttpStatus.NOT_FOUND, "레포지토리의 README.md를 찾을 수 없습니다.", "REPO_40401"),
     BRANCH_NOT_FOUND(HttpStatus.NOT_FOUND, "레포지토리의 브랜치를 찾을 수 없습니다.", "REPO_40402"),
+    REPOSITORY_OR_BRANCH_NOT_FOUND(HttpStatus.NOT_FOUND, "레포지토리 또는 브랜치를 찾을 수 없습니다.", "REPO_40403"),
+    INSTALLED_REPOSITORY_NOT_FOUND(HttpStatus.NOT_FOUND, "설치된 레포지토리를 찾을 수 없습니다.", "REPO_40404"),
 
     REPOSITORY_CANNOT_PULL(HttpStatus.FORBIDDEN, "레포지토리 정보를 가져올 권한이 없습니다.", "REPO_40301"),
 

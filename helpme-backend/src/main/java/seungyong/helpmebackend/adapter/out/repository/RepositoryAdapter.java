@@ -48,7 +48,14 @@ public class RepositoryAdapter extends GithubPortConfig implements RepositoryPor
 
                     return new RepositoryResult(repositories, jsonNode.get("total_count").asInt());
                 },
-                "Get repositories by installation_id = " + installationId
+                "Get repositories by installation_id = " + installationId,
+                e -> {
+                    if (e instanceof HttpClientErrorException.NotFound) {
+                        throw new CustomException(RepositoryErrorCode.INSTALLED_REPOSITORY_NOT_FOUND);
+                    }
+
+                    return Optional.empty();
+                }
         );
     }
 
@@ -65,7 +72,14 @@ public class RepositoryAdapter extends GithubPortConfig implements RepositoryPor
 
                     return new RepositoryDetailResult(avatarUrl, command.owner(), command.name(), defaultBranch);
                 },
-                "Get repository info " + command.owner() + "/" + command.name()
+                "Get repository info " + command.owner() + "/" + command.name(),
+                e -> {
+                    if (e instanceof HttpClientErrorException.NotFound) {
+                        throw new CustomException(RepositoryErrorCode.REPOSITORY_CANNOT_PULL);
+                    }
+
+                    return Optional.empty();
+                }
         );
     }
 
@@ -145,12 +159,25 @@ public class RepositoryAdapter extends GithubPortConfig implements RepositoryPor
                 command.branch()
         );
 
-        return githubApiExecutor.executeGet(
+        String sha = githubApiExecutor.executeGet(
                 url,
                 command.repoInfo().accessToken(),
                 jsonNode -> jsonNode.get("sha").asText(),
-                "Get README SHA for " + command.repoInfo().owner() + "/" + command.repoInfo().name() + " on branch " + command.branch()
+                "Get README SHA for " + command.repoInfo().owner() + "/" + command.repoInfo().name() + " on branch " + command.branch(),
+                e -> {
+                    if (e instanceof HttpClientErrorException.NotFound) {
+                        return Optional.of("");
+                    }
+
+                    return Optional.empty();
+                }
         );
+
+        if (sha.isEmpty()) {
+            return null;
+        }
+
+        return sha;
     }
 
     @Override
@@ -168,7 +195,7 @@ public class RepositoryAdapter extends GithubPortConfig implements RepositoryPor
         requestBody.put("branch", command.branch());
 
         // 기존 README가 있는 경우에만 sha 포함
-        if (command.readmeSha() != null) {
+        if (command.readmeSha() != null && !command.readmeSha().isEmpty()) {
             requestBody.put("sha", command.readmeSha());
         }
 
@@ -238,14 +265,9 @@ public class RepositoryAdapter extends GithubPortConfig implements RepositoryPor
                 command.branch()
         );
 
-        return githubApiExecutor.executeGet(
+        return githubApiExecutor.executeGetRaw(
                 url,
                 command.repoInfo().accessToken(),
-                jsonNode -> {
-                    String contentBase64 = jsonNode.get("content").asText();
-                    byte[] decodedBytes = Base64.getDecoder().decode(contentBase64);
-                    return new String(decodedBytes);
-                },
                 "Get README content for " + command.repoInfo().owner() + "/" + command.repoInfo().name() + " on branch " + command.branch(),
                 e -> {
                     if (e instanceof HttpClientErrorException.NotFound) {
@@ -301,7 +323,14 @@ public class RepositoryAdapter extends GithubPortConfig implements RepositoryPor
                             throw new CustomException(RepositoryErrorCode.JSON_PROCESSING_ERROR);
                         }
                     },
-                    "Get all branches for " + command.owner() + "/" + command.name()
+                    "Get all branches for " + command.owner() + "/" + command.name(),
+                    e -> {
+                        if (e instanceof HttpClientErrorException.NotFound) {
+                            throw new CustomException(RepositoryErrorCode.REPOSITORY_OR_BRANCH_NOT_FOUND);
+                        }
+
+                        return Optional.empty();
+                    }
             );
         }
 
@@ -395,28 +424,20 @@ public class RepositoryAdapter extends GithubPortConfig implements RepositoryPor
                 command.branch()
         );
 
-        return githubApiExecutor.executeGet(
+        String content = githubApiExecutor.executeGetRaw(
                 url,
                 command.repoInfo().accessToken(),
-                jsonNode -> {
-                    String contentBase64 = jsonNode.get("content").asText();
-                    byte[] decodedBytes = Base64.getDecoder().decode(contentBase64);
-                    String content = new String(decodedBytes);
-
-                    return new RepositoryFileContentResult(
-                            file.path(),
-                            content
-                    );
-                },
                 "Get file content for " + file.path() + " in " + command.repoInfo().owner() + "/" + command.repoInfo().name() + " on branch " + command.branch(),
                 e -> {
                     if (e instanceof HttpClientErrorException.NotFound) {
-                        return Optional.of(FILE_NOT_FOUND);
+                        return Optional.of("");
                     }
 
                     return Optional.empty();
                 }
         );
+
+        return new RepositoryFileContentResult(file.path(), content);
     }
 
     private ResponseEntity<String> fetchCommit(RepoBranchCommand command, int page) {
@@ -433,7 +454,14 @@ public class RepositoryAdapter extends GithubPortConfig implements RepositoryPor
                 command.repoInfo().accessToken(),
                 GithubClient.Accept.APPLICATION_GITHUB_VND_GITHUB_JSON,
                 response -> response,
-                "Fetch commits for " + command.repoInfo().owner() + "/" + command.repoInfo().name() + " on branch " + command.branch() + " page " + page
+                "Fetch commits for " + command.repoInfo().owner() + "/" + command.repoInfo().name() + " on branch " + command.branch() + " page " + page,
+                e -> {
+                    if (e instanceof HttpClientErrorException.NotFound) {
+                        throw new CustomException(RepositoryErrorCode.REPOSITORY_OR_BRANCH_NOT_FOUND);
+                    }
+
+                    return Optional.empty();
+                }
         );
     }
 

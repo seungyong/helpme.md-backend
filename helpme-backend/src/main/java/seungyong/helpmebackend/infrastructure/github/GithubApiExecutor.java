@@ -70,12 +70,40 @@ public class GithubApiExecutor {
         return executeGet(url, accessToken, parser, operationName, null);
     }
 
+    public String executeGetRaw(
+            String url,
+            String accessToken,
+            String operationName,
+            ExceptionHandler<String> exceptionHandler
+    ) {
+        String responseBody = null;
+
+        try {
+            responseBody = githubClient.fetchGetMethodForBody(
+                    url,
+                    accessToken,
+                    GithubClient.Accept.APPLICATION_GITHUB_VND_GITHUB_RAW_JSON
+            );
+
+            return responseBody;
+        } catch (Exception e) {
+            String errorResponseBody = extractResponseBody(e, responseBody);
+
+            if (isCommonHttpError(e)) {
+                handleCommonHttpException(e, errorResponseBody, operationName);
+            }
+
+            return executeWithExceptionHandler(e, errorResponseBody, operationName, exceptionHandler);
+        }
+    }
+
     public <T> T executeGetJson(
             String url,
             String accessToken,
             String accept,
             Function<ResponseEntity<String>, T> handler,
-            String operationName
+            String operationName,
+            ExceptionHandler<T> exceptionHandler
     ) {
         ResponseEntity<String> response = null;
 
@@ -95,7 +123,7 @@ public class GithubApiExecutor {
                 handleCommonHttpException(e, responseBody, operationName);
             }
 
-            return executeWithExceptionHandler(e, responseBody, operationName, null);
+            return executeWithExceptionHandler(e, responseBody, operationName, exceptionHandler);
         }
     }
 
