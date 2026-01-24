@@ -5,7 +5,6 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestTemplate;
 
 @Getter
 @Component
@@ -21,5 +20,4 @@ public class GithubPortConfig {
     private String redirectUri;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final RestTemplate restTemplate = new RestTemplate();
 }

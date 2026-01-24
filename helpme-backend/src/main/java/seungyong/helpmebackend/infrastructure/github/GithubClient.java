@@ -11,6 +11,7 @@ import seungyong.helpmebackend.infrastructure.github.dto.PageInfo;
 
 import java.net.URI;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -176,22 +177,6 @@ public class GithubClient {
     }
 
     /**
-     * GitHub API에 GET 요청을 보내고 응답 본문을 문자열로 반환합니다.
-     * - Authorization 헤더에 Bearer 토큰을 포함합니다. <br>
-     * - Accept 헤더에 GitHub API 버전을 지정합니다. <br>
-     * - Accept 헤더에 전달된 accept 값을 설정합니다. <br>
-     * - X-GitHub-Api-Version 헤더에 API 버전을 설정합니다. <br>
-     *
-     * @param url       요청을 보낼 GitHub API의 URL
-     * @param token     인증에 사용할 Bearer 토큰
-     * @return          GitHub API의 응답 본문 Body 문자열
-     */
-    public String fetchGetMethodForBody(String url, String token, String accept) {
-        ResponseEntity<String> response = fetchGet(url, token, accept, String.class);
-        return response.getBody();
-    }
-
-    /**
      * GitHub API에 POST 요청을 보내고 응답을 지정된 타입으로 반환합니다.
      * @param url           요청을 보낼 GitHub API의 URL
      * @param token         인증에 사용할 Bearer 토큰
@@ -215,7 +200,11 @@ public class GithubClient {
      * @return              GitHub API의 응답 본문
      * @param <T>           응답 본문의 타입
      */
-    public <T> T postNoAuth(String url, HttpHeaders headers, Object body, Class<T> responseType) {
+    public <T> T postNoAuth(String url, Object body, Class<T> responseType) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setAccept(List.of(MediaType.APPLICATION_JSON));
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
         return post(url, headers, body, responseType);
     }
 
@@ -242,27 +231,33 @@ public class GithubClient {
         }
     }
 
-    public <T> void putWithBearer(String url, String token, Object body, Class<T> responseType) {
+    /**
+     * GitHub API에 PUT 요청을 보내는 메서드입니다.
+     *
+     * @param url           요청을 보낼 GitHub API의 URL
+     * @param token         인증에 사용할 Bearer 토큰
+     * @param body          요청 본문
+     * @param <T>           응답 본문의 타입
+     */
+    public <T> void putWithBearer(String url, String token, Object body) {
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(token);
-        put(url, headers, body, responseType);
+        put(url, headers, body);
     }
 
-    public <T> void put(String url, HttpHeaders headers, Object body, Class<T> responseType) {
+    private <T> void put(String url, HttpHeaders headers, Object body) {
         headers.set(HttpHeaders.ACCEPT, Accept.APPLICATION_GITHUB_VND_GITHUB_JSON);
         headers.set("X-GitHub-Api-Version", API_VERSION);
 
         HttpEntity<Object> request = new HttpEntity<>(body, headers);
 
         try {
-            ResponseEntity<T> response = restTemplate.exchange(
+            restTemplate.exchange(
                     url,
                     HttpMethod.PUT,
                     request,
-                    responseType
+                    Void.class
             );
-
-            response.getBody();
         } catch (RestClientResponseException e) {
             log.error("Error during PUT request to GitHub API. URL = {}, Status code = {}, Response body = {}",
                     url,
@@ -274,13 +269,19 @@ public class GithubClient {
         }
     }
 
+    /**
+     * GitHub API에 DELETE 요청을 보내는 메서드입니다.
+     *
+     * @param url       요청을 보낼 GitHub API의 URL
+     * @param token     인증에 사용할 Bearer 토큰
+     */
     public void deleteWithBearer(String url, String token) {
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(token);
         delete(url, headers);
     }
 
-    public void delete(String url, HttpHeaders headers) {
+    private void delete(String url, HttpHeaders headers) {
         HttpEntity<Void> request = new HttpEntity<>(headers);
         headers.set(HttpHeaders.ACCEPT, Accept.APPLICATION_GITHUB_VND_GITHUB_JSON);
         headers.set("X-GitHub-Api-Version", API_VERSION);

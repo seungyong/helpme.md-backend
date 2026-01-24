@@ -67,6 +67,8 @@ public class OAuth2Service implements OAuth2PortIn {
         User user = userPortOut.getByGithubId(githubUser.getGithubId())
                 .orElseGet(() -> userPortOut.save(UserPortOutMapper.INSTANCE.toDomainEntity(githubUser)));
 
+        // TODO: 토큰이 변경되었을 경우에만 업데이트
+
         JWT jwt = jwtPortOut.generate(user.getId());
 
         String key = RedisKey.REFRESH_KEY.getValue() + user.getId();

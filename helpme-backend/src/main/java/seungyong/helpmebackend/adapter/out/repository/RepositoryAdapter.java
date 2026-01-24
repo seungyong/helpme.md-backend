@@ -1,6 +1,6 @@
 package seungyong.helpmebackend.adapter.out.repository;
 
-import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -10,9 +10,9 @@ import org.springframework.web.client.HttpClientErrorException;
 import seungyong.helpmebackend.adapter.out.command.*;
 import seungyong.helpmebackend.adapter.out.result.*;
 import seungyong.helpmebackend.common.exception.CustomException;
-import seungyong.helpmebackend.common.exception.GlobalErrorCode;
 import seungyong.helpmebackend.domain.entity.repository.Repository;
 import seungyong.helpmebackend.domain.exception.RepositoryErrorCode;
+import seungyong.helpmebackend.infrastructure.github.GithubApiExecutor;
 import seungyong.helpmebackend.infrastructure.github.GithubClient;
 import seungyong.helpmebackend.infrastructure.github.dto.PageInfo;
 import seungyong.helpmebackend.usecase.port.out.github.GithubPortConfig;
@@ -25,58 +25,48 @@ import java.util.*;
 @Component
 @RequiredArgsConstructor
 public class RepositoryAdapter extends GithubPortConfig implements RepositoryPortOut {
-    private final GithubClient githubClient;
+    private static final RepositoryFileContentResult FILE_NOT_FOUND = new RepositoryFileContentResult("", "");
+    private final GithubApiExecutor githubApiExecutor;
 
     @Override
     public RepositoryResult getRepositoriesByInstallationId(String accessToken, Long installationId, Integer page) {
         String url = String.format("https://api.github.com/user/installations/%d/repositories?per_page=30&page=%d", installationId, page);
 
-        String responseBody = null;
-        try {
-            responseBody = githubClient.fetchGetMethodForBody(url, accessToken);
+        return githubApiExecutor.executeGet(
+                url,
+                accessToken,
+                jsonNode -> {
+                    List<Repository> repositories = new ArrayList<>();
 
-            JsonNode jsonNode = super.getObjectMapper().readTree(responseBody);
-            List<Repository> repositories = new ArrayList<>();
+                    for (JsonNode repo : jsonNode.get("repositories")) {
+                        String avatarUrl = repo.get("owner").get("avatar_url").asText();
+                        String name = repo.get("name").asText();
+                        String owner = repo.get("owner").get("login").asText();
 
-            for (JsonNode repo : jsonNode.get("repositories")) {
-                String avatarUrl = repo.get("owner").get("avatar_url").asText();
-                String name = repo.get("name").asText();
-                String owner = repo.get("owner").get("login").asText();
+                        repositories.add(new Repository(avatarUrl, name, owner));
+                    }
 
-                repositories.add(new Repository(avatarUrl, name, owner));
-            }
-
-            return new RepositoryResult(repositories, jsonNode.get("total_count").asInt());
-        } catch (JsonParseException e) {
-            log.error("Error parsing Github repositories response = {}", responseBody, e);
-            throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
-        } catch (Exception e) {
-            log.error("Error Get repositories by installation_id = {}", installationId, e);
-            throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
-        }
+                    return new RepositoryResult(repositories, jsonNode.get("total_count").asInt());
+                },
+                "Get repositories by installation_id = " + installationId
+        );
     }
 
     @Override
     public RepositoryDetailResult getRepository(RepoInfoCommand command) {
         String url = String.format("https://api.github.com/repos/%s/%s", command.owner(), command.name());
 
-        String responseBody = null;
-        try {
-            responseBody = githubClient.fetchGetMethodForBody(url, command.accessToken());
+        return githubApiExecutor.executeGet(
+                url,
+                command.accessToken(),
+                jsonNode -> {
+                    String avatarUrl = jsonNode.get("owner").get("avatar_url").asText();
+                    String defaultBranch = jsonNode.get("default_branch").asText();
 
-            JsonNode repo = super.getObjectMapper().readTree(responseBody);
-
-            String avatarUrl = repo.get("owner").get("avatar_url").asText();
-            String defaultBranch = repo.get("default_branch").asText();
-
-            return new RepositoryDetailResult(avatarUrl, command.owner(), command.name(), defaultBranch);
-        } catch (JsonParseException e) {
-            log.error("Error parsing Github repository response = {}", responseBody, e);
-            throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
-        } catch (Exception e) {
-            log.error("Error Get repository info {}/{}", command.owner(), command.name(), e);
-            throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
-        }
+                    return new RepositoryDetailResult(avatarUrl, command.owner(), command.name(), defaultBranch);
+                },
+                "Get repository info " + command.owner() + "/" + command.name()
+        );
     }
 
     @Override
@@ -88,34 +78,26 @@ public class RepositoryAdapter extends GithubPortConfig implements RepositoryPor
                 command.branch()
         );
 
-        String responseBody = null;
-        try {
-            responseBody = githubClient.fetchGetMethodForBody(url, command.repoInfo().accessToken());
+        return githubApiExecutor.executeGet(
+                url,
+                command.repoInfo().accessToken(),
+                jsonNode -> jsonNode.get("object").get("sha").asText(),
+                "Get recent SHA for " + command.repoInfo().owner() + "/" + command.repoInfo().name() + " on branch " + command.branch(),
+                e -> {
+                    if (e instanceof HttpClientErrorException.NotFound) {
+                        log.error(
+                                "Branch {} not found in Github repository {}/{}",
+                                command.branch(),
+                                command.repoInfo().owner(),
+                                command.repoInfo().name(),
+                                e
+                        );
+                        throw new CustomException(RepositoryErrorCode.BRANCH_NOT_FOUND);
+                    }
 
-            JsonNode ref = super.getObjectMapper().readTree(responseBody);
-            return ref.get("object").get("sha").asText();
-        } catch (JsonParseException e) {
-            log.error("Error parsing Github recent SHA response = {}", responseBody, e);
-            throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
-        } catch (HttpClientErrorException.NotFound e) {
-            log.error(
-                    "Branch {} not found in Github repository {}/{}",
-                    command.branch(),
-                    command.repoInfo().owner(),
-                    command.repoInfo().name(),
-                    e
-            );
-            throw new CustomException(RepositoryErrorCode.BRANCH_NOT_FOUND);
-        } catch (Exception e) {
-            log.error(
-                    "Error fetching recent SHA from Github repository {}/{} on branch {}",
-                    command.repoInfo().owner(),
-                    command.repoInfo().name(),
-                    command.branch(),
-                    e
-            );
-            throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
-        }
+                    return Optional.empty();
+                }
+        );
     }
 
     @Override
@@ -129,18 +111,13 @@ public class RepositoryAdapter extends GithubPortConfig implements RepositoryPor
         requestBody.put("ref", "refs/heads/" + command.newBranchName());
         requestBody.put("sha", command.sha());
 
-        try {
-            githubClient.postWithBearer(url, command.repoInfo().accessToken(), requestBody, String.class);
-        } catch (HttpClientErrorException e) {
-            log.error(
-                    "Error creating branch {} in Github repository {}/{}",
-                    command.newBranchName(),
-                    command.repoInfo().owner(),
-                    command.repoInfo().name(),
-                    e
-            );
-            throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
-        }
+        githubApiExecutor.executePost(
+                url,
+                command.repoInfo().accessToken(),
+                requestBody,
+                jsonNode -> null,
+                "Create branch " + command.newBranchName() + " in " + command.repoInfo().owner() + "/" + command.repoInfo().name()
+        );
     }
 
     @Override
@@ -152,18 +129,11 @@ public class RepositoryAdapter extends GithubPortConfig implements RepositoryPor
                 command.branch()
         );
 
-        try {
-            githubClient.deleteWithBearer(url, command.repoInfo().accessToken());
-        } catch (HttpClientErrorException e) {
-            log.error(
-                    "Error deleting branch {} in Github repository {}/{}",
-                    command.branch(),
-                    command.repoInfo().owner(),
-                    command.repoInfo().name(),
-                    e
-            );
-            throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
-        }
+        githubApiExecutor.executeDelete(
+                url,
+                command.repoInfo().accessToken(),
+                "Delete branch " + command.branch() + " in " + command.repoInfo().owner() + "/" + command.repoInfo().name()
+        );
     }
 
     @Override
@@ -175,29 +145,12 @@ public class RepositoryAdapter extends GithubPortConfig implements RepositoryPor
                 command.branch()
         );
 
-        String responseBody;
-        try {
-            responseBody = githubClient.fetchGetMethodForBody(url, command.repoInfo().accessToken());
-        } catch (HttpClientErrorException.NotFound e) {
-            return null;
-        } catch (HttpClientErrorException e) {
-            log.error(
-                    "Error fetching README SHA from Github repository {}/{} on branch {}",
-                    command.repoInfo().owner(),
-                    command.repoInfo().name(),
-                    command.branch(),
-                    e
-            );
-            throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
-        }
-
-        try {
-            JsonNode readme = super.getObjectMapper().readTree(responseBody);
-            return readme.get("sha").asText();
-        } catch (Exception e) {
-            log.error("Error parsing Github readme SHA response = {}", responseBody, e);
-            throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
-        }
+        return githubApiExecutor.executeGet(
+                url,
+                command.repoInfo().accessToken(),
+                jsonNode -> jsonNode.get("sha").asText(),
+                "Get README SHA for " + command.repoInfo().owner() + "/" + command.repoInfo().name() + " on branch " + command.branch()
+        );
     }
 
     @Override
@@ -219,12 +172,12 @@ public class RepositoryAdapter extends GithubPortConfig implements RepositoryPor
             requestBody.put("sha", command.readmeSha());
         }
 
-        try {
-            githubClient.putWithBearer(url, command.repoInfo().accessToken(), requestBody, String.class);
-        } catch (HttpClientErrorException e) {
-            log.error("Error pushing README to Github repository {}/{} on branch {}", command.repoInfo().owner(), command.repoInfo().name(), command.branch(), e);
-            throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
-        }
+        githubApiExecutor.executePut(
+                url,
+                command.repoInfo().accessToken(),
+                requestBody,
+                "Push README to " + command.repoInfo().owner() + "/" + command.repoInfo().name() + " on branch " + command.branch()
+        );
     }
 
     @Override
@@ -241,38 +194,13 @@ public class RepositoryAdapter extends GithubPortConfig implements RepositoryPor
         requestBody.put("title", command.title());
         requestBody.put("body", command.body());
 
-        String responseBody;
-        try {
-            responseBody = githubClient.postWithBearer(url, command.repoInfo().accessToken(), requestBody, String.class);
-        } catch (HttpClientErrorException.UnprocessableEntity e) {
-            log.error(
-                    "Error creating Github pull request for {}/{} from {} to {}: {}",
-                    command.repoInfo().owner(),
-                    command.repoInfo().name(),
-                    command.head(),
-                    command.base(),
-                    e.getResponseBodyAsString()
-            );
-            throw new CustomException(RepositoryErrorCode.BAD_REQUEST_SAME_BRANCH);
-        } catch (HttpClientErrorException e) {
-            log.error(
-                    "Error creating Github pull request for {}/{} from {} to {}",
-                    command.repoInfo().owner(),
-                    command.repoInfo().name(),
-                    command.head(),
-                    command.base(),
-                    e
-            );
-            throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
-        }
-
-        try {
-            JsonNode pr = super.getObjectMapper().readTree(responseBody);
-            return pr.get("html_url").asText();
-        } catch (Exception e) {
-            log.error("Error parsing Github pull request response = {}", responseBody, e);
-            throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
-        }
+        return githubApiExecutor.executePost(
+                url,
+                command.repoInfo().accessToken(),
+                requestBody,
+                jsonNode -> jsonNode.get("html_url").asText(),
+                "Create pull request for " + command.repoInfo().owner() + "/" + command.repoInfo().name() + " from " + command.head() + " to " + command.base()
+        );
     }
 
     @Override
@@ -283,27 +211,22 @@ public class RepositoryAdapter extends GithubPortConfig implements RepositoryPor
                 command.name()
         );
 
-        String responseBody = null;
-        try {
-            responseBody = githubClient.fetchGetMethodForBody(url, command.accessToken());
+        return githubApiExecutor.executeGet(
+                url,
+                command.accessToken(),
+                jsonNode -> {
+                    List<RepositoryLanguageResult> languages = new ArrayList<>();
 
-            JsonNode jsonNode = super.getObjectMapper().readTree(responseBody);
-            List<RepositoryLanguageResult> languages = new ArrayList<>();
+                    for (Iterator<String> it = jsonNode.fieldNames(); it.hasNext(); ) {
+                        String language = it.next();
+                        long bytes = jsonNode.get(language).asLong();
+                        languages.add(new RepositoryLanguageResult(language, bytes));
+                    }
 
-            for (Iterator<String> it = jsonNode.fieldNames(); it.hasNext(); ) {
-                String language = it.next();
-                long bytes = jsonNode.get(language).asLong();
-                languages.add(new RepositoryLanguageResult(language, bytes));
-            }
-
-            return languages;
-        } catch (JsonParseException e) {
-            log.error("Error parsing Github repository languages response = {}", responseBody, e);
-            throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
-        } catch (Exception e) {
-            log.error("Error fetching repository languages for {}/{}", command.owner(), command.name(), e);
-            throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
-        }
+                    return languages;
+                },
+                "Get repository languages for " + command.owner() + "/" + command.name()
+        );
     }
 
     @Override
@@ -315,20 +238,23 @@ public class RepositoryAdapter extends GithubPortConfig implements RepositoryPor
                 command.branch()
         );
 
-        try {
-            return githubClient.fetchGetMethodForBody(url, command.repoInfo().accessToken(), GithubClient.Accept.APPLICATION_GITHUB_VND_GITHUB_RAW_JSON);
-        } catch (HttpClientErrorException.NotFound e) {
-            return "";
-        } catch (HttpClientErrorException e) {
-            log.error(
-                    "Error fetching README content from Github repository {}/{} on branch {}",
-                    command.repoInfo().owner(),
-                    command.repoInfo().name(),
-                    command.branch(),
-                    e
-            );
-            throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
-        }
+        return githubApiExecutor.executeGet(
+                url,
+                command.repoInfo().accessToken(),
+                jsonNode -> {
+                    String contentBase64 = jsonNode.get("content").asText();
+                    byte[] decodedBytes = Base64.getDecoder().decode(contentBase64);
+                    return new String(decodedBytes);
+                },
+                "Get README content for " + command.repoInfo().owner() + "/" + command.repoInfo().name() + " on branch " + command.branch(),
+                e -> {
+                    if (e instanceof HttpClientErrorException.NotFound) {
+                        return Optional.of("");
+                    }
+
+                    return Optional.empty();
+                }
+        );
     }
 
     @Override
@@ -340,42 +266,43 @@ public class RepositoryAdapter extends GithubPortConfig implements RepositoryPor
                 command.name()
         );
 
-        final int MAX_REQUIRES = 10;
+        final int MAX_REQUESTS = 10;
         int requestCount = 0;
 
         while (url != null) {
-            if (++requestCount > MAX_REQUIRES) {
+            if (++requestCount > MAX_REQUESTS) {
                 log.error(
                         "Exceeded maximum number of requests to fetch all branches for {}/{}",
                         command.owner(),
                         command.name()
                 );
-                throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
+                throw new CustomException(RepositoryErrorCode.GITHUB_BRANCHES_TOO_MANY_REQUESTS);
             }
 
-            try {
-                ResponseEntity<String> response = githubClient.fetchGet(
-                        url,
-                        command.accessToken(),
-                        GithubClient.Accept.APPLICATION_GITHUB_VND_GITHUB_RAW_JSON,
-                        String.class
-                );
-                String responseBody = response.getBody();
+            String currentUrl = url;
 
-                JsonNode jsonNode = super.getObjectMapper().readTree(responseBody);
-                for (JsonNode branchNode : jsonNode) {
-                    branches.add(branchNode.get("name").asText());
-                }
+            url = githubApiExecutor.executeGetJson(
+                    currentUrl,
+                    command.accessToken(),
+                    GithubClient.Accept.APPLICATION_GITHUB_VND_GITHUB_RAW_JSON,
+                    response -> {
+                        try {
+                            String body = response.getBody();
+                            JsonNode jsonNode = super.getObjectMapper().readTree(body);
 
-                url = GithubClient.extractNextUrl(response.getHeaders())
-                        .orElse(null);
-            } catch (JsonParseException e) {
-                log.error("Error parsing Github branches response for {}/{}", command.owner(), command.name(), e);
-                throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
-            } catch (Exception e) {
-                log.error("Error fetching branches for {}/{}", command.owner(), command.name(), e);
-                throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
-            }
+                            for (JsonNode branchNode : jsonNode) {
+                                String branchName = branchNode.get("name").asText();
+                                branches.add(branchName);
+                            }
+
+                            return GithubClient.extractNextUrl(response.getHeaders())
+                                    .orElse(null);
+                        } catch (Exception e) {
+                            throw new CustomException(RepositoryErrorCode.JSON_PROCESSING_ERROR);
+                        }
+                    },
+                    "Get all branches for " + command.owner() + "/" + command.name()
+            );
         }
 
         return new ArrayList<>(branches);
@@ -385,60 +312,49 @@ public class RepositoryAdapter extends GithubPortConfig implements RepositoryPor
     public Optional<CommitResult> getCommitsByBranch(RepoBranchCommand command) {
         int page = 1;
 
-        try {
-            ResponseEntity<String> latestResponse = fetchCommit(command, page);
-            String latestResponseBody = latestResponse.getBody();
+        ResponseEntity<String> latestResponse = fetchCommit(command, page);
+        String latestResponseBody = latestResponse.getBody();
 
-            PageInfo link = GithubClient.extractLastAndMiddlePage(latestResponse.getHeaders());
+        PageInfo link = GithubClient.extractLastAndMiddlePage(latestResponse.getHeaders());
 
-            // 커밋이 한 페이지에 모두 있는 경우
-            if (
-                    link.lastPage() == null || link.middlePage() == null ||
-                    Objects.equals(link.lastPage(), link.middlePage()) ||
-                    link.lastPage() == 1 || link.middlePage() == 1
-            ) {
-                return Optional.of(new CommitResult(
-                        parseJsonCommit(latestResponseBody),
-                        Collections.emptyList(),
-                        Collections.emptyList()
-                ));
-            }
-
-            List<CommitResult.Commit> latestCommits = parseJsonCommit(latestResponseBody);
-
-            // 중간 페이지와 마지막 페이지를 모두 가져오기
-            ResponseEntity<String> middleResponse = fetchCommit(command, link.middlePage());
-            List<CommitResult.Commit> middleCommits = parseJsonCommit(middleResponse.getBody());
-
-            ResponseEntity<String> initialResponse = fetchCommit(command, link.lastPage());
-            List<CommitResult.Commit> initialCommits = parseJsonCommit(initialResponse.getBody());
-
-            // 30개보다 적은 경우 추가 요청하여 30개 맞추기
-            if (initialCommits.size() < 30) {
-                ResponseEntity<String> penultimateResponse = fetchCommit(command, link.lastPage() - 1);
-                List<CommitResult.Commit> penultimateCommits = parseJsonCommit(penultimateResponse.getBody());
-                int needed = 30 - initialCommits.size();
-
-                for (int i = penultimateCommits.size() - 1; i >= 0 && needed > 0; i--, needed--) {
-                    initialCommits.add(0, penultimateCommits.get(i));
-                }
-            }
-
+        // 커밋이 한 페이지에 모두 있는 경우
+        if (
+                link.lastPage() == null || link.middlePage() == null ||
+                        Objects.equals(link.lastPage(), link.middlePage()) ||
+                        link.lastPage() == 1
+        ) {
             return Optional.of(new CommitResult(
-                    latestCommits,
-                    initialCommits,
-                    middleCommits
+                    parseJsonCommit(latestResponseBody),
+                    Collections.emptyList(),
+                    Collections.emptyList()
             ));
-        } catch (Exception e) {
-            log.error(
-                    "Error fetching commits for {}/{} on branch {}",
-                    command.repoInfo().owner(),
-                    command.repoInfo().name(),
-                    command.branch(),
-                    e
-            );
-            throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
         }
+
+        List<CommitResult.Commit> latestCommits = parseJsonCommit(latestResponseBody);
+
+        // 중간 페이지와 마지막 페이지를 모두 가져오기
+        ResponseEntity<String> middleResponse = fetchCommit(command, link.middlePage());
+        List<CommitResult.Commit> middleCommits = parseJsonCommit(middleResponse.getBody());
+
+        ResponseEntity<String> initialResponse = fetchCommit(command, link.lastPage());
+        List<CommitResult.Commit> initialCommits = parseJsonCommit(initialResponse.getBody());
+
+        // 30개보다 적은 경우 추가 요청하여 30개 맞추기
+        if (initialCommits.size() < 30 && link.lastPage() > 1) {
+            ResponseEntity<String> penultimateResponse = fetchCommit(command, link.lastPage() - 1);
+            List<CommitResult.Commit> penultimateCommits = parseJsonCommit(penultimateResponse.getBody());
+            int needed = 30 - initialCommits.size();
+
+            for (int i = penultimateCommits.size() - 1; i >= 0 && needed > 0; i--, needed--) {
+                initialCommits.add(0, penultimateCommits.get(i));
+            }
+        }
+
+        return Optional.of(new CommitResult(
+                latestCommits,
+                initialCommits,
+                middleCommits
+        ));
     }
 
     @Override
@@ -449,24 +365,24 @@ public class RepositoryAdapter extends GithubPortConfig implements RepositoryPor
                 command.repoInfo().name(),
                 command.branch()
         );
-        String responseBody = githubClient.fetchGetMethodForBody(url, command.repoInfo().accessToken());
 
-        try {
-            JsonNode jsonNode = super.getObjectMapper().readTree(responseBody);
-            List<RepositoryTreeResult> treeResults = new ArrayList<>();
+        return githubApiExecutor.executeGet(
+                url,
+                command.repoInfo().accessToken(),
+                jsonNode -> {
+                    List<RepositoryTreeResult> results = new ArrayList<>();
 
-            for (JsonNode treeNode : jsonNode.get("tree")) {
-                String path = treeNode.get("path").asText();
-                String type = treeNode.get("type").asText();
+                    for (JsonNode treeNode : jsonNode.get("tree")) {
+                        String path = treeNode.get("path").asText();
+                        String type = treeNode.get("type").asText();
 
-                treeResults.add(new RepositoryTreeResult(path, type));
-            }
+                        results.add(new RepositoryTreeResult(path, type));
+                    }
 
-            return treeResults;
-        } catch (Exception e) {
-            log.error("Error parsing Github repository tree response = {}", responseBody, e);
-            throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
-        }
+                    return results;
+                },
+                "Get repository tree for " + command.repoInfo().owner() + "/" + command.repoInfo().name() + " on branch " + command.branch()
+        );
     }
 
     @Override
@@ -479,28 +395,28 @@ public class RepositoryAdapter extends GithubPortConfig implements RepositoryPor
                 command.branch()
         );
 
-        try {
-            return new RepositoryFileContentResult(
-                    file.path(),
-                    githubClient.fetchGetMethodForBody(
-                            url,
-                            command.repoInfo().accessToken(),
-                            GithubClient.Accept.APPLICATION_GITHUB_VND_GITHUB_RAW_JSON
-                    )
-            );
-        } catch (HttpClientErrorException.NotFound e) {
-            return null;
-        } catch (HttpClientErrorException e) {
-            log.error(
-                    "Error fetching file content for {} in Github repository {}/{} on branch {}",
-                    file.path(),
-                    command.repoInfo().owner(),
-                    command.repoInfo().name(),
-                    command.branch(),
-                    e
-            );
-            throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
-        }
+        return githubApiExecutor.executeGet(
+                url,
+                command.repoInfo().accessToken(),
+                jsonNode -> {
+                    String contentBase64 = jsonNode.get("content").asText();
+                    byte[] decodedBytes = Base64.getDecoder().decode(contentBase64);
+                    String content = new String(decodedBytes);
+
+                    return new RepositoryFileContentResult(
+                            file.path(),
+                            content
+                    );
+                },
+                "Get file content for " + file.path() + " in " + command.repoInfo().owner() + "/" + command.repoInfo().name() + " on branch " + command.branch(),
+                e -> {
+                    if (e instanceof HttpClientErrorException.NotFound) {
+                        return Optional.of(FILE_NOT_FOUND);
+                    }
+
+                    return Optional.empty();
+                }
+        );
     }
 
     private ResponseEntity<String> fetchCommit(RepoBranchCommand command, int page) {
@@ -511,15 +427,21 @@ public class RepositoryAdapter extends GithubPortConfig implements RepositoryPor
                 command.branch(),
                 page
         );
-        return githubClient.fetchGet(
+
+        return githubApiExecutor.executeGetJson(
                 url,
                 command.repoInfo().accessToken(),
                 GithubClient.Accept.APPLICATION_GITHUB_VND_GITHUB_JSON,
-                String.class
+                response -> response,
+                "Fetch commits for " + command.repoInfo().owner() + "/" + command.repoInfo().name() + " on branch " + command.branch() + " page " + page
         );
     }
 
     private List<CommitResult.Commit> parseJsonCommit(String body) {
+        if (body == null || body.isEmpty()) {
+            return Collections.emptyList();
+        }
+
         try {
             JsonNode jsonNode = super.getObjectMapper().readTree(body);
             List<CommitResult.Commit> commits = new ArrayList<>();
@@ -537,9 +459,9 @@ public class RepositoryAdapter extends GithubPortConfig implements RepositoryPor
             }
 
             return commits;
-        } catch (Exception e) {
-            log.error("Error parsing Github commits response = {}", body, e);
-            throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
+        } catch (JsonProcessingException e) {
+            log.error("Error parsing Github commit JSON response = {}", body, e);
+            throw new CustomException(RepositoryErrorCode.JSON_PROCESSING_ERROR);
         }
     }
 }

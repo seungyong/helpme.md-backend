@@ -108,6 +108,24 @@ public class RepoController {
         );
     }
 
+    @Operation(
+            summary = "풀 리퀘스트 생성",
+            description = """
+                    특정 레포지토리에 대해 특정 브랜치를 기준으로 풀 리퀘스트를 생성합니다.
+                    
+                    - 각 요청 시점에 `GitHub API`를 호출하여 실시간으로 데이터를 가져옵니다.
+                    - 특정 브랜치가 존재하지 않을 경우 에러를 반환합니다.
+                    - 특정 브랜치의 최신 커밋을 기준으로 `readme-proposals/{UUID}` 브랜치를 생성하고, 해당 브랜치를 기준으로 풀 리퀘스트를 생성합니다.
+                    - 사용자는 직접 PR을 검토하고, 머지를 해야만 합니다.
+                    
+                    PR 플로우는 다음과 같습니다:
+                    1. 사용자가 `main` 브랜치를 기준으로 풀 리퀘스트 생성 요청
+                    2. 시스템이 `main` 브랜치의 최신 커밋을 기준으로 `readme-proposals/{UUID}` 브랜치를 생성
+                    3. 시스템이 `readme-proposals/{UUID}` 브랜치를 기준으로 README.md 수정 내용을 Push
+                    4. 시스템이 `readme-proposals/{UUID}` 브랜치를 기준으로 `main` 브랜치에 대한 풀 리퀘스트 생성
+                    5. 만약, 중간에 에러가 발생하는 경우 생성된 브랜치 삭제
+                    """
+    )
     @PostMapping("/{owner}/{name}")
     public ResponseEntity<ResponsePull> createPullRequest(
             @Valid @RequestBody RequestPull request,

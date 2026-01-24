@@ -617,7 +617,7 @@ public class RepositoryService implements RepositoryPortIn {
                     )
             );
 
-            if (contentResult == null || contentResult.content().isBlank()) {
+            if (contentResult.content().isBlank()) {
                 continue;
             }
 
