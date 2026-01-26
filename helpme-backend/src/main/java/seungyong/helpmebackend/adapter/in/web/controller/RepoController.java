@@ -23,8 +23,9 @@ import seungyong.helpmebackend.usecase.port.in.repository.RepositoryPortIn;
         name = "Repo",
         description = """
                 Repo 관련 API
-                - 모든 Repo에 대한 정보는 DB에 **저장되지 않습니다.**
-                - 각 요청 시점에 `GitHub API`를 호출하여 실시간으로 데이터를 가져옵니다.
+                - 모든 Repo에 대한 정보는 Redis에 저장되어, `3일` 후 만료됩니다.
+                - 처음 요청 시점에서는 `GitHub API`를 호출하여 실시간으로 데이터를 가져옵니다.
+                - 이후 동일한 요청(최신 커밋 기준)에 대해서는 Redis 캐시에서 데이터를 반환합니다.
                 """
 )
 @RestController

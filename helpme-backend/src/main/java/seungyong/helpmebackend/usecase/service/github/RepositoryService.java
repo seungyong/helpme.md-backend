@@ -108,7 +108,7 @@ public class RepositoryService implements RepositoryPortIn {
         }
 
         // Component 정보 조회
-        List<Component> components = componentPortOut.getAllComponents(fullName);
+        List<Component> components = componentPortOut.getAllComponents(owner, name, userId);
 
         // Branch 목록 조회
         List<String> branches = repositoryPortOut.getAllBranches(repoInfo);

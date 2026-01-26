@@ -3,6 +3,7 @@ package seungyong.helpmebackend.domain.entity.component;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
+import seungyong.helpmebackend.domain.entity.user.User;
 
 import java.time.LocalDateTime;
 
@@ -11,8 +12,12 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class Component {
     private Long id;
+    private Long userId;
     private String repoFullName;
     private String title;
     private String content;
-    private LocalDateTime updatedAt;
+
+    public static String getFullName(String owner, String name) {
+        return owner + "/" + name;
+    }
 }
