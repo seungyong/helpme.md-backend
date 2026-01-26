@@ -1,6 +1,5 @@
 package seungyong.helpmebackend.usecase.service.github;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -201,7 +200,7 @@ public class RepositoryService implements RepositoryPortIn {
     }
 
     @Override
-    public ResponseEvaluation evaluateReadme(RequestEvaluation request, Long userId, String owner, String name) throws JsonProcessingException {
+    public ResponseEvaluation evaluateReadme(RequestEvaluation request, Long userId, String owner, String name) {
         User user = userPortOut.getById(userId);
         String accessToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken());
 
@@ -240,9 +239,7 @@ public class RepositoryService implements RepositoryPortIn {
                 )
         );
 
-        EvaluationStatus status = responseEvaluation.rating() >= 4.0 ?
-                EvaluationStatus.GOOD :
-                EvaluationStatus.IMPROVEMENT;
+        EvaluationStatus status = EvaluationStatus.getStatus(responseEvaluation.rating());
 
         Evaluation evaluation = evaluationPortOut.getByFullName(owner + "/" + name)
                 .orElseGet(() -> Evaluation.createWithStatusEvaluation(
@@ -264,7 +261,7 @@ public class RepositoryService implements RepositoryPortIn {
     }
 
     @Override
-    public ResponseEvaluation evaluateDraftReadme(RequestDraftEvaluation request, Long userId, String owner, String name) throws JsonProcessingException {
+    public ResponseEvaluation evaluateDraftReadme(RequestDraftEvaluation request, Long userId, String owner, String name) {
         User user = userPortOut.getById(userId);
         String accessToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken());
 
@@ -293,7 +290,7 @@ public class RepositoryService implements RepositoryPortIn {
     }
 
     @Override
-    public ResponseDraftReadme generateDraftReadme(RequestEvaluation request, Long userId, String owner, String name) throws JsonProcessingException {
+    public ResponseDraftReadme generateDraftReadme(RequestEvaluation request, Long userId, String owner, String name) {
         User user = userPortOut.getById(userId);
         String accessToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken());
 
@@ -327,7 +324,7 @@ public class RepositoryService implements RepositoryPortIn {
             String name,
             String accessToken,
             String branch
-    ) throws JsonProcessingException {
+    ) {
         RepoInfoCommand repoInfoCommand = new RepoInfoCommand(
                 accessToken,
                 owner,
@@ -469,7 +466,7 @@ public class RepositoryService implements RepositoryPortIn {
             CacheLoader<T> loader,
             TypeReference<T> typeReference,
             LocalDateTime expiration
-    ) throws JsonProcessingException {
+    ) {
         T cachedData = redisPortOut.getObject(key, typeReference);
 
         if (cachedData != null) {
@@ -492,7 +489,7 @@ public class RepositoryService implements RepositoryPortIn {
             RepoInfoCommand command,
             String sha,
             LocalDateTime expiration
-    ) throws JsonProcessingException {
+    ) {
         String key = RedisKeyFactory.createLanguageKey(
                 command.owner(),
                 command.name(),
@@ -511,7 +508,7 @@ public class RepositoryService implements RepositoryPortIn {
             RepoBranchCommand command,
             String sha,
             LocalDateTime expiration
-    ) throws JsonProcessingException {
+    ) {
         String key = RedisKeyFactory.createTreeKey(
                 command.repoInfo().owner(),
                 command.repoInfo().name(),
@@ -532,7 +529,7 @@ public class RepositoryService implements RepositoryPortIn {
             String sha,
             RepositoryInfoCommand repositoryInfo,
             LocalDateTime expiration
-    ) throws JsonProcessingException {
+    ) {
         String key = RedisKeyFactory.createTechStackKey(owner, name, sha);
 
         return getOrLoadAndCache(
@@ -551,7 +548,7 @@ public class RepositoryService implements RepositoryPortIn {
             GPTRepositoryInfo repositoryInfo,
             String sha,
             LocalDateTime expiration
-    ) throws JsonProcessingException {
+    ) {
         String key = RedisKeyFactory.createFileV1Key(
                 command.repoInfo().owner(),
                 command.repoInfo().name(),
@@ -564,7 +561,8 @@ public class RepositoryService implements RepositoryPortIn {
                         command,
                         getFilePaths(repositoryInfo)
                 ),
-                new TypeReference<List<RepositoryFileContentResult>>() {},
+                new TypeReference<List<RepositoryFileContentResult>>() {
+                },
                 expiration
         );
     }
@@ -574,7 +572,7 @@ public class RepositoryService implements RepositoryPortIn {
             RepositoryImportantCommand importantCommand,
             String sha,
             LocalDateTime expiration
-    ) throws JsonProcessingException {
+    ) {
         String key = RedisKeyFactory.createFileV2Key(
                 command.repoInfo().owner(),
                 command.repoInfo().name(),

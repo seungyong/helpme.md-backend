@@ -77,7 +77,6 @@ public class ErrorExampleGenerator {
                 ErrorCode errorCode = getErrorCodeByName(errorCodeClass, errorCodeName);
 
                 if (errorCode == null) {
-                    log.warn("ErrorCode not found for name: {}", errorCodeName);
                     continue;
                 }
 

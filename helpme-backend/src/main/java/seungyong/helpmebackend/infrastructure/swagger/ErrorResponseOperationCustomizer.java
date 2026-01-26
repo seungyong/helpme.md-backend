@@ -10,10 +10,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springdoc.core.customizers.OperationCustomizer;
 import org.springframework.stereotype.Component;
 import org.springframework.web.method.HandlerMethod;
+import seungyong.helpmebackend.common.exception.ErrorCode;
 import seungyong.helpmebackend.infrastructure.swagger.annotation.ApiErrorResponse;
 import seungyong.helpmebackend.infrastructure.swagger.annotation.ApiErrorResponses;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -46,13 +48,19 @@ public class ErrorResponseOperationCustomizer implements OperationCustomizer {
      */
     private void addErrorResponseToOperation(Operation operation, ApiErrorResponse errorResponse) {
         try {
-            Map<String, Example> examples = ErrorExampleGenerator.generateErrorExamples(
-                    errorResponse.errorCodeClass(),
-                    errorResponse.errorCodes()
-            );
+            Class<? extends Enum<? extends ErrorCode>>[] errorCodeClasses = errorResponse.errorCodeClasses();
+            Map<String, Example> examples = new HashMap<>();
+
+            for (Class<? extends Enum<? extends ErrorCode>> errorCodeClass : errorCodeClasses) {
+                Map<String, Example> error = ErrorExampleGenerator.generateErrorExamples(
+                        errorCodeClass,
+                        errorResponse.errorCodes()
+                );
+
+                examples.putAll(error);
+            }
 
             if (examples.isEmpty()) {
-                log.warn("No examples generated for: {}", Arrays.toString(errorResponse.errorCodes()));
                 return;
             }
 

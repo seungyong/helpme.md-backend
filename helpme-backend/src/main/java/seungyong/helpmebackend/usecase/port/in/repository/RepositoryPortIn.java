@@ -10,7 +10,7 @@ public interface RepositoryPortIn {
     ResponseRepositories getRepositories(Long userId, Long installationId, Integer page);
     ResponseRepository getRepository(Long userId, String owner, String name);
     ResponsePull createPullRequest(RequestPull request, Long userId, String owner, String name);
-    ResponseEvaluation evaluateReadme(RequestEvaluation request, Long userId, String owner, String name) throws JsonProcessingException;
-    ResponseEvaluation evaluateDraftReadme(RequestDraftEvaluation request, Long userId, String owner, String name) throws JsonProcessingException;
-    ResponseDraftReadme generateDraftReadme(RequestEvaluation request, Long userId, String owner, String name) throws JsonProcessingException;
+    ResponseEvaluation evaluateReadme(RequestEvaluation request, Long userId, String owner, String name);
+    ResponseEvaluation evaluateDraftReadme(RequestDraftEvaluation request, Long userId, String owner, String name);
+    ResponseDraftReadme generateDraftReadme(RequestEvaluation request, Long userId, String owner, String name);
 }

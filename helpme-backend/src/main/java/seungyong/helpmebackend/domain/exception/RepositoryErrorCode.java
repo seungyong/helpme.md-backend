@@ -24,8 +24,7 @@ public enum RepositoryErrorCode implements ErrorCode {
     GITHUB_RATE_LIMIT_EXCEEDED(HttpStatus.FORBIDDEN, "GitHub API 요청 한도를 초과했습니다.", "REPO_42901"),
     GITHUB_BRANCHES_TOO_MANY_REQUESTS(HttpStatus.TOO_MANY_REQUESTS, "GitHub 브랜치 정보 요청이 너무 많습니다.", "REPO_42902"),
 
-    README_NOT_BASE64(HttpStatus.BAD_REQUEST, "README.md가 base64로 인코딩되어 있지 않습니다.", "REPO_50001"),
-    JSON_PROCESSING_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "JSON 처리 중 오류가 발생했습니다.", "REPO_50002"),
+    JSON_PROCESSING_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "JSON 처리 중 오류가 발생했습니다.", "REPO_50001"),
     ;
 
     private final String name = this.name();

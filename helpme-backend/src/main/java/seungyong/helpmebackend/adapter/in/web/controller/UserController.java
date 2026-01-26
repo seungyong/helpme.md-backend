@@ -61,13 +61,13 @@ public class UserController {
             @ApiErrorResponse(
                     responseCode = "401",
                     description = "인증되지 않은 사용자입니다.",
-                    errorCodeClass = GlobalErrorCode.class,
+                    errorCodeClasses = GlobalErrorCode.class,
                     errorCodes = { "UNAUTHORIZED", "INVALID_TOKEN" }
             ),
             @ApiErrorResponse(
                     responseCode = "500",
                     description = "서버 에러입니다.",
-                    errorCodeClass = GlobalErrorCode.class,
+                    errorCodeClasses = GlobalErrorCode.class,
                     errorCodes = { "INTERNAL_SERVER_ERROR" }
             )
     })
@@ -122,13 +122,13 @@ public class UserController {
             @ApiErrorResponse(
                     responseCode = "401",
                     description = "인증되지 않은 사용자입니다.",
-                    errorCodeClass = GlobalErrorCode.class,
+                    errorCodeClasses = GlobalErrorCode.class,
                     errorCodes = { "UNAUTHORIZED", "INVALID_TOKEN" }
             ),
             @ApiErrorResponse(
                     responseCode = "500",
                     description = "서버 에러입니다.",
-                    errorCodeClass = GlobalErrorCode.class,
+                    errorCodeClasses = GlobalErrorCode.class,
                     errorCodes = { "INTERNAL_SERVER_ERROR" }
             )
     })

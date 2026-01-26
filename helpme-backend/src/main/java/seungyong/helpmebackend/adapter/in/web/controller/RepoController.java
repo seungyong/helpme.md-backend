@@ -1,6 +1,5 @@
 package seungyong.helpmebackend.adapter.in.web.controller;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -14,6 +13,7 @@ import seungyong.helpmebackend.adapter.in.web.dto.repository.request.RequestPull
 import seungyong.helpmebackend.adapter.in.web.dto.repository.response.*;
 import seungyong.helpmebackend.adapter.in.web.dto.user.common.CustomUserDetails;
 import seungyong.helpmebackend.common.exception.GlobalErrorCode;
+import seungyong.helpmebackend.domain.exception.RepositoryErrorCode;
 import seungyong.helpmebackend.domain.exception.UserErrorCode;
 import seungyong.helpmebackend.infrastructure.swagger.annotation.ApiErrorResponse;
 import seungyong.helpmebackend.infrastructure.swagger.annotation.ApiErrorResponses;
@@ -47,20 +47,38 @@ public class RepoController {
             @ApiErrorResponse(
                     responseCode = "400",
                     description = "잘못된 요청입니다.",
-                    errorCodeClass = GlobalErrorCode.class,
-                    errorCodes = {"BAD_REQUEST"}
+                    errorCodeClasses = GlobalErrorCode.class,
+                    errorCodes = { "BAD_REQUEST" }
+            ),
+            @ApiErrorResponse(
+                    responseCode = "401",
+                    description = "인증에 실패했습니다.",
+                    errorCodeClasses = RepositoryErrorCode.class,
+                    errorCodes = { "GITHUB_UNAUTHORIZED" }
+            ),
+            @ApiErrorResponse(
+                    responseCode = "403",
+                    description = "권한이 없습니다.",
+                    errorCodeClasses = RepositoryErrorCode.class,
+                    errorCodes = { "GITHUB_FORBIDDEN" }
             ),
             @ApiErrorResponse(
                     responseCode = "404",
                     description = "리소스를 찾을 수 없습니다.",
-                    errorCodeClass = UserErrorCode.class,
-                    errorCodes = {"USER_NOT_FOUND"}
+                    errorCodeClasses = { UserErrorCode.class, RepositoryErrorCode.class },
+                    errorCodes = { "USER_NOT_FOUND", "INSTALLED_REPOSITORY_NOT_FOUND" }
+            ),
+            @ApiErrorResponse(
+                    responseCode = "429",
+                    description = "요청 한도를 초과했습니다.",
+                    errorCodeClasses = RepositoryErrorCode.class,
+                    errorCodes = { "GITHUB_RATE_LIMIT_EXCEEDED" }
             ),
             @ApiErrorResponse(
                     responseCode = "500",
                     description = "서버 에러입니다.",
-                    errorCodeClass = GlobalErrorCode.class,
-                    errorCodes = {"INTERNAL_SERVER_ERROR", "GITHUB_ERROR"}
+                    errorCodeClasses = { GlobalErrorCode.class, RepositoryErrorCode.class },
+                    errorCodes = { "JSON_PROCESSING_ERROR", "GITHUB_ERROR", "INTERNAL_SERVER_ERROR" }
             )
     })
     @GetMapping
@@ -81,20 +99,45 @@ public class RepoController {
                     
                     - 각 요청 시점에 `GitHub API`를 호출하여 실시간으로 데이터를 가져옵니다.
                     - DB에 레포지토리 정보가 저장되지 않습니다.
+                    - Readme.md 파일이 없는 경우 빈 내용을 반환합니다.
                     """
     )
     @ApiErrorResponses({
             @ApiErrorResponse(
+                    responseCode = "400",
+                    description = "잘못된 요청입니다.",
+                    errorCodeClasses = GlobalErrorCode.class,
+                    errorCodes = { "BAD_REQUEST" }
+            ),
+            @ApiErrorResponse(
+                    responseCode = "401",
+                    description = "인증에 실패했습니다.",
+                    errorCodeClasses = RepositoryErrorCode.class,
+                    errorCodes = { "GITHUB_UNAUTHORIZED" }
+            ),
+            @ApiErrorResponse(
+                    responseCode = "403",
+                    description = "권한이 없습니다.",
+                    errorCodeClasses = RepositoryErrorCode.class,
+                    errorCodes = { "GITHUB_FORBIDDEN", "REPOSITORY_CANNOT_PULL" }
+            ),
+            @ApiErrorResponse(
                     responseCode = "404",
                     description = "리소스를 찾을 수 없습니다.",
-                    errorCodeClass = UserErrorCode.class,
-                    errorCodes = {"USER_NOT_FOUND"}
+                    errorCodeClasses = { UserErrorCode.class, RepositoryErrorCode.class },
+                    errorCodes = { "USER_NOT_FOUND" }
+            ),
+            @ApiErrorResponse(
+                    responseCode = "429",
+                    description = "요청 한도를 초과했습니다.",
+                    errorCodeClasses = RepositoryErrorCode.class,
+                    errorCodes = { "GITHUB_RATE_LIMIT_EXCEEDED", "GITHUB_BRANCHES_TOO_MANY_REQUESTS" }
             ),
             @ApiErrorResponse(
                     responseCode = "500",
                     description = "서버 에러입니다.",
-                    errorCodeClass = GlobalErrorCode.class,
-                    errorCodes = {"INTERNAL_SERVER_ERROR", "GITHUB_ERROR"}
+                    errorCodeClasses = { GlobalErrorCode.class, RepositoryErrorCode.class },
+                    errorCodes = { "JSON_PROCESSING_ERROR", "GITHUB_ERROR", "INTERNAL_SERVER_ERROR" }
             )
     })
     @GetMapping("/{owner}/{name}")
@@ -114,7 +157,6 @@ public class RepoController {
                     특정 레포지토리에 대해 특정 브랜치를 기준으로 풀 리퀘스트를 생성합니다.
                     
                     - 각 요청 시점에 `GitHub API`를 호출하여 실시간으로 데이터를 가져옵니다.
-                    - 특정 브랜치가 존재하지 않을 경우 에러를 반환합니다.
                     - 특정 브랜치의 최신 커밋을 기준으로 `readme-proposals/{UUID}` 브랜치를 생성하고, 해당 브랜치를 기준으로 풀 리퀘스트를 생성합니다.
                     - 사용자는 직접 PR을 검토하고, 머지를 해야만 합니다.
                     
@@ -126,6 +168,44 @@ public class RepoController {
                     5. 만약, 중간에 에러가 발생하는 경우 생성된 브랜치 삭제
                     """
     )
+    @ApiErrorResponses({
+            @ApiErrorResponse(
+                    responseCode = "400",
+                    description = "잘못된 요청입니다.",
+                    errorCodeClasses = { GlobalErrorCode.class, RepositoryErrorCode.class },
+                    errorCodes = { "BAD_REQUEST", "BAD_REQUEST_SAME_BRANCH" }
+            ),
+            @ApiErrorResponse(
+                    responseCode = "401",
+                    description = "인증에 실패했습니다.",
+                    errorCodeClasses = RepositoryErrorCode.class,
+                    errorCodes = { "GITHUB_UNAUTHORIZED" }
+            ),
+            @ApiErrorResponse(
+                    responseCode = "403",
+                    description = "권한이 없습니다.",
+                    errorCodeClasses = RepositoryErrorCode.class,
+                    errorCodes = { "GITHUB_FORBIDDEN" }
+            ),
+            @ApiErrorResponse(
+                    responseCode = "404",
+                    description = "리소스를 찾을 수 없습니다.",
+                    errorCodeClasses = { UserErrorCode.class, RepositoryErrorCode.class },
+                    errorCodes = { "USER_NOT_FOUND", "BRANCH_NOT_FOUND" }
+            ),
+            @ApiErrorResponse(
+                    responseCode = "429",
+                    description = "요청 한도를 초과했습니다.",
+                    errorCodeClasses = RepositoryErrorCode.class,
+                    errorCodes = { "GITHUB_RATE_LIMIT_EXCEEDED" }
+            ),
+            @ApiErrorResponse(
+                    responseCode = "500",
+                    description = "서버 에러입니다.",
+                    errorCodeClasses = { GlobalErrorCode.class, RepositoryErrorCode.class },
+                    errorCodes = { "JSON_PROCESSING_ERROR", "GITHUB_ERROR", "INTERNAL_SERVER_ERROR" }
+            )
+    })
     @PostMapping("/{owner}/{name}")
     public ResponseEntity<ResponsePull> createPullRequest(
             @Valid @RequestBody RequestPull request,
@@ -138,37 +218,185 @@ public class RepoController {
         );
     }
 
+    @Operation(
+            summary = "README 평가",
+            description = """
+                    특정 레포지토리의 README.md 파일을 평가합니다.
+                    
+                    - 각 요청 시점에 `GitHub API`를 호출하여 실시간으로 데이터를 가져옵니다.
+                    - AI 모델을 사용하여 README.md 파일의 품질을 평가하고, 개선점을 제안합니다.
+                    - 커밋 내역, 프로젝트 구조, 주요 파일 내용 및 목록, 언어 통계 등을 Redis 캐시에 저장하여 평가에 활용합니다.
+                        - 가장 최신 커밋 SHA를 활용하여, 동일한 커밋에 대해 중복 평가를 방지합니다.
+                    - 평가 결과는 DB에 저장됩니다.
+                    """
+    )
+    @ApiErrorResponses({
+            @ApiErrorResponse(
+                    responseCode = "400",
+                    description = "잘못된 요청입니다.",
+                    errorCodeClasses = GlobalErrorCode.class,
+                    errorCodes = { "BAD_REQUEST" }
+            ),
+            @ApiErrorResponse(
+                    responseCode = "401",
+                    description = "인증에 실패했습니다.",
+                    errorCodeClasses = RepositoryErrorCode.class,
+                    errorCodes = { "GITHUB_UNAUTHORIZED" }
+            ),
+            @ApiErrorResponse(
+                    responseCode = "403",
+                    description = "권한이 없습니다.",
+                    errorCodeClasses = RepositoryErrorCode.class,
+                    errorCodes = { "GITHUB_FORBIDDEN" }
+            ),
+            @ApiErrorResponse(
+                    responseCode = "404",
+                    description = "리소스를 찾을 수 없습니다.",
+                    errorCodeClasses = { UserErrorCode.class, RepositoryErrorCode.class },
+                    errorCodes = { "USER_NOT_FOUND", "REPOSITORY_README_NOT_FOUND", "REPOSITORY_OR_BRANCH_NOT_FOUND" }
+            ),
+            @ApiErrorResponse(
+                    responseCode = "429",
+                    description = "요청 한도를 초과했습니다.",
+                    errorCodeClasses = RepositoryErrorCode.class,
+                    errorCodes = { "GITHUB_RATE_LIMIT_EXCEEDED" }
+            ),
+            @ApiErrorResponse(
+                    responseCode = "500",
+                    description = "서버 에러입니다.",
+                    errorCodeClasses = { GlobalErrorCode.class, RepositoryErrorCode.class },
+                    errorCodes = { "JSON_PROCESSING_ERROR", "GITHUB_ERROR", "INTERNAL_SERVER_ERROR" }
+            )
+    })
     @PostMapping("/{owner}/{name}/evaluate/readme")
     public ResponseEntity<ResponseEvaluation> evaluateReadme(
             @Valid @RequestBody RequestEvaluation request,
             @PathVariable("owner") String owner,
             @PathVariable("name") String name,
             @AuthenticationPrincipal CustomUserDetails details
-            ) throws JsonProcessingException {
+            ) {
         return ResponseEntity.ok(
                 repositoryPortIn.evaluateReadme(request, details.getUserId(), owner, name)
         );
     }
 
+    @Operation(
+            summary = "사용자가 작성한 README 평가",
+            description = """
+                    특정 레포지토리에서 사용자가 작성한 README.md를 평가합니다.
+                    
+                    - 각 요청 시점에 `GitHub API`를 호출하여 실시간으로 데이터를 가져옵니다.
+                    - AI 모델을 사용하여 README.md 초안의 품질을 평가하고, 개선점을 제안합니다.
+                    - 커밋 내역, 프로젝트 구조, 주요 파일 내용 및 목록, 언어 통계 등을 Redis 캐시에 저장하여 평가에 활용합니다.
+                        - 가장 최신 커밋 SHA를 활용하여, 동일한 커밋에 대해 중복 평가를 방지합니다.
+                    - 평가 결과는 DB에 저장되지 않습니다.
+                    """
+    )
+    @ApiErrorResponses({
+            @ApiErrorResponse(
+                    responseCode = "400",
+                    description = "잘못된 요청입니다.",
+                    errorCodeClasses = GlobalErrorCode.class,
+                    errorCodes = { "BAD_REQUEST" }
+            ),
+            @ApiErrorResponse(
+                    responseCode = "401",
+                    description = "인증에 실패했습니다.",
+                    errorCodeClasses = RepositoryErrorCode.class,
+                    errorCodes = { "GITHUB_UNAUTHORIZED" }
+            ),
+            @ApiErrorResponse(
+                    responseCode = "403",
+                    description = "권한이 없습니다.",
+                    errorCodeClasses = RepositoryErrorCode.class,
+                    errorCodes = { "GITHUB_FORBIDDEN" }
+            ),
+            @ApiErrorResponse(
+                    responseCode = "404",
+                    description = "리소스를 찾을 수 없습니다.",
+                    errorCodeClasses = { UserErrorCode.class, RepositoryErrorCode.class },
+                    errorCodes = { "USER_NOT_FOUND", "REPOSITORY_OR_BRANCH_NOT_FOUND" }
+            ),
+            @ApiErrorResponse(
+                    responseCode = "429",
+                    description = "요청 한도를 초과했습니다.",
+                    errorCodeClasses = RepositoryErrorCode.class,
+                    errorCodes = { "GITHUB_RATE_LIMIT_EXCEEDED" }
+            ),
+            @ApiErrorResponse(
+                    responseCode = "500",
+                    description = "서버 에러입니다.",
+                    errorCodeClasses = { GlobalErrorCode.class, RepositoryErrorCode.class },
+                    errorCodes = { "JSON_PROCESSING_ERROR", "GITHUB_ERROR", "INTERNAL_SERVER_ERROR" }
+            )
+    })
     @PostMapping("/{owner}/{name}/evaluate/draft")
     public ResponseEntity<ResponseEvaluation> evaluateDraftReadme(
             @Valid @RequestBody RequestDraftEvaluation request,
             @PathVariable("owner") String owner,
             @PathVariable("name") String name,
             @AuthenticationPrincipal CustomUserDetails details
-    ) throws JsonProcessingException {
+    ) {
         return ResponseEntity.ok(
                 repositoryPortIn.evaluateDraftReadme(request, details.getUserId(), owner, name)
         );
     }
 
+    @Operation(
+            summary = "README 초안 생성",
+            description = """
+                    특정 레포지토리에 대해 README.md 초안을 생성합니다.
+                    
+                    - 각 요청 시점에 `GitHub API`를 호출하여 실시간으로 데이터를 가져옵니다.
+                    - AI 모델을 사용하여 레포지토리의 특성에 맞는 README.md 초안을 생성합니다.
+                    - 커밋 내역, 프로젝트 구조, 주요 파일 내용 및 목록, 언어 통계 등을 Redis 캐시에 저장하여 생성에 활용합니다.
+                    """
+    )
+    @ApiErrorResponses({
+            @ApiErrorResponse(
+                    responseCode = "400",
+                    description = "잘못된 요청입니다.",
+                    errorCodeClasses = GlobalErrorCode.class,
+                    errorCodes = { "BAD_REQUEST" }
+            ),
+            @ApiErrorResponse(
+                    responseCode = "401",
+                    description = "인증에 실패했습니다.",
+                    errorCodeClasses = RepositoryErrorCode.class,
+                    errorCodes = { "GITHUB_UNAUTHORIZED" }
+            ),
+            @ApiErrorResponse(
+                    responseCode = "403",
+                    description = "권한이 없습니다.",
+                    errorCodeClasses = RepositoryErrorCode.class,
+                    errorCodes = { "GITHUB_FORBIDDEN" }
+            ),
+            @ApiErrorResponse(
+                    responseCode = "404",
+                    description = "리소스를 찾을 수 없습니다.",
+                    errorCodeClasses = { UserErrorCode.class, RepositoryErrorCode.class },
+                    errorCodes = { "USER_NOT_FOUND", "REPOSITORY_OR_BRANCH_NOT_FOUND" }
+            ),
+            @ApiErrorResponse(
+                    responseCode = "429",
+                    description = "요청 한도를 초과했습니다.",
+                    errorCodeClasses = RepositoryErrorCode.class,
+                    errorCodes = { "GITHUB_RATE_LIMIT_EXCEEDED" }
+            ),
+            @ApiErrorResponse(
+                    responseCode = "500",
+                    description = "서버 에러입니다.",
+                    errorCodeClasses = { GlobalErrorCode.class, RepositoryErrorCode.class },
+                    errorCodes = { "JSON_PROCESSING_ERROR", "GITHUB_ERROR", "INTERNAL_SERVER_ERROR" }
+            )
+    })
     @PostMapping("/{owner}/{name}/generate")
     public ResponseEntity<ResponseDraftReadme> generateDraftReadme(
             @Valid @RequestBody RequestEvaluation request,
             @PathVariable("owner") String owner,
             @PathVariable("name") String name,
             @AuthenticationPrincipal CustomUserDetails details
-    ) throws JsonProcessingException {
+    ) {
         return ResponseEntity.ok(
                 repositoryPortIn.generateDraftReadme(request, details.getUserId(), owner, name)
         );

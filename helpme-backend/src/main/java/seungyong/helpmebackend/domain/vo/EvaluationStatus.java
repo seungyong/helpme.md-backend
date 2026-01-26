@@ -7,5 +7,10 @@ public enum EvaluationStatus {
     GOOD,
     CREATED,
     IMPROVEMENT,
-    NONE
+    NONE,
+    ;
+
+    public static EvaluationStatus getStatus(Float rating) {
+        return rating >= 4.0 ? GOOD : IMPROVEMENT;
+    }
 }

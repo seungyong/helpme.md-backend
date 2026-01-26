@@ -116,19 +116,19 @@ public class AuthController {
             @ApiErrorResponse(
                     responseCode = "401",
                     description = "인증되지 않은 사용자입니다.",
-                    errorCodeClass = GlobalErrorCode.class,
+                    errorCodeClasses = GlobalErrorCode.class,
                     errorCodes = { "UNAUTHORIZED", "INVALID_TOKEN", "EXPIRED_ACCESS_TOKEN" }
             ),
             @ApiErrorResponse(
                     responseCode = "404",
                     description = "유저를 찾을 수 없습니다.",
-                    errorCodeClass = UserErrorCode.class,
+                    errorCodeClasses = UserErrorCode.class,
                     errorCodes = { "USER_NOT_FOUND" }
             ),
             @ApiErrorResponse(
                     responseCode = "500",
                     description = "예기치 못한 서버 에러입니다.",
-                    errorCodeClass = GlobalErrorCode.class,
+                    errorCodeClasses = GlobalErrorCode.class,
                     errorCodes = { "INTERNAL_SERVER_ERROR", "GITHUB_ERROR" }
             )
     })

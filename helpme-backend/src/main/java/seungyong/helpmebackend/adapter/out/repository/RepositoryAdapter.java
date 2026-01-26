@@ -25,7 +25,6 @@ import java.util.*;
 @Component
 @RequiredArgsConstructor
 public class RepositoryAdapter extends GithubPortConfig implements RepositoryPortOut {
-    private static final RepositoryFileContentResult FILE_NOT_FOUND = new RepositoryFileContentResult("", "");
     private final GithubApiExecutor githubApiExecutor;
 
     @Override

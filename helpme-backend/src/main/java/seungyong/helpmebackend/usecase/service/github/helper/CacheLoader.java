@@ -4,5 +4,5 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 
 @FunctionalInterface
 public interface CacheLoader<T> {
-    T load() throws JsonProcessingException;
+    T load();
 }

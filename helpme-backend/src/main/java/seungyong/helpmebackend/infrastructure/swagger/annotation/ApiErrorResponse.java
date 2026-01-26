@@ -17,6 +17,6 @@ import java.lang.annotation.Target;
 public @interface ApiErrorResponse {
     String responseCode();
     String description();
-    Class<? extends Enum<? extends ErrorCode>> errorCodeClass();
+    Class<? extends Enum<? extends ErrorCode>>[] errorCodeClasses();
     String[] errorCodes();
 }
