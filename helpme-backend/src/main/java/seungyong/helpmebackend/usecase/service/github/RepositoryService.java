@@ -25,6 +25,7 @@ import seungyong.helpmebackend.usecase.port.out.cipher.CipherPortOut;
 import seungyong.helpmebackend.usecase.port.out.component.ComponentPortOut;
 import seungyong.helpmebackend.usecase.port.out.evaluation.EvaluationPortOut;
 import seungyong.helpmebackend.usecase.port.out.github.repository.RepositoryPortOut;
+import seungyong.helpmebackend.usecase.port.out.github.repository.RepositoryTreeFilterPortOut;
 import seungyong.helpmebackend.usecase.port.out.gpt.GPTPortOut;
 import seungyong.helpmebackend.usecase.port.out.redis.RedisPortOut;
 import seungyong.helpmebackend.usecase.port.out.user.UserPortOut;
@@ -45,6 +46,7 @@ public class RepositoryService implements RepositoryPortIn {
     private final CipherPortOut cipherPortOut;
     private final GPTPortOut gptPortOut;
     private final RedisPortOut redisPortOut;
+    private final RepositoryTreeFilterPortOut repositoryTreeFilterPortOut;
 
     @Override
     public ResponseRepositories getRepositories(Long userId, Long installationId, Integer page) {
@@ -517,7 +519,10 @@ public class RepositoryService implements RepositoryPortIn {
 
         return getOrLoadAndCache(
                 key,
-                () -> repositoryPortOut.getRepositoryTree(command),
+                () -> {
+                    List<RepositoryTreeResult> results = repositoryPortOut.getRepositoryTree(command);
+                    return repositoryTreeFilterPortOut.filter(results);
+                },
                 new TypeReference<List<RepositoryTreeResult>>() {},
                 expiration
         );
