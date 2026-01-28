@@ -1,7 +1,6 @@
 package seungyong.helpmebackend.infrastructure.gpt;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -10,6 +9,7 @@ import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.converter.BeanOutputConverter;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.openai.api.ResponseFormat;
@@ -19,12 +19,13 @@ import seungyong.helpmebackend.adapter.out.command.EvaluationCommand;
 import seungyong.helpmebackend.adapter.out.command.GenerateReadmeCommand;
 import seungyong.helpmebackend.adapter.out.command.RepositoryInfoCommand;
 import seungyong.helpmebackend.adapter.out.result.*;
-import seungyong.helpmebackend.common.exception.CustomException;
-import seungyong.helpmebackend.common.exception.GlobalErrorCode;
+import seungyong.helpmebackend.infrastructure.gpt.dto.GPTDraftReadmeGenerationSchema;
+import seungyong.helpmebackend.infrastructure.gpt.dto.GPTEvaluationSchema;
+import seungyong.helpmebackend.infrastructure.gpt.dto.GPTRepositoryAnalyzeSchema;
 import seungyong.helpmebackend.infrastructure.gpt.dto.PromptContext;
-import seungyong.helpmebackend.infrastructure.gpt.type.GPTSchema;
 import seungyong.helpmebackend.infrastructure.gpt.type.GPTSystemPrompt;
 
+import java.util.Arrays;
 import java.util.List;
 
 @Slf4j
@@ -60,8 +61,15 @@ public class GPTClient {
                 )
         );
 
-        String json = getResponseText(GPTSchema.REPOSITORY_ANALYZE_SCHEMA, repositoryInfoCacheKeyPrefix, messages, fullName);
-        return objectMapper.readValue(json, GPTRepositoryInfoResult.class);
+        BeanOutputConverter<GPTRepositoryAnalyzeSchema> converter = new BeanOutputConverter<>(GPTRepositoryAnalyzeSchema.class);
+        GPTRepositoryAnalyzeSchema response = getResponseText(converter, repositoryInfoCacheKeyPrefix, messages, fullName);
+
+        return new GPTRepositoryInfoResult(
+                response.techStack(),
+                response.projectSize().toString(),
+                response.entryPoints(),
+                response.importantFiles()
+        );
     }
 
     public EvaluationContentResult evaluateReadme(EvaluationCommand command) throws JsonProcessingException {
@@ -88,8 +96,13 @@ public class GPTClient {
         );
 
         List<Message> messages = buildMessages(GPTSystemPrompt.EVALUATION_PROMPT, systemPrompt);
-        String json = getResponseText(GPTSchema.EVALUATION_SCHEMA, reviewerCacheKeyPrefix, messages, command.fullName());
-        return objectMapper.readValue(json, EvaluationContentResult.class);
+        BeanOutputConverter<GPTEvaluationSchema> converter = new BeanOutputConverter<>(GPTEvaluationSchema.class);
+        GPTEvaluationSchema response = getResponseText(converter, reviewerCacheKeyPrefix, messages, command.fullName());
+
+        return new EvaluationContentResult(
+                response.rating(),
+                Arrays.asList(response.contents())
+        );
     }
 
     public String generateDraftReadme(GenerateReadmeCommand command) {
@@ -115,22 +128,10 @@ public class GPTClient {
         );
 
         List<Message> messages = buildMessages(GPTSystemPrompt.DRAFT_README_GENERATION_PROMPT, systemPrompt);
-        String json = getResponseText(GPTSchema.DRAFT_README_GENERATION_SCHEMA, reviewerCacheKeyPrefix, messages, command.fullName());
+        BeanOutputConverter<GPTDraftReadmeGenerationSchema> converter = new BeanOutputConverter<>(GPTDraftReadmeGenerationSchema.class);
 
-        try {
-            JsonNode rootNode = objectMapper.readTree(json);
-            JsonNode contentNode = rootNode.get("content");
-
-            if (contentNode == null || contentNode.isNull()) {
-                log.error("GPT draft readme response parsing error. fullname = {}, response = {}", command.fullName(), json);
-                throw new CustomException(GlobalErrorCode.GPT_ERROR);
-            }
-
-            return contentNode.asText();
-        } catch (JsonProcessingException e) {
-            log.error("GPT draft readme response parsing error. fullname = {}, error = {}", command.fullName(), e.getMessage(), e);
-            throw new CustomException(GlobalErrorCode.GPT_ERROR);
-        }
+        GPTDraftReadmeGenerationSchema response = getResponseText(converter, reviewerCacheKeyPrefix, messages, command.fullName());
+        return response.content();
     }
 
     private PromptContext generateSystemPromptContext(
@@ -249,7 +250,9 @@ public class GPTClient {
         );
     }
 
-    private String getResponseText(String schema, String promptCacheKey, List<Message> messages, String fullName) {
+    private <T> T getResponseText(BeanOutputConverter<T> converter, String promptCacheKey, List<Message> messages, String fullName) {
+        String schema = converter.getJsonSchema();
+
         Prompt prompt = new Prompt(messages,
                 OpenAiChatOptions.builder()
                         .responseFormat(new ResponseFormat(ResponseFormat.Type.JSON_SCHEMA, schema))
@@ -270,6 +273,7 @@ public class GPTClient {
                 response.getMetadata().getUsage().getCompletionTokens(),
                 response.getMetadata().getUsage().getTotalTokens());
 
-        return response.getResult().getOutput().getText();
+        String responseText = response.getResult().getOutput().getText();
+        return converter.convert(responseText);
     }
 }

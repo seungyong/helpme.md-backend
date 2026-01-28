@@ -17,8 +17,8 @@ public enum RedisKeyFactory {
     TECH_STACK_KEY("gh:tech-stack:"),
 
     // file content
-    FILE_V1_KEY("gh:file:v1:"),
-    FILE_V2_KEY("gh:file:v2:");
+    FILE_V1_KEY("gh:file:entry:"),
+    FILE_V2_KEY("gh:file:importance:");
 
     private final String prefix;
 
