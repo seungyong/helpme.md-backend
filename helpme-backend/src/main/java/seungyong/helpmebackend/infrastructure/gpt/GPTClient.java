@@ -17,21 +17,14 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import seungyong.helpmebackend.adapter.out.command.EvaluationCommand;
 import seungyong.helpmebackend.adapter.out.command.GenerateReadmeCommand;
-import seungyong.helpmebackend.adapter.out.command.RepositoryImportantCommand;
 import seungyong.helpmebackend.adapter.out.command.RepositoryInfoCommand;
-import seungyong.helpmebackend.adapter.out.result.RepositoryFileContentResult;
-import seungyong.helpmebackend.adapter.out.result.RepositoryLanguageResult;
-import seungyong.helpmebackend.adapter.out.result.RepositoryTreeResult;
+import seungyong.helpmebackend.adapter.out.result.*;
 import seungyong.helpmebackend.common.exception.CustomException;
 import seungyong.helpmebackend.common.exception.GlobalErrorCode;
-import seungyong.helpmebackend.infrastructure.gpt.dto.EvaluationContent;
-import seungyong.helpmebackend.infrastructure.gpt.dto.GPTRepositoryInfo;
-import seungyong.helpmebackend.infrastructure.gpt.dto.ImportantFile;
 import seungyong.helpmebackend.infrastructure.gpt.dto.PromptContext;
 import seungyong.helpmebackend.infrastructure.gpt.type.GPTSchema;
 import seungyong.helpmebackend.infrastructure.gpt.type.GPTSystemPrompt;
 
-import java.util.Collections;
 import java.util.List;
 
 @Slf4j
@@ -45,13 +38,10 @@ public class GPTClient {
     @Value("${spring.ai.openai.chat.cache-key.reviewer.prefix}")
     private String reviewerCacheKeyPrefix;
 
-    @Value("${spring.ai.openai.chat.cache-key.important.prefix}")
-    private String importantCacheKeyPrefix;
-
     @Value("${spring.ai.openai.chat.cache-key.repository-info.prefix}")
     private String repositoryInfoCacheKeyPrefix;
 
-    public GPTRepositoryInfo getRepositoryInfo(String fullName, RepositoryInfoCommand repository) throws JsonProcessingException {
+    public GPTRepositoryInfoResult getRepositoryInfo(String fullName, RepositoryInfoCommand repository) throws JsonProcessingException {
         String languageList = languagesToString(repository.languages());
         String latestCommits = listToString(repository.commits().latestCommit(), "최근 커밋 메시지:\n");
         String middleCommits = listToString(repository.commits().middleCommit(), "중간 커밋 메시지:\n");
@@ -71,48 +61,10 @@ public class GPTClient {
         );
 
         String json = getResponseText(GPTSchema.REPOSITORY_ANALYZE_SCHEMA, repositoryInfoCacheKeyPrefix, messages, fullName);
-        return objectMapper.readValue(json, GPTRepositoryInfo.class);
+        return objectMapper.readValue(json, GPTRepositoryInfoResult.class);
     }
 
-    public List<ImportantFile> importantFiles(RepositoryImportantCommand command) throws JsonProcessingException {
-        PromptContext ctx = generateSystemPromptContext(
-                command.repoInfo(),
-                command.entryPoints(),
-                Collections.emptyList(),        // importantFiles는 여기선 필요 없음
-                command.techStack(),
-                command.projectSize()
-        );
-
-        String systemPrompt = String.format(
-                "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s",
-                ctx.languages(),
-                ctx.techStacks(),
-                ctx.tree(),
-                ctx.entryPoints(),
-                ctx.projectSize(),
-                ctx.latestCommits(),
-                ctx.middleCommits(),
-                ctx.oldCommits()
-        );
-
-        List<Message> messages = buildMessages(
-                GPTSystemPrompt.IMPORTANT_FILE_PROMPT,
-                systemPrompt
-        );
-
-        String json = getResponseText(GPTSchema.IMPORTANT_FILES_SCHEMA, importantCacheKeyPrefix, messages, command.fullName());
-        JsonNode rootNode = objectMapper.readTree(json);
-        JsonNode importantFilesNode = rootNode.get("items");
-
-        if (importantFilesNode == null || !importantFilesNode.isArray()) {
-            log.error("GPT important files response parsing error: items field is missing or empty. Full response = {}", json);
-            throw new CustomException(GlobalErrorCode.GPT_ERROR);
-        }
-
-        return objectMapper.readerForListOf(ImportantFile.class).readValue(importantFilesNode.toString());
-    }
-
-    public EvaluationContent evaluateReadme(EvaluationCommand command) throws JsonProcessingException {
+    public EvaluationContentResult evaluateReadme(EvaluationCommand command) throws JsonProcessingException {
         PromptContext ctx = generateSystemPromptContext(
                 command.repoInfo(),
                 command.entryPoints(),
@@ -137,7 +89,7 @@ public class GPTClient {
 
         List<Message> messages = buildMessages(GPTSystemPrompt.EVALUATION_PROMPT, systemPrompt);
         String json = getResponseText(GPTSchema.EVALUATION_SCHEMA, reviewerCacheKeyPrefix, messages, command.fullName());
-        return objectMapper.readValue(json, EvaluationContent.class);
+        return objectMapper.readValue(json, EvaluationContentResult.class);
     }
 
     public String generateDraftReadme(GenerateReadmeCommand command) {

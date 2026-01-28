@@ -31,18 +31,6 @@ public enum RedisKeyFactory {
         );
     }
 
-    public static String createLatestCommitsKey(String owner, String name, String sha) {
-        return COMMIT_LATEST_KEY.buildKey(owner, name, sha);
-    }
-
-    public static String createMiddleCommitsKey(String owner, String name, String sha) {
-        return COMMIT_MIDDLE_KEY.buildKey(owner, name, sha);
-    }
-
-    public static String createInitialCommitsKey(String owner, String name) {
-        return COMMIT_INITIAL_KEY.buildKey(owner, name);
-    }
-
     public static String createLanguageKey(String owner, String name, String sha) {
         return LANGUAGE_KEY.buildKey(owner, name, sha);
     }
@@ -51,15 +39,15 @@ public enum RedisKeyFactory {
         return TREE_KEY.buildKey(owner, name, sha);
     }
 
-    public static String createTechStackKey(String owner, String name, String sha) {
+    public static String createRepoInfoKey(String owner, String name, String sha) {
         return TECH_STACK_KEY.buildKey(owner, name, sha);
     }
 
-    public static String createFileV1Key(String owner, String name, String sha) {
+    public static String createEntryFileKey(String owner, String name, String sha) {
         return FILE_V1_KEY.buildKey(owner, name, sha);
     }
 
-    public static String createFileV2Key(String owner, String name, String sha) {
+    public static String createImportanceFileKey(String owner, String name, String sha) {
         return FILE_V2_KEY.buildKey(owner, name, sha);
     }
 }

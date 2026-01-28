@@ -17,8 +17,7 @@ import seungyong.helpmebackend.domain.entity.evaluation.Evaluation;
 import seungyong.helpmebackend.domain.entity.user.User;
 import seungyong.helpmebackend.domain.mapper.CustomTimeStamp;
 import seungyong.helpmebackend.domain.vo.EvaluationStatus;
-import seungyong.helpmebackend.infrastructure.gpt.dto.EvaluationContent;
-import seungyong.helpmebackend.infrastructure.gpt.dto.GPTRepositoryInfo;
+import seungyong.helpmebackend.adapter.out.result.EvaluationContentResult;
 import seungyong.helpmebackend.infrastructure.redis.RedisKeyFactory;
 import seungyong.helpmebackend.usecase.port.in.repository.RepositoryPortIn;
 import seungyong.helpmebackend.usecase.port.out.cipher.CipherPortOut;
@@ -369,7 +368,7 @@ public class RepositoryService implements RepositoryPortIn {
             }
         }
 
-        GPTRepositoryInfo repositoryInfo;
+        GPTRepositoryInfoResult repositoryInfo;
         List<RepositoryLanguageResult> languages;
         List<RepositoryTreeResult> trees;
         List<RepositoryFileContentResult> entryContents;
@@ -380,7 +379,7 @@ public class RepositoryService implements RepositoryPortIn {
 
             languages = getLanguagesWithCache(repoInfoCommand, latestShaKey, expiration);
             trees = getTreesWithCache(branchCommand, latestShaKey, expiration);
-            repositoryInfo = getTechStackWithCache(
+            repositoryInfo = getRepositoryWithCache(
                     owner, name, latestShaKey,
                     new RepositoryInfoCommand(
                             languages,
@@ -392,22 +391,14 @@ public class RepositoryService implements RepositoryPortIn {
             entryContents = getEntryContentsWithCache(branchCommand, repositoryInfo, latestShaKey, expiration);
             importantFileContents = getImportantFileContentsWithCache(
                     branchCommand,
-                    new RepositoryImportantCommand(
-                            owner + "/" + name,
-                            new RepositoryInfoCommand(
-                                    languages,
-                                    commitCommand,
-                                    trees
-                            ),
-                            entryContents,
-                            repositoryInfo.techStack(),
-                            repositoryInfo.projectSize()
-                    ),
+                    repositoryInfo,
                     latestShaKey, expiration
             );
         } else {
             languages = repositoryPortOut.getRepositoryLanguages(repoInfoCommand);
-            trees = repositoryPortOut.getRepositoryTree(branchCommand);
+            trees = repositoryTreeFilterPortOut.filter(
+                    repositoryPortOut.getRepositoryTree(branchCommand)
+            );
 
             repositoryInfo = gptPortOut.getRepositoryInfo(
                     owner + "/" + name,
@@ -420,28 +411,12 @@ public class RepositoryService implements RepositoryPortIn {
 
             entryContents = fetchFileContents(
                     branchCommand,
-                    getFilePaths(repositoryInfo)
-            );
-
-            List<RepositoryTreeResult> importantFiles = gptPortOut.getImportantFiles(
-                    new RepositoryImportantCommand(
-                            owner + "/" + name,
-                            new RepositoryInfoCommand(
-                                    languages,
-                                    commitCommand,
-                                    trees
-                            ),
-                            entryContents,
-                            repositoryInfo.techStack(),
-                            repositoryInfo.projectSize()
-                    )
+                    getFilePaths(repositoryInfo.entryPoints())
             );
 
             importantFileContents = fetchFileContents(
                     branchCommand,
-                    importantFiles.stream()
-                            .map(RepositoryTreeResult::path)
-                            .toList()
+                    getFilePaths(repositoryInfo.importantFiles())
             );
         }
 
@@ -456,7 +431,7 @@ public class RepositoryService implements RepositoryPortIn {
     }
 
     private ResponseEvaluation evaluate(EvaluationCommand command) {
-        EvaluationContent evaluationResponse = gptPortOut.evaluateReadme(command);
+        EvaluationContentResult evaluationResponse = gptPortOut.evaluateReadme(command);
         return new ResponseEvaluation(
                 evaluationResponse.rating(),
                 evaluationResponse.contents()
@@ -528,14 +503,14 @@ public class RepositoryService implements RepositoryPortIn {
         );
     }
 
-    private GPTRepositoryInfo getTechStackWithCache(
+    private GPTRepositoryInfoResult getRepositoryWithCache(
             String owner,
             String name,
             String sha,
             RepositoryInfoCommand repositoryInfo,
             LocalDateTime expiration
     ) {
-        String key = RedisKeyFactory.createTechStackKey(owner, name, sha);
+        String key = RedisKeyFactory.createRepoInfoKey(owner, name, sha);
 
         return getOrLoadAndCache(
                 key,
@@ -543,18 +518,18 @@ public class RepositoryService implements RepositoryPortIn {
                         owner + "/" + name,
                         repositoryInfo
                 ),
-                new TypeReference<GPTRepositoryInfo>() {},
+                new TypeReference<GPTRepositoryInfoResult>() {},
                 expiration
         );
     }
 
     private List<RepositoryFileContentResult> getEntryContentsWithCache(
             RepoBranchCommand command,
-            GPTRepositoryInfo repositoryInfo,
+            GPTRepositoryInfoResult repositoryInfo,
             String sha,
             LocalDateTime expiration
     ) {
-        String key = RedisKeyFactory.createFileV1Key(
+        String key = RedisKeyFactory.createEntryFileKey(
                 command.repoInfo().owner(),
                 command.repoInfo().name(),
                 sha
@@ -564,7 +539,7 @@ public class RepositoryService implements RepositoryPortIn {
                 key,
                 () -> fetchFileContents(
                         command,
-                        getFilePaths(repositoryInfo)
+                        getFilePaths(repositoryInfo.entryPoints())
                 ),
                 new TypeReference<List<RepositoryFileContentResult>>() {
                 },
@@ -574,11 +549,11 @@ public class RepositoryService implements RepositoryPortIn {
 
     private List<RepositoryFileContentResult> getImportantFileContentsWithCache(
             RepoBranchCommand command,
-            RepositoryImportantCommand importantCommand,
+            GPTRepositoryInfoResult repositoryInfo,
             String sha,
             LocalDateTime expiration
     ) {
-        String key = RedisKeyFactory.createFileV2Key(
+        String key = RedisKeyFactory.createImportanceFileKey(
                 command.repoInfo().owner(),
                 command.repoInfo().name(),
                 sha
@@ -586,25 +561,21 @@ public class RepositoryService implements RepositoryPortIn {
 
         return getOrLoadAndCache(
                 key,
-                () -> {
-                    List<RepositoryTreeResult> importantFiles = gptPortOut.getImportantFiles(importantCommand);
-
-                    return fetchFileContents(
-                            command,
-                            importantFiles.stream()
-                                    .map(RepositoryTreeResult::path)
-                                    .toList()
-                    );
-                },
+                () -> fetchFileContents(
+                        command,
+                        getFilePaths(repositoryInfo.importantFiles())
+                ),
                 new TypeReference<List<RepositoryFileContentResult>>() {},
                 expiration
         );
     }
 
-    private List<String> getFilePaths(
-            GPTRepositoryInfo repositoryInfo
-    ) {
-        return Arrays.stream(repositoryInfo.entryPoints())
+    private List<String> getFilePaths(String[] paths) {
+        if (paths == null || paths.length == 0) {
+            return Collections.emptyList();
+        }
+
+        return Arrays.stream(paths)
                 // 끝이 / 로 끝나는 경로는 디렉토리이므로 제외 (GPT 응답이 항상 정확하지 않을 수 있으므로 방어적 코딩)
                 .filter(path -> path != null && !path.isBlank() && !path.endsWith("/"))
                 .toList();

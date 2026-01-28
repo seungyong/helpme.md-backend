@@ -1,27 +1,6 @@
 package seungyong.helpmebackend.infrastructure.gpt.type;
 
 public final class GPTSchema {
-    public static final String IMPORTANT_FILES_SCHEMA = """
-            {
-              "type": "object",
-              "properties": {
-                "items": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "path": { "type": "string", "description": "파일의 경로" }
-                    },
-                    "required": ["path"],
-                    "additionalProperties": false
-                  }
-                }
-              },
-              "required": ["items"],
-              "additionalProperties": false
-            }
-            """;
-
     public static final String REPOSITORY_ANALYZE_SCHEMA = """
             {
               "type": "object",
@@ -37,16 +16,23 @@ public final class GPTSchema {
                   "type": "array",
                   "items": {
                     "type": "string",
-                    "description": "프로젝트의 진입점이 되는 파일 또는 디렉토리 경로, 설정이 있는 파일 또는 디렉토리 경로, 의존성 파일 등 (예: src/, config/, packange.json, build.gradle, app.js, main.py 등)"
+                    "description": "프로젝트의 진입점이 되는 파일 경로, 설정이 있는 파일 경로, 의존성 파일 경로 등 (예: packange.json, build.gradle, app.js, main.py 등)"
                   }
                 },
                 "projectSize": {
                   "type": "string",
                   "enum": ["small", "medium", "large"],
                   "description": "프로젝트의 크기 (small, medium, large 중 하나)"
+                },
+                "importantFiles": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "description": "프로젝트 특성(프레임워크/언어 등)에 맞는 프로젝트의 핵심 비즈니스 로직이나 성격을 알 수 있는 중요한 파일 경로"
+                  }
                 }
               },
-              "required": ["techStack", "entryPoints", "projectSize"],
+              "required": ["techStack", "entryPoints", "projectSize", "importantFiles"],
               "additionalProperties": false
             }
             """;
