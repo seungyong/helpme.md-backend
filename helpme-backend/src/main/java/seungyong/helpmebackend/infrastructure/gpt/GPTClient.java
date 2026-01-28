@@ -42,7 +42,7 @@ public class GPTClient {
     @Value("${spring.ai.openai.chat.cache-key.repository-info.prefix}")
     private String repositoryInfoCacheKeyPrefix;
 
-    public GPTRepositoryInfoResult getRepositoryInfo(String fullName, RepositoryInfoCommand repository) throws JsonProcessingException {
+    public GPTRepositoryInfoResult getRepositoryInfo(String fullName, RepositoryInfoCommand repository) {
         String languageList = languagesToString(repository.languages());
         String latestCommits = listToString(repository.commits().latestCommit(), "최근 커밋 메시지:\n");
         String middleCommits = listToString(repository.commits().middleCommit(), "중간 커밋 메시지:\n");
@@ -72,7 +72,7 @@ public class GPTClient {
         );
     }
 
-    public EvaluationContentResult evaluateReadme(EvaluationCommand command) throws JsonProcessingException {
+    public EvaluationContentResult evaluateReadme(EvaluationCommand command) {
         PromptContext ctx = generateSystemPromptContext(
                 command.repoInfo(),
                 command.entryPoints(),
