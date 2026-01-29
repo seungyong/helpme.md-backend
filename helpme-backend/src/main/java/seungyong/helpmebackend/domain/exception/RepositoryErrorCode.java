@@ -13,13 +13,13 @@ public enum RepositoryErrorCode implements ErrorCode {
     GITHUB_UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "GitHub 연동이 해제되었습니다.\n다시 로그인해주세요.", "REPO_40101"),
 
     GITHUB_FORBIDDEN(HttpStatus.FORBIDDEN, "GitHub App 권한이 부족합니다.\n앱 설정을 다시 확인해주세요.", "REPO_40301"),
+    REPOSITORY_CANNOT_PULL(HttpStatus.FORBIDDEN, "레포지토리 정보를 가져올 권한이 없습니다.", "REPO_40302"),
 
     REPOSITORY_README_NOT_FOUND(HttpStatus.NOT_FOUND, "레포지토리의 README.md를 찾을 수 없습니다.", "REPO_40401"),
     BRANCH_NOT_FOUND(HttpStatus.NOT_FOUND, "레포지토리의 브랜치를 찾을 수 없습니다.", "REPO_40402"),
     REPOSITORY_OR_BRANCH_NOT_FOUND(HttpStatus.NOT_FOUND, "레포지토리 또는 브랜치를 찾을 수 없습니다.", "REPO_40403"),
     INSTALLED_REPOSITORY_NOT_FOUND(HttpStatus.NOT_FOUND, "설치된 레포지토리를 찾을 수 없습니다.", "REPO_40404"),
-
-    REPOSITORY_CANNOT_PULL(HttpStatus.FORBIDDEN, "레포지토리 정보를 가져올 권한이 없습니다.", "REPO_40301"),
+    FALLBACK_NOT_FOUND(HttpStatus.NOT_FOUND, "임시 저장된 데이터를 찾을 수 없습니다.", "REPO_40405"),
 
     GITHUB_RATE_LIMIT_EXCEEDED(HttpStatus.FORBIDDEN, "GitHub API 요청 한도를 초과했습니다.", "REPO_42901"),
     GITHUB_BRANCHES_TOO_MANY_REQUESTS(HttpStatus.TOO_MANY_REQUESTS, "GitHub 브랜치 정보 요청이 너무 많습니다.", "REPO_42902"),

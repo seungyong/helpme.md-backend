@@ -30,6 +30,7 @@ public class SecurityConfig {
     ) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
+                .cors(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -38,6 +39,9 @@ public class SecurityConfig {
                                 "/api/v1/oauth2/callback",
                                 "/api/v1/oauth2/login",
                                 "/api/v1/users/reissue"
+                        ).permitAll()
+                        .requestMatchers(
+                                "/api/v1/sse/subscribe"
                         ).permitAll()
                         .requestMatchers(SWAGGER_PATHS).permitAll()
                         // TODO: 배포 시 삭제

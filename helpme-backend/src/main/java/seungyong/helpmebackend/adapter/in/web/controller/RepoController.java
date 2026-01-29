@@ -5,13 +5,16 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import seungyong.helpmebackend.adapter.in.web.dto.repository.request.RequestDraftEvaluation;
 import seungyong.helpmebackend.adapter.in.web.dto.repository.request.RequestEvaluation;
 import seungyong.helpmebackend.adapter.in.web.dto.repository.request.RequestPull;
 import seungyong.helpmebackend.adapter.in.web.dto.repository.response.*;
 import seungyong.helpmebackend.adapter.in.web.dto.user.common.CustomUserDetails;
+import seungyong.helpmebackend.common.exception.CustomException;
 import seungyong.helpmebackend.common.exception.GlobalErrorCode;
 import seungyong.helpmebackend.domain.exception.RepositoryErrorCode;
 import seungyong.helpmebackend.domain.exception.UserErrorCode;
@@ -153,6 +156,52 @@ public class RepoController {
     }
 
     @Operation(
+            summary = "임시 저장된 README 평가 결과 조회",
+            description = """
+                    SSE 작업 중 에러가 발생한 경우, 임시 저장된 README 평가 결과를 조회합니다.
+                    """
+    )
+    @GetMapping("/fallback/evaluate/push/{taskId}")
+    public ResponseEntity<ResponseEvaluation> getFallbackPushEvaluation(
+            @PathVariable("taskId") String taskId
+    ) {
+        return ResponseEntity.ok(
+                repositoryPortIn.fallbackPushEvaluation(taskId)
+        );
+    }
+
+    @Operation(
+            summary = "임시 저장된 README 초안 평가 결과 조회",
+            description = """
+                    SSE 작업 중 에러가 발생한 경우, 임시 저장된 README 초안 평가 결과를 조회합니다.
+                    """
+    )
+    @GetMapping("/fallback/evaluate/draft/{taskId}")
+    public ResponseEntity<ResponseEvaluation> getFallbackDraftEvaluation(
+            @PathVariable("taskId") String taskId
+    ) {
+        return ResponseEntity.ok(
+                repositoryPortIn.fallbackDraftEvaluation(taskId)
+        );
+    }
+
+
+    @Operation(
+            summary = "임시 저장된 README 내용 조회",
+            description = """
+                    SSE 작업 중 에러가 발생한 경우, 임시 저장된 README 평가 또는 생성 결과를 조회합니다.
+                    """
+    )
+    @GetMapping("/fallback/generate/{taskId}")
+    public ResponseEntity<ResponseDraftReadme> getFallbackGenerate(
+            @PathVariable("taskId") String taskId
+    ) {
+        return ResponseEntity.ok(
+                repositoryPortIn.fallbackGenerateReadme(taskId)
+        );
+    }
+
+    @Operation(
             summary = "풀 리퀘스트 생성",
             description = """
                     특정 레포지토리에 대해 특정 브랜치를 기준으로 풀 리퀘스트를 생성합니다.
@@ -228,6 +277,7 @@ public class RepoController {
                     - AI 모델을 사용하여 README.md 파일의 품질을 평가하고, 개선점을 제안합니다.
                     - 커밋 내역, 프로젝트 구조, 주요 파일 내용 및 목록, 언어 통계 등을 Redis 캐시에 저장하여 평가에 활용합니다.
                         - 가장 최신 커밋 SHA를 활용하여, 동일한 커밋에 대해 중복 평가를 방지합니다.
+                    - SSE를 사용하며, 비동기 작업을 진행합니다.
                     - 평가 결과는 DB에 저장됩니다.
                     """
     )
@@ -269,16 +319,16 @@ public class RepoController {
                     errorCodes = { "JSON_PROCESSING_ERROR", "GITHUB_ERROR", "INTERNAL_SERVER_ERROR" }
             )
     })
-    @PostMapping("/{owner}/{name}/evaluate/readme")
-    public ResponseEntity<ResponseEvaluation> evaluateReadme(
+    @PostMapping("/{owner}/{name}/evaluate/readme/sse")
+    public ResponseEntity<Void> evaluateReadme(
             @Valid @RequestBody RequestEvaluation request,
             @PathVariable("owner") String owner,
             @PathVariable("name") String name,
+            @RequestParam(value = "taskId") String taskId,
             @AuthenticationPrincipal CustomUserDetails details
-            ) {
-        return ResponseEntity.ok(
-                repositoryPortIn.evaluateReadme(request, details.getUserId(), owner, name)
-        );
+    ) {
+        repositoryPortIn.evaluateReadme(request, taskId, details.getUserId(), owner, name);
+        return ResponseEntity.accepted().build();
     }
 
     @Operation(
@@ -290,6 +340,7 @@ public class RepoController {
                     - AI 모델을 사용하여 README.md 초안의 품질을 평가하고, 개선점을 제안합니다.
                     - 커밋 내역, 프로젝트 구조, 주요 파일 내용 및 목록, 언어 통계 등을 Redis 캐시에 저장하여 평가에 활용합니다.
                         - 가장 최신 커밋 SHA를 활용하여, 동일한 커밋에 대해 중복 평가를 방지합니다.
+                    - SSE를 사용하며, 비동기 작업을 진행합니다.
                     - 평가 결과는 DB에 저장되지 않습니다.
                     """
     )
@@ -331,16 +382,16 @@ public class RepoController {
                     errorCodes = { "JSON_PROCESSING_ERROR", "GITHUB_ERROR", "INTERNAL_SERVER_ERROR" }
             )
     })
-    @PostMapping("/{owner}/{name}/evaluate/draft")
-    public ResponseEntity<ResponseEvaluation> evaluateDraftReadme(
+    @PostMapping("/{owner}/{name}/evaluate/draft/sse")
+    public ResponseEntity<Void> evaluateDraftReadme(
             @Valid @RequestBody RequestDraftEvaluation request,
             @PathVariable("owner") String owner,
             @PathVariable("name") String name,
+            @RequestParam(value = "taskId") String taskId,
             @AuthenticationPrincipal CustomUserDetails details
     ) {
-        return ResponseEntity.ok(
-                repositoryPortIn.evaluateDraftReadme(request, details.getUserId(), owner, name)
-        );
+        repositoryPortIn.evaluateDraftReadme(request, taskId, details.getUserId(), owner, name);
+        return ResponseEntity.accepted().build();
     }
 
     @Operation(
@@ -350,6 +401,7 @@ public class RepoController {
                     
                     - 각 요청 시점에 `GitHub API`를 호출하여 실시간으로 데이터를 가져옵니다.
                     - AI 모델을 사용하여 레포지토리의 특성에 맞는 README.md 초안을 생성합니다.
+                    - SSE를 사용하며, 비동기 작업을 진행합니다.
                     - 커밋 내역, 프로젝트 구조, 주요 파일 내용 및 목록, 언어 통계 등을 Redis 캐시에 저장하여 생성에 활용합니다.
                     """
     )
@@ -391,15 +443,15 @@ public class RepoController {
                     errorCodes = { "JSON_PROCESSING_ERROR", "GITHUB_ERROR", "INTERNAL_SERVER_ERROR" }
             )
     })
-    @PostMapping("/{owner}/{name}/generate")
-    public ResponseEntity<ResponseDraftReadme> generateDraftReadme(
+    @PostMapping("/{owner}/{name}/generate/sse")
+    public ResponseEntity<Void> generateDraftReadme(
             @Valid @RequestBody RequestEvaluation request,
             @PathVariable("owner") String owner,
             @PathVariable("name") String name,
+            @RequestParam(value = "taskId") String taskId,
             @AuthenticationPrincipal CustomUserDetails details
     ) {
-        return ResponseEntity.ok(
-                repositoryPortIn.generateDraftReadme(request, details.getUserId(), owner, name)
-        );
+        repositoryPortIn.generateDraftReadme(request, taskId, details.getUserId(), owner, name);
+        return ResponseEntity.accepted().build();
     }
 }

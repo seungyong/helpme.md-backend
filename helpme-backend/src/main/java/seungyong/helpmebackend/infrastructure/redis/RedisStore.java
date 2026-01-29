@@ -71,6 +71,41 @@ public class RedisStore {
     }
 
     /**
+     * Redis에 key가 없을 경우에만 key, value 객체를 저장합니다. <br />
+     * 비동기와 같이 중복 저장을 방지할 때 사용합니다. <br />
+     * 만료 시간을 지정하여 저장합니다.
+     *
+     * @param key   저장할 key
+     * @param value 저장할 value 객체
+     * @param expireTime 만료 시간
+     */
+    public void setObjectIfAbsent(String key, Object value, LocalDateTime expireTime) {
+        if (expireTime.isBefore(LocalDateTime.now())) {
+            log.error("Don't set the past time to Redis. key = {}, expireTime = {}", key, expireTime);
+            throw new CustomException(GlobalErrorCode.REDIS_ERROR);
+        }
+
+        try {
+            Duration duration = Duration.between(LocalDateTime.now(), expireTime);
+            long ttlInSeconds = duration.getSeconds();
+
+            Boolean success = redisTemplate.opsForValue().setIfAbsent(
+                    key,
+                    objectMapper.writeValueAsString(value),
+                    ttlInSeconds,
+                    TimeUnit.SECONDS
+            );
+
+            if (success == null || !success) {
+                log.info("Redis setObjectIfAbsent skipped. key = {} already exists.", key);
+            }
+        } catch (Exception e) {
+            log.error("Redis setObjectIfAbsent error. key = {}, value = {}, expireTime = {}", key, value, expireTime, e);
+            throw new CustomException(GlobalErrorCode.REDIS_ERROR);
+        }
+    }
+
+    /**
      * Redis에 key가 존재하는지 확인합니다.
      *
      * @param key   확인할 key

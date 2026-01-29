@@ -22,7 +22,9 @@ public class RequestLoggingFilter implements Filter {
         HttpServletRequest request = (HttpServletRequest) servletRequest;
         HttpServletResponse response = (HttpServletResponse) servletResponse;
 
-        if (isStaticResource(request.getRequestURI()) || isSwaggerResource(request.getRequestURI())) {
+        String uri = request.getRequestURI();
+
+        if (isStaticResource(uri) || isSwaggerResource(uri) || isSseRequest(uri)) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -127,6 +129,10 @@ public class RequestLoggingFilter implements Filter {
         } else {
             return "Desktop";
         }
+    }
+
+    private boolean isSseRequest(String uri) {
+        return uri.equals("/api/v1/sse/subscribe") || uri.matches("^/api/v1/repos/.+/.+/sse$");
     }
 
     private boolean isStaticResource(String uri) {

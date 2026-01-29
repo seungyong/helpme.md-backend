@@ -9,8 +9,11 @@ import seungyong.helpmebackend.adapter.in.web.dto.repository.response.*;
 public interface RepositoryPortIn {
     ResponseRepositories getRepositories(Long userId, Long installationId, Integer page);
     ResponseRepository getRepository(Long userId, String owner, String name);
+    ResponseEvaluation fallbackPushEvaluation(String taskId);
+    ResponseEvaluation fallbackDraftEvaluation(String taskId);
+    ResponseDraftReadme fallbackGenerateReadme(String taskId);
     ResponsePull createPullRequest(RequestPull request, Long userId, String owner, String name);
-    ResponseEvaluation evaluateReadme(RequestEvaluation request, Long userId, String owner, String name);
-    ResponseEvaluation evaluateDraftReadme(RequestDraftEvaluation request, Long userId, String owner, String name);
-    ResponseDraftReadme generateDraftReadme(RequestEvaluation request, Long userId, String owner, String name);
+    void evaluateReadme(RequestEvaluation request, String taskId, Long userId, String owner, String name);
+    void evaluateDraftReadme(RequestDraftEvaluation request, String taskId, Long userId, String owner, String name);
+    void generateDraftReadme(RequestEvaluation request, String taskId, Long userId, String owner, String name);
 }

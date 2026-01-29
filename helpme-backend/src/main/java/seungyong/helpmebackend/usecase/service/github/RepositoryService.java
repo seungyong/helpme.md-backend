@@ -3,6 +3,7 @@ package seungyong.helpmebackend.usecase.service.github;
 import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import seungyong.helpmebackend.adapter.in.web.dto.repository.request.RequestDraftEvaluation;
@@ -12,13 +13,20 @@ import seungyong.helpmebackend.adapter.in.web.dto.repository.response.*;
 import seungyong.helpmebackend.adapter.in.web.mapper.RepositoryPortInMapper;
 import seungyong.helpmebackend.adapter.out.command.*;
 import seungyong.helpmebackend.adapter.out.result.*;
+import seungyong.helpmebackend.common.exception.CustomException;
+import seungyong.helpmebackend.common.exception.ErrorCode;
+import seungyong.helpmebackend.common.exception.ErrorResponse;
+import seungyong.helpmebackend.common.exception.GlobalErrorCode;
 import seungyong.helpmebackend.domain.entity.component.Component;
 import seungyong.helpmebackend.domain.entity.evaluation.Evaluation;
 import seungyong.helpmebackend.domain.entity.user.User;
+import seungyong.helpmebackend.domain.exception.RepositoryErrorCode;
 import seungyong.helpmebackend.domain.mapper.CustomTimeStamp;
 import seungyong.helpmebackend.domain.vo.EvaluationStatus;
 import seungyong.helpmebackend.adapter.out.result.EvaluationContentResult;
+import seungyong.helpmebackend.infrastructure.redis.RedisKey;
 import seungyong.helpmebackend.infrastructure.redis.RedisKeyFactory;
+import seungyong.helpmebackend.infrastructure.sse.SSETaskName;
 import seungyong.helpmebackend.usecase.port.in.repository.RepositoryPortIn;
 import seungyong.helpmebackend.usecase.port.out.cipher.CipherPortOut;
 import seungyong.helpmebackend.usecase.port.out.component.ComponentPortOut;
@@ -27,6 +35,7 @@ import seungyong.helpmebackend.usecase.port.out.github.repository.RepositoryPort
 import seungyong.helpmebackend.usecase.port.out.github.repository.RepositoryTreeFilterPortOut;
 import seungyong.helpmebackend.usecase.port.out.gpt.GPTPortOut;
 import seungyong.helpmebackend.usecase.port.out.redis.RedisPortOut;
+import seungyong.helpmebackend.usecase.port.out.sse.SSEPortOut;
 import seungyong.helpmebackend.usecase.port.out.user.UserPortOut;
 import seungyong.helpmebackend.usecase.service.github.dto.ReadmeContext;
 import seungyong.helpmebackend.usecase.service.github.helper.CacheLoader;
@@ -46,6 +55,7 @@ public class RepositoryService implements RepositoryPortIn {
     private final GPTPortOut gptPortOut;
     private final RedisPortOut redisPortOut;
     private final RepositoryTreeFilterPortOut repositoryTreeFilterPortOut;
+    private final SSEPortOut ssePortOut;
 
     @Override
     public ResponseRepositories getRepositories(Long userId, Long installationId, Integer page) {
@@ -127,6 +137,33 @@ public class RepositoryService implements RepositoryPortIn {
     }
 
     @Override
+    public ResponseEvaluation fallbackPushEvaluation(String taskId) {
+        return getFallbackResult(
+                RedisKey.SSE_EMITTER_EVALUATION_PUSH_KEY.getValue() + taskId,
+                taskId,
+                new TypeReference<ResponseEvaluation>() {}
+        );
+    }
+
+    @Override
+    public ResponseEvaluation fallbackDraftEvaluation(String taskId) {
+        return getFallbackResult(
+                RedisKey.SSE_EMITTER_EVALUATION_DRAFT_KEY.getValue() + taskId,
+                taskId,
+                new TypeReference<ResponseEvaluation>() {}
+        );
+    }
+
+    @Override
+    public ResponseDraftReadme fallbackGenerateReadme(String taskId) {
+        return getFallbackResult(
+                RedisKey.SSE_EMITTER_GENERATION_KEY.getValue() + taskId,
+                taskId,
+                new TypeReference<ResponseDraftReadme>() {}
+        );
+    }
+
+    @Override
     public ResponsePull createPullRequest(RequestPull request, Long userId, String owner, String name) {
         User user = userPortOut.getById(userId);
         String accessToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken());
@@ -200,124 +237,211 @@ public class RepositoryService implements RepositoryPortIn {
         }
     }
 
+    @Async
     @Override
-    public ResponseEvaluation evaluateReadme(RequestEvaluation request, Long userId, String owner, String name) {
-        User user = userPortOut.getById(userId);
-        String accessToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken());
+    public void evaluateReadme(RequestEvaluation request, String taskId, Long userId, String owner, String name) {
+        try {
+            User user = userPortOut.getById(userId);
+            String accessToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken());
 
-        // readme 내용 조회
-        String readmeContent = repositoryPortOut.getReadmeContent(
-                new RepoBranchCommand(
-                        new RepoInfoCommand(
-                                accessToken,
-                                owner,
-                                name
-                        ),
-                        request.branch()
-                )
-        );
+            // readme 내용 조회
+            String readmeContent = repositoryPortOut.getReadmeContent(
+                    new RepoBranchCommand(
+                            new RepoInfoCommand(
+                                    accessToken,
+                                    owner,
+                                    name
+                            ),
+                            request.branch()
+                    )
+            );
 
-        ReadmeContext readmeContext = generateReadmeContext(
-                owner,
-                name,
-                accessToken,
-                request.branch()
-        );
+            ReadmeContext readmeContext = generateReadmeContext(
+                    owner,
+                    name,
+                    accessToken,
+                    request.branch()
+            );
 
-        ResponseEvaluation responseEvaluation = evaluate(
-                new EvaluationCommand(
-                        owner + "/" + name,
-                        readmeContent,
-                        new RepositoryInfoCommand(
-                                readmeContext.languages(),
-                                readmeContext.commits(),
-                                readmeContext.trees()
-                        ),
-                        readmeContext.entryContents(),
-                        readmeContext.importantFileContents(),
-                        readmeContext.repositoryInfo().techStack(),
-                        readmeContext.repositoryInfo().projectSize()
-                )
-        );
+            ResponseEvaluation responseEvaluation = evaluate(
+                    new EvaluationCommand(
+                            owner + "/" + name,
+                            readmeContent,
+                            new RepositoryInfoCommand(
+                                    readmeContext.languages(),
+                                    readmeContext.commits(),
+                                    readmeContext.trees()
+                            ),
+                            readmeContext.entryContents(),
+                            readmeContext.importantFileContents(),
+                            readmeContext.repositoryInfo().techStack(),
+                            readmeContext.repositoryInfo().projectSize()
+                    )
+            );
 
-        EvaluationStatus status = EvaluationStatus.getStatus(responseEvaluation.rating());
+            EvaluationStatus status = EvaluationStatus.getStatus(responseEvaluation.rating());
 
-        Evaluation evaluation = evaluationPortOut.getByFullName(owner + "/" + name)
-                .orElseGet(() -> Evaluation.createWithStatusEvaluation(
-                        user.getId(),
-                        owner + "/" + name,
-                        responseEvaluation.rating(),
-                        String.join("\n", responseEvaluation.contents())
-                ));
+            Evaluation evaluation = evaluationPortOut.getByFullName(owner + "/" + name)
+                    .orElseGet(() -> Evaluation.createWithStatusEvaluation(
+                            user.getId(),
+                            owner + "/" + name,
+                            responseEvaluation.rating(),
+                            String.join("\n", responseEvaluation.contents())
+                    ));
 
-        // 기존 Evaluation 업데이트
-        evaluation.changeEvaluation(
-                responseEvaluation.rating(),
-                String.join("\n", responseEvaluation.contents()),
-                status
-        );
-        evaluationPortOut.save(evaluation);
+            // 기존 Evaluation 업데이트
+            evaluation.changeEvaluation(
+                    responseEvaluation.rating(),
+                    String.join("\n", responseEvaluation.contents()),
+                    status
+            );
+            evaluationPortOut.save(evaluation);
 
-        return responseEvaluation;
+            sseSend(
+                    RedisKey.SSE_EMITTER_EVALUATION_PUSH_KEY.getValue() + taskId,
+                    taskId,
+                    "completion-evaluate-push",
+                    responseEvaluation
+            );
+        } catch (Exception e) {
+            sseSendError(
+                    taskId,
+                    SSETaskName.COMPLETION_EVALUATE_PUSH_ERROR.getTaskName(),
+                    e
+            );
+        }
     }
 
+    @Async
     @Override
-    public ResponseEvaluation evaluateDraftReadme(RequestDraftEvaluation request, Long userId, String owner, String name) {
-        User user = userPortOut.getById(userId);
-        String accessToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken());
+    public void evaluateDraftReadme(RequestDraftEvaluation request, String taskId, Long userId, String owner, String name) {
+        try {
+            User user = userPortOut.getById(userId);
+            String accessToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken());
 
-        ReadmeContext readmeContext = generateReadmeContext(
-                owner,
-                name,
-                accessToken,
-                request.branch()
-        );
+            ReadmeContext readmeContext = generateReadmeContext(
+                    owner,
+                    name,
+                    accessToken,
+                    request.branch()
+            );
 
-        return evaluate(
-                new EvaluationCommand(
-                        owner + "/" + name,
-                        request.content(),
-                        new RepositoryInfoCommand(
-                                readmeContext.languages(),
-                                readmeContext.commits(),
-                                readmeContext.trees()
-                        ),
-                        readmeContext.entryContents(),
-                        readmeContext.importantFileContents(),
-                        readmeContext.repositoryInfo().techStack(),
-                        readmeContext.repositoryInfo().projectSize()
-                )
-        );
+            ResponseEvaluation response = evaluate(
+                    new EvaluationCommand(
+                            owner + "/" + name,
+                            request.content(),
+                            new RepositoryInfoCommand(
+                                    readmeContext.languages(),
+                                    readmeContext.commits(),
+                                    readmeContext.trees()
+                            ),
+                            readmeContext.entryContents(),
+                            readmeContext.importantFileContents(),
+                            readmeContext.repositoryInfo().techStack(),
+                            readmeContext.repositoryInfo().projectSize()
+                    )
+            );
+
+            sseSend(
+                    RedisKey.SSE_EMITTER_EVALUATION_DRAFT_KEY.getValue() + taskId,
+                    taskId,
+                    SSETaskName.COMPLETION_EVALUATE_DRAFT.getTaskName(),
+                    response
+            );
+        } catch (Exception e) {
+            sseSendError(
+                    taskId,
+                    SSETaskName.COMPLETION_EVALUATE_DRAFT_ERROR.getTaskName(),
+                    e
+            );
+        }
     }
 
+    @Async
     @Override
-    public ResponseDraftReadme generateDraftReadme(RequestEvaluation request, Long userId, String owner, String name) {
-        User user = userPortOut.getById(userId);
-        String accessToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken());
+    public void generateDraftReadme(RequestEvaluation request, String taskId, Long userId, String owner, String name) {
+        try {
+            User user = userPortOut.getById(userId);
+            String accessToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken());
 
-        ReadmeContext readmeContext = generateReadmeContext(
-                owner,
-                name,
-                accessToken,
-                request.branch()
-        );
+            ReadmeContext readmeContext = generateReadmeContext(
+                    owner,
+                    name,
+                    accessToken,
+                    request.branch()
+            );
 
-        String draftReadme = gptPortOut.generateDraftReadme(
-                new GenerateReadmeCommand(
-                        owner + "/" + name,
-                        new RepositoryInfoCommand(
-                                readmeContext.languages(),
-                                readmeContext.commits(),
-                                readmeContext.trees()
-                        ),
-                        readmeContext.entryContents(),
-                        readmeContext.importantFileContents(),
-                        readmeContext.repositoryInfo().techStack(),
-                        readmeContext.repositoryInfo().projectSize()
-                )
-        );
+            String draftReadme = gptPortOut.generateDraftReadme(
+                    new GenerateReadmeCommand(
+                            owner + "/" + name,
+                            new RepositoryInfoCommand(
+                                    readmeContext.languages(),
+                                    readmeContext.commits(),
+                                    readmeContext.trees()
+                            ),
+                            readmeContext.entryContents(),
+                            readmeContext.importantFileContents(),
+                            readmeContext.repositoryInfo().techStack(),
+                            readmeContext.repositoryInfo().projectSize()
+                    )
+            );
 
-        return new ResponseDraftReadme(draftReadme);
+            sseSend(
+                    RedisKey.SSE_EMITTER_GENERATION_KEY.getValue() + taskId,
+                    taskId,
+                    SSETaskName.COMPLETION_GENERATE.getTaskName(),
+                    new ResponseDraftReadme(draftReadme)
+            );
+        } catch (Exception e) {
+            sseSendError(
+                    taskId,
+                    SSETaskName.COMPLETION_GENERATE_ERROR.getTaskName(),
+                    e
+            );
+        }
+    }
+
+    private <T> T getFallbackResult(String key, String taskId, TypeReference<T> typeReference) {
+        T cached = redisPortOut.getObject(key, typeReference);
+
+        if (cached == null) {
+
+            throw new CustomException(RepositoryErrorCode.FALLBACK_NOT_FOUND);
+        }
+
+        ssePortOut.deleteEmitter(taskId);
+        redisPortOut.delete(key);
+        return cached;
+    }
+
+    private void sseSend(String key, String taskId, String taskName, Object data) {
+        boolean isSent = ssePortOut.sendCompletion(taskId, taskName, data);
+
+        if (!isSent) {
+            redisPortOut.setObjectIfAbsent(
+                    key,
+                    data,
+                    new CustomTimeStamp().getTimestamp().plusHours(1)
+            );
+        }
+    }
+
+    private void sseSendError(String taskId, String taskName, Exception e) {
+        log.error("SSE send error for task {}: {}", taskId, e.getMessage(), e);
+
+        if (e instanceof CustomException) {
+            ssePortOut.sendCompletion(
+                    taskId,
+                    taskName,
+                    ErrorResponse.toResponseEntity((ErrorCode) ((CustomException) e).getErrorCode())
+            );
+        } else {
+            ssePortOut.sendCompletion(
+                    taskId,
+                    taskName,
+                    new CustomException(GlobalErrorCode.INTERNAL_SERVER_ERROR)
+            );
+        }
     }
 
     private ReadmeContext generateReadmeContext(
