@@ -1,6 +1,7 @@
 package seungyong.helpmebackend.adapter.in.web.filter;
 
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,7 +45,8 @@ public class AuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, jakarta.servlet.http.HttpServletResponse response, jakarta.servlet.FilterChain filterChain)
             throws ServletException, IOException {
         response.setCharacterEncoding("UTF-8");
-        String accessToken = request.getHeader("Authorization");
+
+        String accessToken = extractAccessToken(request);
 
         if (accessToken == null) {
             response.setStatus(GlobalErrorCode.INVALID_TOKEN.getHttpStatus().value());
@@ -70,6 +72,22 @@ public class AuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private String extractAccessToken(HttpServletRequest request) {
+        Cookie[] cookies = request.getCookies();
+        String accessToken = null;
+
+        if (cookies != null) {
+            for (Cookie cookie : cookies) {
+                if ("accessToken".equals(cookie.getName())) {
+                    accessToken = cookie.getValue();
+                    break;
+                }
+            }
+        }
+
+        return accessToken;
     }
 
     private Authentication getAuthentication(String accessToken) {

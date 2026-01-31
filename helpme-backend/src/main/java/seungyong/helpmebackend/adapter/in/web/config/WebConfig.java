@@ -29,19 +29,13 @@ public class WebConfig implements WebMvcConfigurer {
                 });
     }
 
-    // TODO: 배포 시 삭제
     @Override
-    public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        // 정적 리소스 핸들러 명시적 등록
-        registry.addResourceHandler("/**")
-                .addResourceLocations("classpath:/static/")
-                .setCachePeriod(0); // 개발 시 캐시 비활성화
-    }
-
-    // TODO: 배포 시 삭제
-    @Override
-    public void addViewControllers(ViewControllerRegistry registry) {
-        // 루트 경로를 index.html로 매핑
-        registry.addViewController("/").setViewName("forward:/index.html");
+    public void addCorsMappings(CorsRegistry registry) {
+        registry.addMapping("/**")
+                .allowedOrigins("http://localhost:3000")
+                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                .allowedHeaders("*")
+                .allowCredentials(true)
+                .maxAge(3600);
     }
 }

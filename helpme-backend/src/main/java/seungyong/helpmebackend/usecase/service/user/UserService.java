@@ -48,6 +48,8 @@ public class UserService implements UserPortIn {
 
     @Override
     public void withdraw(Long userId) {
+        // TODO : Github App uninstall 처리
+
         User user = userPortOut.getById(userId);
         userPortOut.delete(user);
 

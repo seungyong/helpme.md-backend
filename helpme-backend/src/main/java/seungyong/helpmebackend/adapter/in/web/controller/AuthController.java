@@ -63,8 +63,7 @@ public class AuthController {
                     GitHub App 설치 후 콜백을 처리합니다.
                     - State 검증을 수행합니다.
                     - OAuth2 인증 및 회원가입/로그인을 처리합니다.
-                      - 성공 시, `Access Token`을 쿼리 파라미터로 전달하여 리다이렉트합니다.
-                        - `Refresh Token`은 `HttpOnly Cookie`로 설정됩니다.
+                      - 성공 시, `Access Token`과 `Refresh Token`은 `HttpOnly Cookie`로 설정됩니다.
                       - 실패 시, 에러 정보를 쿼리 파라미터(`authentication_failed`)로 전달하여 리다이렉트합니다.
                     - GitHub App 설치를 처리합니다.
                         - 레포 선택 페이지로 리다이렉트합니다.
@@ -140,27 +139,43 @@ public class AuthController {
         return ResponseEntity.ok(installation);
     }
 
+    @PostMapping("/check")
+    public ResponseEntity<Void> checkAuth() {
+        return ResponseEntity.noContent().build();
+    }
+
     private String loginOrSignup(String code, String state, HttpServletResponse response) {
         try {
             JWT jwt = oAuth2PortIn.signupOrLogin(code, state);
 
             Instant now = Instant.now();
-            Instant expire = jwt.getRefreshTokenExpireTime().toInstant(ZoneOffset.UTC);
-            long maxAgeSeconds = Duration.between(now, expire).getSeconds();
 
-            // Cookie에 Refresh Token 설정
+            Instant accessTokenExpire = jwt.getAccessTokenExpireTime().toInstant(ZoneOffset.UTC);
+            long accessMaxAgeSeconds = Duration.between(now, accessTokenExpire).getSeconds();
+            Instant refreshTokenExpire = jwt.getRefreshTokenExpireTime().toInstant(ZoneOffset.UTC);
+            long refreshMaxAgeSeconds = Duration.between(now, refreshTokenExpire).getSeconds();
+
+            // Cookie에 Access Token, Refresh Token 설정
+            // TODO : secure(true)로 변경 (배포 시)
+            ResponseCookie accessTokenCookie = ResponseCookie.from("accessToken", jwt.getAccessToken())
+                    .httpOnly(true)
+                    .secure(false)
+                    .path("/")
+                    .maxAge(accessMaxAgeSeconds)
+                    .sameSite("Lax")
+                    .build();
+            response.addHeader(HttpHeaders.SET_COOKIE, accessTokenCookie.toString());
+
             ResponseCookie cookie = ResponseCookie.from("refreshToken", jwt.getRefreshToken())
                     .httpOnly(true)
-                    .secure(true)
+                    .secure(false)
                     .path("/")
-                    .maxAge(maxAgeSeconds)
+                    .maxAge(refreshMaxAgeSeconds)
                     .sameSite("Lax")
                     .build();
             response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
 
             return UriComponentsBuilder.fromUriString("http://localhost:3000/oauth2/callback")
-                    .queryParam("accessToken", jwt.getAccessToken())
-                    .queryParam("accessTokenExpireTime", jwt.getAccessTokenExpireTime().toString())
                     .build()
                     .toUriString();
         } catch (Exception e) {
