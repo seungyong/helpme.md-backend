@@ -14,6 +14,7 @@ import seungyong.helpmebackend.common.exception.GlobalErrorCode;
 import seungyong.helpmebackend.domain.mapper.CustomTimeStamp;
 
 import java.security.Key;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Date;
@@ -22,7 +23,8 @@ import java.util.Date;
 @Component
 public class JWTProvider implements JwtGenerator<JWT> {
     private static final String grantType = "Bearer";
-    private static final long accessTokenExpirationTime = 60 * 30;
+//    private static final long accessTokenExpirationTime = 60 * 30;
+    private static final long accessTokenExpirationTime = 10;
     private static final long refreshTokenExpirationTime = 60 * 60 * 24 * 7;
     private final Key key;
 
@@ -43,18 +45,11 @@ public class JWTProvider implements JwtGenerator<JWT> {
      * @return {@link JWT}
      */
     public JWT generate(Long userId) {
-        CustomTimeStamp customTimestamp = new CustomTimeStamp();
-        LocalDateTime accessTokenExpireTime = customTimestamp.getTimestamp()
-                .plusSeconds(accessTokenExpirationTime);
-        LocalDateTime refreshTokenExpireTime = customTimestamp.getTimestamp()
-                .plusSeconds(refreshTokenExpirationTime);
+        Instant accessExpire = Instant.now().plusSeconds(accessTokenExpirationTime);
+        Date accessTokenExpireDate = Date.from(accessExpire);
 
-        Date accessTokenExpireDate = Date.from(
-                accessTokenExpireTime.atZone(ZoneId.systemDefault()).toInstant()
-        );
-        Date refreshTokenExpireDate = Date.from(
-                refreshTokenExpireTime.atZone(ZoneId.systemDefault()).toInstant()
-        );
+        Instant refreshExpire = Instant.now().plusSeconds(refreshTokenExpirationTime);
+        Date refreshTokenExpireDate = Date.from(refreshExpire);
 
         String accessToken = Jwts.builder()
                 .setSubject(String.valueOf(userId))
@@ -63,6 +58,7 @@ public class JWTProvider implements JwtGenerator<JWT> {
                 .compact();
 
         String refreshToken = Jwts.builder()
+                .setSubject(String.valueOf(userId))
                 .setExpiration(refreshTokenExpireDate)
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
@@ -71,8 +67,8 @@ public class JWTProvider implements JwtGenerator<JWT> {
                 .grantType(grantType)
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
-                .accessTokenExpireTime(accessTokenExpireTime)
-                .refreshTokenExpireTime(refreshTokenExpireTime)
+                .accessTokenExpireTime(accessExpire)
+                .refreshTokenExpireTime(refreshExpire)
                 .build();
     }
 
@@ -93,7 +89,7 @@ public class JWTProvider implements JwtGenerator<JWT> {
      * @param accessToken AccessToken
      * @return 만료 시간
      */
-    public Long getUserIdByAccessTokenWithoutCheck(String accessToken){
+    public Long getUserIdByTokenWithoutCheck(String accessToken){
         Claims claims = parseClaims(accessToken, false);
         return Long.valueOf(claims.getSubject());
     }

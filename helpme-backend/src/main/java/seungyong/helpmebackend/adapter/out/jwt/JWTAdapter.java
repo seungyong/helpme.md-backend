@@ -24,7 +24,7 @@ public class JWTAdapter implements JWTPortOut {
     }
 
     @Override
-    public Long getUserIdByAccessTokenWithoutCheck(String accessToken) {
-        return jwtProvider.getUserIdByAccessTokenWithoutCheck(accessToken);
+    public Long getUserIdByTokenWithoutCheck(String token) {
+        return jwtProvider.getUserIdByTokenWithoutCheck(token);
     }
 }

@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 
 /**
@@ -20,7 +21,7 @@ import java.time.LocalDateTime;
 public class JWT {
     private String grantType;
     private String accessToken;
-    private LocalDateTime accessTokenExpireTime;
+    private Instant accessTokenExpireTime;
     private String refreshToken;
-    private LocalDateTime refreshTokenExpireTime;
+    private Instant refreshTokenExpireTime;
 }

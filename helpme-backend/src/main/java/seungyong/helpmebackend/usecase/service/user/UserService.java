@@ -12,6 +12,8 @@ import seungyong.helpmebackend.usecase.port.out.jwt.JWTPortOut;
 import seungyong.helpmebackend.usecase.port.out.redis.RedisPortOut;
 import seungyong.helpmebackend.usecase.port.out.user.UserPortOut;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Date;
 
 @Service
@@ -22,16 +24,14 @@ public class UserService implements UserPortIn {
     private final UserPortOut userPortOut;
 
     @Override
-    public JWT reissue(String accessToken, String refreshToken) {
+    public JWT reissue(String refreshToken) {
         Date now = new Date();
 
-        if (!jwtPortOut.isExpired(accessToken, now)) {
-            throw new CustomException(GlobalErrorCode.INVALID_TOKEN);
-        } else if (jwtPortOut.isExpired(refreshToken, now)) {
+        if (jwtPortOut.isExpired(refreshToken, now)) {
             throw new CustomException(GlobalErrorCode.INVALID_TOKEN);
         }
 
-        Long userId = jwtPortOut.getUserIdByAccessTokenWithoutCheck(accessToken);
+        Long userId = jwtPortOut.getUserIdByTokenWithoutCheck(refreshToken);
 
         String refreshTokenKey = RedisKey.REFRESH_KEY.getValue() + userId;
         String storedRefreshToken = redisPortOut.get(refreshTokenKey);
@@ -41,7 +41,11 @@ public class UserService implements UserPortIn {
         }
 
         JWT jwt = jwtPortOut.generate(userId);
-        redisPortOut.set(refreshTokenKey, jwt.getRefreshToken(), jwt.getRefreshTokenExpireTime());
+        LocalDateTime refreshTokenExpireTime = LocalDateTime.ofInstant(
+                jwt.getRefreshTokenExpireTime(),
+                ZoneOffset.UTC
+        );
+        redisPortOut.set(refreshTokenKey, jwt.getRefreshToken(), refreshTokenExpireTime);
 
         return jwt;
     }

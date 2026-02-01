@@ -150,10 +150,8 @@ public class AuthController {
 
             Instant now = Instant.now();
 
-            Instant accessTokenExpire = jwt.getAccessTokenExpireTime().toInstant(ZoneOffset.UTC);
-            long accessMaxAgeSeconds = Duration.between(now, accessTokenExpire).getSeconds();
-            Instant refreshTokenExpire = jwt.getRefreshTokenExpireTime().toInstant(ZoneOffset.UTC);
-            long refreshMaxAgeSeconds = Duration.between(now, refreshTokenExpire).getSeconds();
+            long accessMaxAgeSeconds = jwt.getAccessTokenExpireTime().getEpochSecond() - now.getEpochSecond();
+            long refreshMaxAgeSeconds = jwt.getRefreshTokenExpireTime().getEpochSecond() - now.getEpochSecond();
 
             // Cookie에 Access Token, Refresh Token 설정
             // TODO : secure(true)로 변경 (배포 시)

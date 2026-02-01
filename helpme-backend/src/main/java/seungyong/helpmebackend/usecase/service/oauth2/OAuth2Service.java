@@ -9,6 +9,7 @@ import seungyong.helpmebackend.common.exception.CustomException;
 import seungyong.helpmebackend.common.exception.GlobalErrorCode;
 import seungyong.helpmebackend.domain.entity.user.GithubUser;
 import seungyong.helpmebackend.domain.entity.user.User;
+import seungyong.helpmebackend.domain.mapper.CustomTimeStamp;
 import seungyong.helpmebackend.infrastructure.jwt.JWT;
 import seungyong.helpmebackend.infrastructure.redis.RedisKey;
 import seungyong.helpmebackend.usecase.port.in.oauth2.OAuth2PortIn;
@@ -20,6 +21,7 @@ import seungyong.helpmebackend.usecase.port.out.user.UserPortOut;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Base64;
 
 @Service
@@ -75,7 +77,8 @@ public class OAuth2Service implements OAuth2PortIn {
         JWT jwt = jwtPortOut.generate(user.getId());
 
         String key = RedisKey.REFRESH_KEY.getValue() + user.getId();
-        redisPortOut.set(key, jwt.getRefreshToken(), jwt.getRefreshTokenExpireTime());
+        LocalDateTime expireTime = LocalDateTime.ofInstant(jwt.getRefreshTokenExpireTime(), ZoneOffset.UTC);
+        redisPortOut.set(key, jwt.getRefreshToken(), expireTime);
 
         return jwt;
     }

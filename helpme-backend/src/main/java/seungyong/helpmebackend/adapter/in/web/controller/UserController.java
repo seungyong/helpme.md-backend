@@ -75,29 +75,24 @@ public class UserController {
             HttpServletRequest request,
             HttpServletResponse response
     ) {
-        String accessToken = getToken(request, "accessToken");
         String refreshToken = getToken(request, "refreshToken");
 
-        if (accessToken == null || refreshToken == null) {
+        if (refreshToken == null) {
             throw new CustomException(GlobalErrorCode.INVALID_TOKEN);
         }
 
-        JWT jwt = userPortIn.reissue(accessToken, refreshToken);
+        JWT jwt = userPortIn.reissue(refreshToken);
 
         // 쿠키 설정
         Instant now = Instant.now();
-
-        Instant accessTokenExpire = jwt.getAccessTokenExpireTime().toInstant(ZoneOffset.UTC);
-        long accessTokenMaxAgeSeconds = Duration.between(now, accessTokenExpire).getSeconds();
-
-        Instant refreshTokenExpire = jwt.getRefreshTokenExpireTime().toInstant(ZoneOffset.UTC);
-        long refreshTokenMaxAgeSeconds = Duration.between(now, refreshTokenExpire).getSeconds();
+        long accessMaxAgeSeconds = jwt.getAccessTokenExpireTime().getEpochSecond() - now.getEpochSecond();
+        long refreshMaxAgeSeconds = jwt.getRefreshTokenExpireTime().getEpochSecond() - now.getEpochSecond();
 
         ResponseCookie accessCookie = ResponseCookie.from("accessToken", jwt.getAccessToken())
                 .httpOnly(true)
                 .secure(true)
                 .path("/")
-                .maxAge(accessTokenMaxAgeSeconds)
+                .maxAge(accessMaxAgeSeconds)
                 .sameSite("Lax")
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, accessCookie.toString());
@@ -106,7 +101,7 @@ public class UserController {
                 .httpOnly(true)
                 .secure(true)
                 .path("/")
-                .maxAge(refreshTokenMaxAgeSeconds)
+                .maxAge(refreshMaxAgeSeconds)
                 .sameSite("Lax")
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
