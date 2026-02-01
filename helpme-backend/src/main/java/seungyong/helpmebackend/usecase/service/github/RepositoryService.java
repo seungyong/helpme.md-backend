@@ -21,7 +21,6 @@ import seungyong.helpmebackend.domain.entity.component.Component;
 import seungyong.helpmebackend.domain.entity.evaluation.Evaluation;
 import seungyong.helpmebackend.domain.entity.user.User;
 import seungyong.helpmebackend.domain.exception.RepositoryErrorCode;
-import seungyong.helpmebackend.domain.mapper.CustomTimeStamp;
 import seungyong.helpmebackend.domain.vo.EvaluationStatus;
 import seungyong.helpmebackend.adapter.out.result.EvaluationContentResult;
 import seungyong.helpmebackend.infrastructure.redis.RedisKey;
@@ -40,7 +39,8 @@ import seungyong.helpmebackend.usecase.port.out.user.UserPortOut;
 import seungyong.helpmebackend.usecase.service.github.dto.ReadmeContext;
 import seungyong.helpmebackend.usecase.service.github.helper.CacheLoader;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 @Slf4j
@@ -421,7 +421,7 @@ public class RepositoryService implements RepositoryPortIn {
             redisPortOut.setObjectIfAbsent(
                     key,
                     data,
-                    new CustomTimeStamp().getTimestamp().plusHours(1)
+                    Instant.now().plus(1, ChronoUnit.HOURS)
             );
         }
     }
@@ -499,7 +499,8 @@ public class RepositoryService implements RepositoryPortIn {
         List<RepositoryFileContentResult> importantFileContents;
 
         if (latestShaKey != null) {
-            LocalDateTime expiration = new CustomTimeStamp().getTimestamp().plusDays(3);
+            // 캐시 만료 시간: 3일
+            Instant expiration = Instant.now().plus(3, ChronoUnit.DAYS);
 
             languages = getLanguagesWithCache(repoInfoCommand, latestShaKey, expiration);
             trees = getTreesWithCache(branchCommand, latestShaKey, expiration);
@@ -566,7 +567,7 @@ public class RepositoryService implements RepositoryPortIn {
             String key,
             CacheLoader<T> loader,
             TypeReference<T> typeReference,
-            LocalDateTime expiration
+            Instant expiration
     ) {
         T cachedData = redisPortOut.getObject(key, typeReference);
 
@@ -589,7 +590,7 @@ public class RepositoryService implements RepositoryPortIn {
     private List<RepositoryLanguageResult> getLanguagesWithCache(
             RepoInfoCommand command,
             String sha,
-            LocalDateTime expiration
+            Instant expiration
     ) {
         String key = RedisKeyFactory.createLanguageKey(
                 command.owner(),
@@ -608,7 +609,7 @@ public class RepositoryService implements RepositoryPortIn {
     private List<RepositoryTreeResult> getTreesWithCache(
             RepoBranchCommand command,
             String sha,
-            LocalDateTime expiration
+            Instant expiration
     ) {
         String key = RedisKeyFactory.createTreeKey(
                 command.repoInfo().owner(),
@@ -632,7 +633,7 @@ public class RepositoryService implements RepositoryPortIn {
             String name,
             String sha,
             RepositoryInfoCommand repositoryInfo,
-            LocalDateTime expiration
+            Instant expiration
     ) {
         String key = RedisKeyFactory.createRepoInfoKey(owner, name, sha);
 
@@ -651,7 +652,7 @@ public class RepositoryService implements RepositoryPortIn {
             RepoBranchCommand command,
             GPTRepositoryInfoResult repositoryInfo,
             String sha,
-            LocalDateTime expiration
+            Instant expiration
     ) {
         String key = RedisKeyFactory.createEntryFileKey(
                 command.repoInfo().owner(),
@@ -675,7 +676,7 @@ public class RepositoryService implements RepositoryPortIn {
             RepoBranchCommand command,
             GPTRepositoryInfoResult repositoryInfo,
             String sha,
-            LocalDateTime expiration
+            Instant expiration
     ) {
         String key = RedisKeyFactory.createImportanceFileKey(
                 command.repoInfo().owner(),

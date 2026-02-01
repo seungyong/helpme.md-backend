@@ -5,8 +5,9 @@ import io.swagger.v3.oas.models.examples.Example;
 import lombok.extern.slf4j.Slf4j;
 import seungyong.helpmebackend.common.exception.ErrorCode;
 import seungyong.helpmebackend.common.exception.ErrorResponse;
-import seungyong.helpmebackend.domain.mapper.CustomTimeStamp;
 
+import java.time.Instant;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -53,7 +54,7 @@ public class ErrorExampleGenerator {
                     "errorCode": "%s"
                 }
                 """,
-                new CustomTimeStamp(),
+                Instant.now().toString(),
                 errorCode.getHttpStatus().value(),
                 errorCode.getHttpStatus().name(),
                 errorCode.getMessage(),

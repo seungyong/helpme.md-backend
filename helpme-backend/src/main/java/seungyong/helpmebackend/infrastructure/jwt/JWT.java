@@ -5,7 +5,6 @@ import lombok.Builder;
 import lombok.Getter;
 
 import java.time.Instant;
-import java.time.LocalDateTime;
 
 /**
  * JWT 토큰 정보를 담는 클래스입니다. <br><br>

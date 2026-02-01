@@ -12,8 +12,6 @@ import seungyong.helpmebackend.usecase.port.out.jwt.JWTPortOut;
 import seungyong.helpmebackend.usecase.port.out.redis.RedisPortOut;
 import seungyong.helpmebackend.usecase.port.out.user.UserPortOut;
 
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 import java.util.Date;
 
 @Service
@@ -41,11 +39,7 @@ public class UserService implements UserPortIn {
         }
 
         JWT jwt = jwtPortOut.generate(userId);
-        LocalDateTime refreshTokenExpireTime = LocalDateTime.ofInstant(
-                jwt.getRefreshTokenExpireTime(),
-                ZoneOffset.UTC
-        );
-        redisPortOut.set(refreshTokenKey, jwt.getRefreshToken(), refreshTokenExpireTime);
+        redisPortOut.set(refreshTokenKey, jwt.getRefreshToken(), jwt.getRefreshTokenExpireTime());
 
         return jwt;
     }

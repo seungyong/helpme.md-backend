@@ -11,20 +11,16 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import seungyong.helpmebackend.common.exception.CustomException;
 import seungyong.helpmebackend.common.exception.GlobalErrorCode;
-import seungyong.helpmebackend.domain.mapper.CustomTimeStamp;
 
 import java.security.Key;
 import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.Date;
 
 @Slf4j
 @Component
 public class JWTProvider implements JwtGenerator<JWT> {
     private static final String grantType = "Bearer";
-//    private static final long accessTokenExpirationTime = 60 * 30;
-    private static final long accessTokenExpirationTime = 10;
+    private static final long accessTokenExpirationTime = 60 * 30;
     private static final long refreshTokenExpirationTime = 60 * 60 * 24 * 7;
     private final Key key;
 

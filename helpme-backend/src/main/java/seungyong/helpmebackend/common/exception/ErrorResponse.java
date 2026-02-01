@@ -6,12 +6,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Builder;
 import lombok.Getter;
 import org.springframework.http.ResponseEntity;
-import seungyong.helpmebackend.domain.mapper.CustomTimeStamp;
+
+import java.time.Instant;
 
 @Getter
 @Builder
 public class ErrorResponse {
-    private final String timestamp = new CustomTimeStamp().toString();
+    private final String timestamp = Instant.now().toString();
     private final int status;
     private final String error;
     private final String message;

@@ -3,9 +3,6 @@ package seungyong.helpmebackend.domain.entity.component;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
-import seungyong.helpmebackend.domain.entity.user.User;
-
-import java.time.LocalDateTime;
 
 @Getter
 @Setter

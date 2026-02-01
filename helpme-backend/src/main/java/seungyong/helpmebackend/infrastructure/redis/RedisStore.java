@@ -10,7 +10,7 @@ import seungyong.helpmebackend.common.exception.CustomException;
 import seungyong.helpmebackend.common.exception.GlobalErrorCode;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -26,21 +26,21 @@ public class RedisStore {
      *
      * @param key   저장할 key
      * @param value 저장할 value
-     * @param expireTime 만료 시간
+     * @param expireAt 만료 시간
      */
-    public void set(String key, String value, LocalDateTime expireTime) {
-        if (expireTime.isBefore(LocalDateTime.now())) {
-            log.error("Don't set the past time to Redis. key = {}, expireTime = {}", key, expireTime);
+    public void set(String key, String value, Instant expireAt) {
+        if (expireAt.isBefore(Instant.now())) {
+            log.error("Don't set the past time to Redis. key = {}, expireTime = {}", key, expireAt);
             throw new CustomException(GlobalErrorCode.REDIS_ERROR);
         }
 
         try {
-            Duration duration = Duration.between(LocalDateTime.now(), expireTime);
+            Duration duration = Duration.between(Instant.now(), expireAt);
             long ttlInSeconds = duration.getSeconds();
 
             redisTemplate.opsForValue().set(key, value, ttlInSeconds, TimeUnit.SECONDS);
         } catch (Exception e) {
-            log.error("Redis set error. key = {}, value = {}, expireTime = {}", key, value, expireTime, e);
+            log.error("Redis set error. key = {}, value = {}, expireTime = {}", key, value, expireAt, e);
             throw new CustomException(GlobalErrorCode.REDIS_ERROR);
         }
     }
@@ -51,21 +51,21 @@ public class RedisStore {
      *
      * @param key   저장할 key
      * @param value 저장할 value 객체
-     * @param expireTime 만료 시간
+     * @param expireAt 만료 시간
      */
-    public void setObject(String key, Object value, LocalDateTime expireTime) {
-        if (expireTime.isBefore(LocalDateTime.now())) {
-            log.error("Don't set the past time to Redis. key = {}, expireTime = {}", key, expireTime);
+    public void setObject(String key, Object value, Instant expireAt) {
+        if (expireAt.isBefore(Instant.now())) {
+            log.error("Don't set the past time to Redis. key = {}, expireTime = {}", key, expireAt);
             throw new CustomException(GlobalErrorCode.REDIS_ERROR);
         }
 
         try {
-            Duration duration = Duration.between(LocalDateTime.now(), expireTime);
+            Duration duration = Duration.between(Instant.now(), expireAt);
             long ttlInSeconds = duration.getSeconds();
 
             redisTemplate.opsForValue().set(key, objectMapper.writeValueAsString(value), ttlInSeconds, TimeUnit.SECONDS);
         } catch (Exception e) {
-            log.error("Redis setObject error. key = {}, value = {}, expireTime = {}", key, value, expireTime, e);
+            log.error("Redis setObject error. key = {}, value = {}, expireTime = {}", key, value, expireAt, e);
             throw new CustomException(GlobalErrorCode.REDIS_ERROR);
         }
     }
@@ -77,16 +77,16 @@ public class RedisStore {
      *
      * @param key   저장할 key
      * @param value 저장할 value 객체
-     * @param expireTime 만료 시간
+     * @param expireAt 만료 시간
      */
-    public void setObjectIfAbsent(String key, Object value, LocalDateTime expireTime) {
-        if (expireTime.isBefore(LocalDateTime.now())) {
-            log.error("Don't set the past time to Redis. key = {}, expireTime = {}", key, expireTime);
+    public void setObjectIfAbsent(String key, Object value, Instant expireAt) {
+        if (expireAt.isBefore(Instant.now())) {
+            log.error("Don't set the past time to Redis. key = {}, expireTime = {}", key, expireAt);
             throw new CustomException(GlobalErrorCode.REDIS_ERROR);
         }
 
         try {
-            Duration duration = Duration.between(LocalDateTime.now(), expireTime);
+            Duration duration = Duration.between(Instant.now(), expireAt);
             long ttlInSeconds = duration.getSeconds();
 
             Boolean success = redisTemplate.opsForValue().setIfAbsent(
@@ -100,7 +100,7 @@ public class RedisStore {
                 log.info("Redis setObjectIfAbsent skipped. key = {} already exists.", key);
             }
         } catch (Exception e) {
-            log.error("Redis setObjectIfAbsent error. key = {}, value = {}, expireTime = {}", key, value, expireTime, e);
+            log.error("Redis setObjectIfAbsent error. key = {}, value = {}, expireTime = {}", key, value, expireAt, e);
             throw new CustomException(GlobalErrorCode.REDIS_ERROR);
         }
     }
