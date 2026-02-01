@@ -13,7 +13,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import seungyong.helpmebackend.adapter.in.web.dto.user.common.CustomUserDetails;
-import seungyong.helpmebackend.adapter.in.web.dto.user.response.ResponseJWT;
 import seungyong.helpmebackend.common.exception.CustomException;
 import seungyong.helpmebackend.common.exception.GlobalErrorCode;
 import seungyong.helpmebackend.infrastructure.jwt.JWT;
@@ -33,12 +32,12 @@ import java.time.ZoneOffset;
 public class UserController {
     private final UserPortIn userPortIn;
 
-    private String getRefreshToken(HttpServletRequest request) {
+    private String getToken(HttpServletRequest request, String cookieName) {
         Cookie[] cookies = request.getCookies();
 
         if (cookies != null) {
             for (Cookie cookie : cookies) {
-                if ("refreshToken".equals(cookie.getName())) {
+                if (cookieName.equals(cookie.getName())) {
                     return cookie.getValue();
                 }
             }
@@ -72,12 +71,12 @@ public class UserController {
             )
     })
     @PostMapping("/reissue")
-    public ResponseEntity<ResponseJWT> reissue(
+    public ResponseEntity<Void> reissue(
             HttpServletRequest request,
             HttpServletResponse response
     ) {
-        String accessToken = request.getHeader(HttpHeaders.AUTHORIZATION);
-        String refreshToken = getRefreshToken(request);
+        String accessToken = getToken(request, "accessToken");
+        String refreshToken = getToken(request, "refreshToken");
 
         if (accessToken == null || refreshToken == null) {
             throw new CustomException(GlobalErrorCode.INVALID_TOKEN);
@@ -87,25 +86,32 @@ public class UserController {
 
         // 쿠키 설정
         Instant now = Instant.now();
-        Instant expire = jwt.getRefreshTokenExpireTime().toInstant(ZoneOffset.UTC);
-        long maxAgeSeconds = Duration.between(now, expire).getSeconds();
+
+        Instant accessTokenExpire = jwt.getAccessTokenExpireTime().toInstant(ZoneOffset.UTC);
+        long accessTokenMaxAgeSeconds = Duration.between(now, accessTokenExpire).getSeconds();
+
+        Instant refreshTokenExpire = jwt.getRefreshTokenExpireTime().toInstant(ZoneOffset.UTC);
+        long refreshTokenMaxAgeSeconds = Duration.between(now, refreshTokenExpire).getSeconds();
+
+        ResponseCookie accessCookie = ResponseCookie.from("accessToken", jwt.getAccessToken())
+                .httpOnly(true)
+                .secure(true)
+                .path("/")
+                .maxAge(accessTokenMaxAgeSeconds)
+                .sameSite("Lax")
+                .build();
+        response.addHeader(HttpHeaders.SET_COOKIE, accessCookie.toString());
 
         ResponseCookie cookie = ResponseCookie.from("refreshToken", jwt.getRefreshToken())
                 .httpOnly(true)
                 .secure(true)
                 .path("/")
-                .maxAge(maxAgeSeconds)
+                .maxAge(refreshTokenMaxAgeSeconds)
                 .sameSite("Lax")
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
 
-        return ResponseEntity.ok(
-                new ResponseJWT(
-                        jwt.getGrantType(),
-                        jwt.getAccessToken(),
-                        jwt.getAccessTokenExpireTime().toString()
-                )
-        );
+        return ResponseEntity.noContent().build();
     }
 
     @Operation(
