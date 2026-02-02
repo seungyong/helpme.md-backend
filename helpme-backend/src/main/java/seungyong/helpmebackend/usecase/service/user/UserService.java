@@ -8,6 +8,7 @@ import seungyong.helpmebackend.domain.entity.user.User;
 import seungyong.helpmebackend.infrastructure.jwt.JWT;
 import seungyong.helpmebackend.infrastructure.redis.RedisKey;
 import seungyong.helpmebackend.usecase.port.in.user.UserPortIn;
+import seungyong.helpmebackend.usecase.port.out.github.oauth2.OAuth2PortOut;
 import seungyong.helpmebackend.usecase.port.out.jwt.JWTPortOut;
 import seungyong.helpmebackend.usecase.port.out.redis.RedisPortOut;
 import seungyong.helpmebackend.usecase.port.out.user.UserPortOut;
@@ -46,8 +47,6 @@ public class UserService implements UserPortIn {
 
     @Override
     public void withdraw(Long userId) {
-        // TODO : Github App uninstall 처리
-
         User user = userPortOut.getById(userId);
         userPortOut.delete(user);
 

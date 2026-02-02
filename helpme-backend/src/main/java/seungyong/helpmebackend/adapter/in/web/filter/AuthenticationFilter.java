@@ -46,14 +46,24 @@ public class AuthenticationFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
         response.setCharacterEncoding("UTF-8");
 
-        String accessToken = extractAccessToken(request);
+        String accessToken = extractToken(request, "accessToken");
 
         if (accessToken == null) {
-            response.setStatus(GlobalErrorCode.INVALID_TOKEN.getHttpStatus().value());
+            int status;
+            String body;
+            String refreshToken = extractToken(request, "refreshToken");
+
+            if (refreshToken == null) {
+                status = GlobalErrorCode.NOT_FOUND_TOKEN.getHttpStatus().value();
+                body = ErrorResponse.toJson(GlobalErrorCode.NOT_FOUND_TOKEN);
+            } else {
+                status = GlobalErrorCode.EXPIRED_ACCESS_TOKEN.getHttpStatus().value();
+                body = ErrorResponse.toJson(GlobalErrorCode.EXPIRED_ACCESS_TOKEN);
+            }
+
+            response.setStatus(status);
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-            response.getWriter().write(
-                    ErrorResponse.toJson(GlobalErrorCode.INVALID_TOKEN)
-            );
+            response.getWriter().write(body);
             response.getWriter().flush();
             return;
         }
@@ -74,13 +84,13 @@ public class AuthenticationFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    private String extractAccessToken(HttpServletRequest request) {
+    private String extractToken(HttpServletRequest request, String cookieName) {
         Cookie[] cookies = request.getCookies();
         String accessToken = null;
 
         if (cookies != null) {
             for (Cookie cookie : cookies) {
-                if ("accessToken".equals(cookie.getName())) {
+                if (cookieName.equals(cookie.getName())) {
                     accessToken = cookie.getValue();
                     break;
                 }

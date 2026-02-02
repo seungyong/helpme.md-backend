@@ -116,7 +116,7 @@ public class AuthController {
                     responseCode = "401",
                     description = "인증되지 않은 사용자입니다.",
                     errorCodeClasses = GlobalErrorCode.class,
-                    errorCodes = { "UNAUTHORIZED", "INVALID_TOKEN", "EXPIRED_ACCESS_TOKEN" }
+                    errorCodes = { "EXPIRED_ACCESS_TOKEN", "NOT_FOUND_TOKEN" }
             ),
             @ApiErrorResponse(
                     responseCode = "404",

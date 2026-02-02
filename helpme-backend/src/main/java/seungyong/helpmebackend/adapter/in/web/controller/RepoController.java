@@ -58,7 +58,7 @@ public class RepoController {
                     responseCode = "401",
                     description = "인증에 실패했습니다.",
                     errorCodeClasses = { GlobalErrorCode.class, RepositoryErrorCode.class },
-                    errorCodes = { "GITHUB_UNAUTHORIZED", "UNAUTHORIZED", "EXPIRED_ACCESS_TOKEN" }
+                    errorCodes = { "GITHUB_UNAUTHORIZED", "EXPIRED_ACCESS_TOKEN", "NOT_FOUND_TOKEN" }
             ),
             @ApiErrorResponse(
                     responseCode = "403",
@@ -117,7 +117,7 @@ public class RepoController {
                     responseCode = "401",
                     description = "인증에 실패했습니다.",
                     errorCodeClasses = { GlobalErrorCode.class, RepositoryErrorCode.class },
-                    errorCodes = { "GITHUB_UNAUTHORIZED", "UNAUTHORIZED", "EXPIRED_ACCESS_TOKEN" }
+                    errorCodes = { "GITHUB_UNAUTHORIZED", "EXPIRED_ACCESS_TOKEN", "NOT_FOUND_TOKEN" }
             ),
             @ApiErrorResponse(
                     responseCode = "403",
@@ -229,7 +229,7 @@ public class RepoController {
                     responseCode = "401",
                     description = "인증에 실패했습니다.",
                     errorCodeClasses = { GlobalErrorCode.class, RepositoryErrorCode.class },
-                    errorCodes = { "GITHUB_UNAUTHORIZED", "UNAUTHORIZED", "EXPIRED_ACCESS_TOKEN" }
+                    errorCodes = { "GITHUB_UNAUTHORIZED", "EXPIRED_ACCESS_TOKEN", "NOT_FOUND_TOKEN" }
             ),
             @ApiErrorResponse(
                     responseCode = "403",
@@ -292,7 +292,7 @@ public class RepoController {
                     responseCode = "401",
                     description = "인증에 실패했습니다.",
                     errorCodeClasses = { GlobalErrorCode.class, RepositoryErrorCode.class },
-                    errorCodes = { "GITHUB_UNAUTHORIZED", "UNAUTHORIZED", "EXPIRED_ACCESS_TOKEN" }
+                    errorCodes = { "GITHUB_UNAUTHORIZED", "EXPIRED_ACCESS_TOKEN", "NOT_FOUND_TOKEN" }
             ),
             @ApiErrorResponse(
                     responseCode = "403",
@@ -355,7 +355,7 @@ public class RepoController {
                     responseCode = "401",
                     description = "인증에 실패했습니다.",
                     errorCodeClasses = { GlobalErrorCode.class, RepositoryErrorCode.class },
-                    errorCodes = { "GITHUB_UNAUTHORIZED", "UNAUTHORIZED", "EXPIRED_ACCESS_TOKEN" }
+                    errorCodes = { "GITHUB_UNAUTHORIZED", "EXPIRED_ACCESS_TOKEN", "NOT_FOUND_TOKEN" }
             ),
             @ApiErrorResponse(
                     responseCode = "403",
@@ -416,7 +416,7 @@ public class RepoController {
                     responseCode = "401",
                     description = "인증에 실패했습니다.",
                     errorCodeClasses = { GlobalErrorCode.class, RepositoryErrorCode.class },
-                    errorCodes = { "GITHUB_UNAUTHORIZED", "UNAUTHORIZED", "EXPIRED_ACCESS_TOKEN" }
+                    errorCodes = { "GITHUB_UNAUTHORIZED", "EXPIRED_ACCESS_TOKEN", "NOT_FOUND_TOKEN" }
             ),
             @ApiErrorResponse(
                     responseCode = "403",

@@ -61,7 +61,7 @@ public class UserController {
                     responseCode = "401",
                     description = "인증되지 않은 사용자입니다.",
                     errorCodeClasses = GlobalErrorCode.class,
-                    errorCodes = { "UNAUTHORIZED", "INVALID_TOKEN" }
+                    errorCodes = { "INVALID_TOKEN", "NOT_FOUND_TOKEN" }
             ),
             @ApiErrorResponse(
                     responseCode = "500",
@@ -78,7 +78,7 @@ public class UserController {
         String refreshToken = getToken(request, "refreshToken");
 
         if (refreshToken == null) {
-            throw new CustomException(GlobalErrorCode.INVALID_TOKEN);
+            throw new CustomException(GlobalErrorCode.NOT_FOUND_TOKEN);
         }
 
         JWT jwt = userPortIn.reissue(refreshToken);
@@ -110,6 +110,56 @@ public class UserController {
     }
 
     @Operation(
+            summary = "로그아웃",
+            description = "현재 인증된 사용자의 로그아웃을 처리합니다. 이 작업은 클라이언트 측에서 저장된 토큰을 무효화합니다.",
+            responses = {
+                    @ApiResponse(
+                            responseCode = "204",
+                            description = "로그아웃 성공"
+                    )
+            }
+    )
+    @ApiErrorResponses({
+            @ApiErrorResponse(
+                    responseCode = "401",
+                    description = "인증되지 않은 사용자입니다.",
+                    errorCodeClasses = GlobalErrorCode.class,
+                    errorCodes = { "EXPIRED_ACCESS_TOKEN", "NOT_FOUND_TOKEN" }
+            ),
+            @ApiErrorResponse(
+                    responseCode = "500",
+                    description = "서버 에러입니다.",
+                    errorCodeClasses = GlobalErrorCode.class,
+                    errorCodes = { "INTERNAL_SERVER_ERROR" }
+            )
+    })
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(HttpServletResponse response) {
+        // 쿠키 삭제 (AT, RT)
+        ResponseCookie accessCookie = ResponseCookie.from("accessToken", "")
+                .httpOnly(true)
+                .secure(true)
+                .path("/")
+                .maxAge(0)
+                .sameSite("Lax")
+                .build();
+
+        response.addHeader(HttpHeaders.SET_COOKIE, accessCookie.toString());
+
+        ResponseCookie refreshCookie = ResponseCookie.from("refreshToken", "")
+                .httpOnly(true)
+                .secure(true)
+                .path("/")
+                .maxAge(0)
+                .sameSite("Lax")
+                .build();
+
+        response.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
+
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(
             summary = "회원 탈퇴",
             description = "현재 인증된 사용자의 회원 탈퇴를 처리합니다. 이 작업은 사용자의 데이터를 영구적으로 삭제합니다.",
             responses = {
@@ -124,7 +174,7 @@ public class UserController {
                     responseCode = "401",
                     description = "인증되지 않은 사용자입니다.",
                     errorCodeClasses = GlobalErrorCode.class,
-                    errorCodes = { "UNAUTHORIZED", "INVALID_TOKEN" }
+                    errorCodes = { "EXPIRED_ACCESS_TOKEN", "NOT_FOUND_TOKEN" }
             ),
             @ApiErrorResponse(
                     responseCode = "500",
