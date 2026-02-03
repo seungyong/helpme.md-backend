@@ -320,7 +320,7 @@ public class GithubApiExecutor {
     }
 
     private void handleException(Exception e, String responseBody, String operationName) {
-        if (e instanceof JsonParseException) {
+        if (e instanceof JsonParseException || (e instanceof CustomException && ((CustomException) e).getErrorCode() == RepositoryErrorCode.JSON_PROCESSING_ERROR)) {
             log.error("[{}] JSON parsing error. Response = {}", operationName, responseBody, e);
             throw new CustomException(RepositoryErrorCode.JSON_PROCESSING_ERROR);
         }

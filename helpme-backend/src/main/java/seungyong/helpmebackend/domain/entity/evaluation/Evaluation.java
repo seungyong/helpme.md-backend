@@ -120,19 +120,6 @@ public class Evaluation {
     }
 
     /**
-     * 평가 상태에 따른 메시지를 반환합니다.
-     * @return 평가 상태 메시지
-     */
-    public String getStatusMessage() {
-        return switch (this.status) {
-            case GOOD -> "README 양호";
-            case CREATED -> "README 존재";
-            case IMPROVEMENT -> "개선 필요";
-            case NONE -> "README 없음";
-        };
-    }
-
-    /**
      * content 필드를 쉼표(,)를 기준으로 분리하여 문자열 배열로 반환합니다.
      * @return content를 쉼표로 분리한 문자열 배열
      */

@@ -32,9 +32,9 @@ public interface RepositoryPortInMapper {
     );
 
 
-    @Mapping(target = "status", expression = "java(evaluation.getStatusMessage())")
+    @Mapping(target = "status", source = "status")
     @Mapping(target = "rating", source = "rating")
-    @Mapping(target = "content", expression = "java(evaluation.getContentToArray())")
+    @Mapping(target = "contents", expression = "java(evaluation.getContentToArray())")
     ResponseRepository.Evaluation toResponseEvaluation(Evaluation evaluation);
 
     @Mapping(target = "id", source = "id")

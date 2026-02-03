@@ -36,7 +36,7 @@ public class GithubClient {
      */
     public static Optional<String> extractNextUrl(HttpHeaders headers) {
         String link = headers.getFirst(HttpHeaders.LINK);
-        if (link.isBlank()) { return Optional.empty(); }
+        if (link == null || link.isBlank()) { return Optional.empty(); }
 
         String[] parts = link.split(",\\s*");
 
@@ -210,7 +210,6 @@ public class GithubClient {
     /**
      * GitHub API에 인증 없이 POST 요청을 보내고 응답을 지정된 타입으로 반환합니다.
      * @param url           요청을 보낼 GitHub API의 URL
-     * @param headers       요청 헤더
      * @param body          요청 본문
      * @param responseType  응답 본문의 타입 클래스
      * @return              GitHub API의 응답 본문

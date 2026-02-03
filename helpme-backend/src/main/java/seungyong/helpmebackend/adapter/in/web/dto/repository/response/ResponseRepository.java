@@ -1,5 +1,7 @@
 package seungyong.helpmebackend.adapter.in.web.dto.repository.response;
 
+import seungyong.helpmebackend.domain.vo.EvaluationStatus;
+
 import java.util.List;
 
 public record ResponseRepository(
@@ -19,8 +21,8 @@ public record ResponseRepository(
     ) {}
 
     public record Evaluation(
-            String status,
+            EvaluationStatus status,
             Float rating,
-            String[] content
+            String[] contents
     ) {}
 }
