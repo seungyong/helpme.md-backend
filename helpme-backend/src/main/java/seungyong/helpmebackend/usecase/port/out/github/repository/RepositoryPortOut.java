@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface RepositoryPortOut {
-    RepositoryResult getRepositoriesByInstallationId(String accessToken, Long installationId, Integer page);
+    RepositoryResult getRepositoriesByInstallationId(String accessToken, Long installationId, Integer page, Integer perPage);
     RepositoryDetailResult getRepository(RepoInfoCommand command);
     String getRecentSHA(RepoBranchCommand command);
     void createBranch(CreateBranchCommand command);

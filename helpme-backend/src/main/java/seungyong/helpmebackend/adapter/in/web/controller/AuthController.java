@@ -131,7 +131,7 @@ public class AuthController {
                     errorCodes = { "INTERNAL_SERVER_ERROR", "GITHUB_ERROR" }
             )
     })
-    @GetMapping("/installation")
+    @GetMapping("/installations")
     public ResponseEntity<ResponseInstallations> getInstallation(
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {

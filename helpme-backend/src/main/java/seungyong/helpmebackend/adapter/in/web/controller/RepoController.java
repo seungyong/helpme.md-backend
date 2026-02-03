@@ -5,16 +5,13 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import seungyong.helpmebackend.adapter.in.web.dto.repository.request.RequestDraftEvaluation;
 import seungyong.helpmebackend.adapter.in.web.dto.repository.request.RequestEvaluation;
 import seungyong.helpmebackend.adapter.in.web.dto.repository.request.RequestPull;
 import seungyong.helpmebackend.adapter.in.web.dto.repository.response.*;
 import seungyong.helpmebackend.adapter.in.web.dto.user.common.CustomUserDetails;
-import seungyong.helpmebackend.common.exception.CustomException;
 import seungyong.helpmebackend.common.exception.GlobalErrorCode;
 import seungyong.helpmebackend.domain.exception.RepositoryErrorCode;
 import seungyong.helpmebackend.domain.exception.UserErrorCode;
@@ -87,12 +84,13 @@ public class RepoController {
     })
     @GetMapping
     public ResponseEntity<ResponseRepositories> getRepositories(
-            @RequestParam("installationId") Long installationId,
+            @RequestParam("installation_id") Long installationId,
             @RequestParam(value = "page", defaultValue = "1") Integer page,
+            @RequestParam(value = "per_page", defaultValue = "30") Integer perPage,
             @AuthenticationPrincipal CustomUserDetails details
     ) {
         return ResponseEntity.ok(
-                repositoryPortIn.getRepositories(details.getUserId(), installationId, page)
+                repositoryPortIn.getRepositories(details.getUserId(), installationId, page, perPage)
         );
     }
 
@@ -163,7 +161,7 @@ public class RepoController {
     )
     @GetMapping("/fallback/evaluate/push/{taskId}")
     public ResponseEntity<ResponseEvaluation> getFallbackPushEvaluation(
-            @PathVariable("taskId") String taskId
+            @PathVariable("task_id") String taskId
     ) {
         return ResponseEntity.ok(
                 repositoryPortIn.fallbackPushEvaluation(taskId)
@@ -324,7 +322,7 @@ public class RepoController {
             @Valid @RequestBody RequestEvaluation request,
             @PathVariable("owner") String owner,
             @PathVariable("name") String name,
-            @RequestParam(value = "taskId") String taskId,
+            @RequestParam("task_id") String taskId,
             @AuthenticationPrincipal CustomUserDetails details
     ) {
         repositoryPortIn.evaluateReadme(request, taskId, details.getUserId(), owner, name);
@@ -387,7 +385,7 @@ public class RepoController {
             @Valid @RequestBody RequestDraftEvaluation request,
             @PathVariable("owner") String owner,
             @PathVariable("name") String name,
-            @RequestParam(value = "taskId") String taskId,
+            @RequestParam("taskId") String taskId,
             @AuthenticationPrincipal CustomUserDetails details
     ) {
         repositoryPortIn.evaluateDraftReadme(request, taskId, details.getUserId(), owner, name);
@@ -448,7 +446,7 @@ public class RepoController {
             @Valid @RequestBody RequestEvaluation request,
             @PathVariable("owner") String owner,
             @PathVariable("name") String name,
-            @RequestParam(value = "taskId") String taskId,
+            @RequestParam("taskId") String taskId,
             @AuthenticationPrincipal CustomUserDetails details
     ) {
         repositoryPortIn.generateDraftReadme(request, taskId, details.getUserId(), owner, name);

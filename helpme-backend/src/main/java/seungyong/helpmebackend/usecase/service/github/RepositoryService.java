@@ -58,10 +58,10 @@ public class RepositoryService implements RepositoryPortIn {
     private final SSEPortOut ssePortOut;
 
     @Override
-    public ResponseRepositories getRepositories(Long userId, Long installationId, Integer page) {
+    public ResponseRepositories getRepositories(Long userId, Long installationId, Integer page, Integer perPage) {
         User user = userPortOut.getById(userId);
         String accessToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken());
-        RepositoryResult result = repositoryPortOut.getRepositoriesByInstallationId(accessToken, installationId, page);
+        RepositoryResult result = repositoryPortOut.getRepositoriesByInstallationId(accessToken, installationId, page, perPage);
         return new ResponseRepositories(result.repositories(), result.totalCount());
     }
 

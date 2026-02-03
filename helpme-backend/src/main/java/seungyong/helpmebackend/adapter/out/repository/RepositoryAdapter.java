@@ -28,8 +28,8 @@ public class RepositoryAdapter extends GithubPortConfig implements RepositoryPor
     private final GithubApiExecutor githubApiExecutor;
 
     @Override
-    public RepositoryResult getRepositoriesByInstallationId(String accessToken, Long installationId, Integer page) {
-        String url = String.format("https://api.github.com/user/installations/%d/repositories?per_page=30&page=%d", installationId, page);
+    public RepositoryResult getRepositoriesByInstallationId(String accessToken, Long installationId, Integer page, Integer perPage) {
+        String url = String.format("https://api.github.com/user/installations/%d/repositories?per_page=%d&page=%d", installationId, perPage, page);
 
         return githubApiExecutor.executeGet(
                 url,
