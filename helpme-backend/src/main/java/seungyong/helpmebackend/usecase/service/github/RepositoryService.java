@@ -17,19 +17,13 @@ import seungyong.helpmebackend.common.exception.CustomException;
 import seungyong.helpmebackend.common.exception.ErrorCode;
 import seungyong.helpmebackend.common.exception.ErrorResponse;
 import seungyong.helpmebackend.common.exception.GlobalErrorCode;
-import seungyong.helpmebackend.domain.entity.component.Component;
-import seungyong.helpmebackend.domain.entity.evaluation.Evaluation;
 import seungyong.helpmebackend.domain.entity.user.User;
 import seungyong.helpmebackend.domain.exception.RepositoryErrorCode;
-import seungyong.helpmebackend.domain.vo.EvaluationStatus;
-import seungyong.helpmebackend.adapter.out.result.EvaluationContentResult;
 import seungyong.helpmebackend.infrastructure.redis.RedisKey;
 import seungyong.helpmebackend.infrastructure.redis.RedisKeyFactory;
 import seungyong.helpmebackend.infrastructure.sse.SSETaskName;
 import seungyong.helpmebackend.usecase.port.in.repository.RepositoryPortIn;
 import seungyong.helpmebackend.usecase.port.out.cipher.CipherPortOut;
-import seungyong.helpmebackend.usecase.port.out.component.ComponentPortOut;
-import seungyong.helpmebackend.usecase.port.out.evaluation.EvaluationPortOut;
 import seungyong.helpmebackend.usecase.port.out.github.repository.RepositoryPortOut;
 import seungyong.helpmebackend.usecase.port.out.github.repository.RepositoryTreeFilterPortOut;
 import seungyong.helpmebackend.usecase.port.out.gpt.GPTPortOut;
@@ -49,8 +43,6 @@ import java.util.*;
 public class RepositoryService implements RepositoryPortIn {
     private final UserPortOut userPortOut;
     private final RepositoryPortOut repositoryPortOut;
-    private final EvaluationPortOut evaluationPortOut;
-    private final ComponentPortOut componentPortOut;
     private final CipherPortOut cipherPortOut;
     private final GPTPortOut gptPortOut;
     private final RedisPortOut redisPortOut;
@@ -79,70 +71,23 @@ public class RepositoryService implements RepositoryPortIn {
 
         // Repository 정보 조회
         RepositoryDetailResult repository = repositoryPortOut.getRepository(repoInfo);
-        String fullName = owner + "/" + name;
 
-        // ReadME.md 내용 조회
-        String content = repositoryPortOut.getReadmeContent(
-                new RepoBranchCommand(
-                        repoInfo,
-                        repository.defaultBranch()
-                )
-        );
-
-        // Evaluation 정보 조회 및 없으면 생성
-        Evaluation evaluation = evaluationPortOut.getByFullName(fullName)
-                .orElse(null);
-
-        /*
-        * 1. Evaluation이 없고, ReadME.md 내용이 비어있는 경우 -> NONE 상태의 Evaluation 생성
-        * 2. Evaluation이 없고, ReadME.md 내용이 존재하는 경우 -> CREATED 상태의 Evaluation 생성
-        * 3. Evaluation이 존재하는데, ReadME.md 내용이 비어있는 경우 -> NONE 상태로 변경
-        * 4. Evaluation이 NONE 상태인데, ReadME.md 내용이 존재하는 경우 -> CREATED 상태로 변경
-        * */
-        if (evaluation == null && content.isBlank()) {
-            evaluation = Evaluation.createNoneStatusEvaluation(user.getId(), fullName);
-            evaluation = evaluationPortOut.save(evaluation);
-        } else if (evaluation == null) {
-            evaluation = Evaluation.createWithStatusEvaluation(
-                    user.getId(),
-                    fullName,
-                    null,
-                    null
-            );
-            evaluation = evaluationPortOut.save(evaluation);
-        } else if (!evaluation.getStatus().equals(EvaluationStatus.NONE) && content.isBlank()) {
-            evaluation.changeNoneStatus();
-            evaluation = evaluationPortOut.save(evaluation);
-        } else if (evaluation.getStatus().equals(EvaluationStatus.NONE) && !content.isBlank()) {
-            evaluation.changeCreatedStatus();
-            evaluation = evaluationPortOut.save(evaluation);
-        }
-
-        // Component 정보 조회
-        List<Component> components = componentPortOut.getAllComponents(owner, name, userId);
-
-        // Branch 목록 조회
-        List<String> branches = repositoryPortOut.getAllBranches(repoInfo);
-
-        // Response 생성
-        return RepositoryPortInMapper.INSTANCE.toResponseRepository(
-                repository,
-                RepositoryPortInMapper.INSTANCE.toResponseEvaluation(evaluation),
-                components.stream()
-                        .map(RepositoryPortInMapper.INSTANCE::toResponseComponent)
-                        .toList(),
-                branches.toArray(String[]::new),
-                content
-        );
+        return RepositoryPortInMapper.INSTANCE.toResponseRepository(repository);
     }
 
     @Override
-    public ResponseEvaluation fallbackPushEvaluation(String taskId) {
-        return getFallbackResult(
-                RedisKey.SSE_EMITTER_EVALUATION_PUSH_KEY.getValue() + taskId,
-                taskId,
-                new TypeReference<ResponseEvaluation>() {}
+    public ResponseBranches getBranches(Long userId, String owner, String name) {
+        User user = userPortOut.getById(userId);
+        String accessToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken());
+
+        RepoInfoCommand repoInfo = new RepoInfoCommand(
+                accessToken,
+                owner,
+                name
         );
+
+        List<String> branches = repositoryPortOut.getAllBranches(repoInfo);
+        return new ResponseBranches(branches);
     }
 
     @Override
@@ -234,81 +179,6 @@ public class RepositoryService implements RepositoryPortIn {
             );
 
             throw e;
-        }
-    }
-
-    @Async
-    @Override
-    public void evaluateReadme(RequestEvaluation request, String taskId, Long userId, String owner, String name) {
-        try {
-            User user = userPortOut.getById(userId);
-            String accessToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken());
-
-            // readme 내용 조회
-            String readmeContent = repositoryPortOut.getReadmeContent(
-                    new RepoBranchCommand(
-                            new RepoInfoCommand(
-                                    accessToken,
-                                    owner,
-                                    name
-                            ),
-                            request.branch()
-                    )
-            );
-
-            ReadmeContext readmeContext = generateReadmeContext(
-                    owner,
-                    name,
-                    accessToken,
-                    request.branch()
-            );
-
-            ResponseEvaluation responseEvaluation = evaluate(
-                    new EvaluationCommand(
-                            owner + "/" + name,
-                            readmeContent,
-                            new RepositoryInfoCommand(
-                                    readmeContext.languages(),
-                                    readmeContext.commits(),
-                                    readmeContext.trees()
-                            ),
-                            readmeContext.entryContents(),
-                            readmeContext.importantFileContents(),
-                            readmeContext.repositoryInfo().techStack(),
-                            readmeContext.repositoryInfo().projectSize()
-                    )
-            );
-
-            EvaluationStatus status = EvaluationStatus.getStatus(responseEvaluation.rating());
-
-            Evaluation evaluation = evaluationPortOut.getByFullName(owner + "/" + name)
-                    .orElseGet(() -> Evaluation.createWithStatusEvaluation(
-                            user.getId(),
-                            owner + "/" + name,
-                            responseEvaluation.rating(),
-                            String.join("\n", responseEvaluation.contents())
-                    ));
-
-            // 기존 Evaluation 업데이트
-            evaluation.changeEvaluation(
-                    responseEvaluation.rating(),
-                    String.join("\n", responseEvaluation.contents()),
-                    status
-            );
-            evaluationPortOut.save(evaluation);
-
-            sseSend(
-                    RedisKey.SSE_EMITTER_EVALUATION_PUSH_KEY.getValue() + taskId,
-                    taskId,
-                    "completion-evaluate-push",
-                    responseEvaluation
-            );
-        } catch (Exception e) {
-            sseSendError(
-                    taskId,
-                    SSETaskName.COMPLETION_EVALUATE_PUSH_ERROR.getTaskName(),
-                    e
-            );
         }
     }
 

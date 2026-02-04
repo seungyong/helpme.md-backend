@@ -439,6 +439,33 @@ public class RepositoryAdapter extends GithubPortConfig implements RepositoryPor
         return new RepositoryFileContentResult(file.path(), content);
     }
 
+    @Override
+    public boolean checkPermission(RepoPermissionCommand command) {
+        String url = String.format(
+                "https://api.github.com/repos/%s/%s/collaborators/%s/permission",
+                command.repoInfo().owner(),
+                command.repoInfo().name(),
+                command.username()
+        );
+
+        return githubApiExecutor.executeGet(
+                url,
+                command.repoInfo().accessToken(),
+                jsonNode -> {
+                    String permission = jsonNode.get("permission").asText();
+                    return permission.equals("admin") || permission.equals("write");
+                },
+                "Check permission for user " + command.username() + " in " + command.repoInfo().owner() + "/" + command.repoInfo().name(),
+                e -> {
+                    if (e instanceof HttpClientErrorException.NotFound) {
+                        return Optional.of(false);
+                    }
+
+                    return Optional.empty();
+                }
+        );
+    }
+
     private ResponseEntity<String> fetchCommit(RepoBranchCommand command, int page) {
         String url = String.format(
                 "https://api.github.com/repos/%s/%s/commits?sha=%s&per_page=30&page=%d",

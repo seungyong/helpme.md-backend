@@ -21,4 +21,5 @@ public interface RepositoryPortOut {
     Optional<CommitResult> getCommitsByBranch(RepoBranchCommand command);
     List<RepositoryTreeResult> getRepositoryTree(RepoBranchCommand command);
     RepositoryFileContentResult getFileContent(RepoBranchCommand command, RepositoryTreeResult file);
+    boolean checkPermission(RepoPermissionCommand command);
 }

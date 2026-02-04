@@ -14,6 +14,7 @@ public enum RepositoryErrorCode implements ErrorCode {
 
     GITHUB_FORBIDDEN(HttpStatus.FORBIDDEN, "GitHub App 권한이 부족합니다.\n앱 설정을 다시 확인해주세요.", "REPO_40301"),
     REPOSITORY_CANNOT_PULL(HttpStatus.FORBIDDEN, "레포지토리 정보를 가져올 권한이 없습니다.", "REPO_40302"),
+    REPOSITORY_FORBIDDEN(HttpStatus.FORBIDDEN, "레포지토리에 접근할 수 있는 권한이 없습니다.", "REPO_40303"),
 
     REPOSITORY_README_NOT_FOUND(HttpStatus.NOT_FOUND, "레포지토리의 README.md를 찾을 수 없습니다.", "REPO_40401"),
     BRANCH_NOT_FOUND(HttpStatus.NOT_FOUND, "레포지토리의 브랜치를 찾을 수 없습니다.", "REPO_40402"),
