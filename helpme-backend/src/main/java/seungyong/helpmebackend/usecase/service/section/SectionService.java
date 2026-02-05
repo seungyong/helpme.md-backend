@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import seungyong.helpmebackend.adapter.in.web.dto.section.request.RequestReorder;
+import seungyong.helpmebackend.adapter.in.web.dto.section.request.RequestSection;
 import seungyong.helpmebackend.adapter.in.web.dto.section.request.RequestSectionContent;
 import seungyong.helpmebackend.adapter.in.web.dto.section.response.ResponseSections;
 import seungyong.helpmebackend.adapter.in.web.mapper.SectionPortInMapper;
@@ -61,7 +62,7 @@ public class SectionService implements SectionPortIn {
     }
 
     @Override
-    public ResponseSections.Section createSection(Long userId, String owner, String name, String title) {
+    public ResponseSections.Section createSection(Long userId, String owner, String name, RequestSection request) {
         User user = userPortOut.getById(userId);
         checkAccessRepository(user, owner, name);
         String fullName = owner + "/" + name;
@@ -71,11 +72,13 @@ public class SectionService implements SectionPortIn {
 
         Short lastOrderIdx = sectionPortOut.lastOrderIdxByUserIdAndRepoFullName(userId, fullName);
 
+        String content = request.content() == null || request.content().isBlank() ?
+                "## " + request.title() + "\n\n" : request.content();
         Section section = new Section(
                 null,
                 project.getId(),
-                title,
-                "## " + title + "\n",
+                request.title(),
+                content,
                 (short) (lastOrderIdx + 1)
         );
 

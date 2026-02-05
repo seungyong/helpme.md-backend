@@ -134,7 +134,7 @@ public class SectionController {
                 details.getUserId(),
                 owner,
                 name,
-                request.title()
+                request
         );
 
         return ResponseEntity.created(URI.create("/api/v1/repos/" + owner + "/" + name + "/sections"))
