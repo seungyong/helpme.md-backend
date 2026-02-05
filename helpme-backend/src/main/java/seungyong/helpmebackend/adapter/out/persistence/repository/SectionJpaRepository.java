@@ -14,7 +14,8 @@ public interface SectionJpaRepository extends JpaRepository<SectionJpaEntity, Lo
         "SELECT s " +
         "FROM Section s " +
         "JOIN FETCH s.project p " +
-        "WHERE p.user.id = :userId AND p.repoFullName = :repoFullName "
+        "WHERE p.user.id = :userId AND p.repoFullName = :repoFullName " +
+        "ORDER BY s.orderIdx ASC"
     )
     List<SectionJpaEntity> findAllByUserIdAndRepoFullName(Long userId, String repoFullName);
 
@@ -27,10 +28,22 @@ public interface SectionJpaRepository extends JpaRepository<SectionJpaEntity, Lo
     )
     Optional<SectionJpaEntity> findLastOrderIdxByUserIdAndRepoFullName(Long userId, String repoFullName);
 
+    Optional<SectionJpaEntity> findByIdAndProject_User_Id(Long sectionId, Long userId);
+
     @Modifying
     @Query(
         "DELETE FROM Section s " +
         "WHERE s.project.user.id = :userId AND s.project.repoFullName = :repoFullName "
     )
     void deleteAllByUserIdAndRepoFullName(Long userId, String repoFullName);
+
+    @Modifying
+    @Query(
+            "UPDATE Section s " +
+            "SET s.orderIdx = s.orderIdx - 1 " +
+            "WHERE s.project.user.id = :userId " +
+            "AND s.project.repoFullName = :repoFullName " +
+            "AND s.orderIdx > :targetIdx"
+    )
+    void decreaseOrderIdxAfter(Long userId, String repoFullName, Short targetIdx);
 }

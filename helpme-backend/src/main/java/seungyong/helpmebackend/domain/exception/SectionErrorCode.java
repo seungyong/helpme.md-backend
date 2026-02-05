@@ -8,6 +8,8 @@ import seungyong.helpmebackend.common.exception.ErrorCode;
 @Getter
 @RequiredArgsConstructor
 public enum SectionErrorCode implements ErrorCode {
+    INVALID_REORDER_REQUEST(HttpStatus.BAD_REQUEST, "섹션 ID 개수가 불일치합니다.", "SECTION_40001"),
+
     NOT_FOUND_SECTIONS(HttpStatus.NOT_FOUND, "섹션을 찾을 수 없습니다.", "SECTION_40401"),
     ;
 

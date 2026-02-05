@@ -13,4 +13,22 @@ public class Section {
     private String title;
     private String content;
     private Short orderIdx;
+
+    public void updateContent(String content) {
+        if (content == null || content.isBlank()) {
+            content = "";
+        }
+
+        this.content = content;
+    }
+
+    public void updateOrderIdx(Short orderIdx) {
+        if (orderIdx == null) {
+            throw new IllegalArgumentException("orderIdx cannot be null");
+        } else if (orderIdx < 0) {
+            throw new IllegalArgumentException("orderIdx cannot be negative");
+        }
+
+        this.orderIdx = orderIdx;
+    }
 }

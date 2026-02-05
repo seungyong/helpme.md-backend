@@ -9,6 +9,7 @@ import seungyong.helpmebackend.domain.entity.section.Section;
 import seungyong.helpmebackend.usecase.port.out.section.SectionPortOut;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 @RequiredArgsConstructor
@@ -34,8 +35,24 @@ public class SectionAdapter implements SectionPortOut {
     }
 
     @Override
+    public void delete(Section section) {
+        sectionJpaRepository.delete(SectionPortOutMapper.INSTANCE.toEntity(section));
+    }
+
+    @Override
     public void deleteAllByUserIdAndRepoFullName(Long userId, String repoFullName) {
         sectionJpaRepository.deleteAllByUserIdAndRepoFullName(userId, repoFullName);
+    }
+
+    @Override
+    public void decreaseOrderIdxAfter(Long userId, String repoFullName, Short targetIdx) {
+        sectionJpaRepository.decreaseOrderIdxAfter(userId, repoFullName, targetIdx);
+    }
+
+    @Override
+    public Optional<Section> getByIdAndUserId(Long sectionId, Long userId) {
+        return sectionJpaRepository.findByIdAndProject_User_Id(sectionId, userId)
+                .map(SectionPortOutMapper.INSTANCE::toDomain);
     }
 
     @Override
