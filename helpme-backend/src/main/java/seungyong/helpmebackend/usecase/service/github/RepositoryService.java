@@ -10,13 +10,17 @@ import seungyong.helpmebackend.adapter.in.web.dto.repository.request.RequestDraf
 import seungyong.helpmebackend.adapter.in.web.dto.repository.request.RequestEvaluation;
 import seungyong.helpmebackend.adapter.in.web.dto.repository.request.RequestPull;
 import seungyong.helpmebackend.adapter.in.web.dto.repository.response.*;
+import seungyong.helpmebackend.adapter.in.web.dto.section.response.ResponseSections;
 import seungyong.helpmebackend.adapter.in.web.mapper.RepositoryPortInMapper;
+import seungyong.helpmebackend.adapter.in.web.mapper.SectionPortInMapper;
 import seungyong.helpmebackend.adapter.out.command.*;
 import seungyong.helpmebackend.adapter.out.result.*;
 import seungyong.helpmebackend.common.exception.CustomException;
 import seungyong.helpmebackend.common.exception.ErrorCode;
 import seungyong.helpmebackend.common.exception.ErrorResponse;
 import seungyong.helpmebackend.common.exception.GlobalErrorCode;
+import seungyong.helpmebackend.domain.entity.project.Project;
+import seungyong.helpmebackend.domain.entity.section.Section;
 import seungyong.helpmebackend.domain.entity.user.User;
 import seungyong.helpmebackend.domain.exception.RepositoryErrorCode;
 import seungyong.helpmebackend.infrastructure.redis.RedisKey;
@@ -27,7 +31,9 @@ import seungyong.helpmebackend.usecase.port.out.cipher.CipherPortOut;
 import seungyong.helpmebackend.usecase.port.out.github.repository.RepositoryPortOut;
 import seungyong.helpmebackend.usecase.port.out.github.repository.RepositoryTreeFilterPortOut;
 import seungyong.helpmebackend.usecase.port.out.gpt.GPTPortOut;
+import seungyong.helpmebackend.usecase.port.out.project.ProjectPortOut;
 import seungyong.helpmebackend.usecase.port.out.redis.RedisPortOut;
+import seungyong.helpmebackend.usecase.port.out.section.SectionPortOut;
 import seungyong.helpmebackend.usecase.port.out.sse.SSEPortOut;
 import seungyong.helpmebackend.usecase.port.out.user.UserPortOut;
 import seungyong.helpmebackend.usecase.service.github.dto.ReadmeContext;
@@ -48,6 +54,8 @@ public class RepositoryService implements RepositoryPortIn {
     private final RedisPortOut redisPortOut;
     private final RepositoryTreeFilterPortOut repositoryTreeFilterPortOut;
     private final SSEPortOut ssePortOut;
+    private final ProjectPortOut projectPortOut;
+    private final SectionPortOut sectionPortOut;
 
     @Override
     public ResponseRepositories getRepositories(Long userId, Long installationId, Integer page, Integer perPage) {
@@ -100,11 +108,11 @@ public class RepositoryService implements RepositoryPortIn {
     }
 
     @Override
-    public ResponseDraftReadme fallbackGenerateReadme(String taskId) {
+    public ResponseSections fallbackGenerateReadme(String taskId) {
         return getFallbackResult(
                 RedisKey.SSE_EMITTER_GENERATION_KEY.getValue() + taskId,
                 taskId,
-                new TypeReference<ResponseDraftReadme>() {}
+                new TypeReference<ResponseSections>() {}
         );
     }
 
@@ -256,11 +264,32 @@ public class RepositoryService implements RepositoryPortIn {
                     )
             );
 
+            Project project = projectPortOut.getByUserIdAndRepoFullName(userId, owner + "/" + name)
+                    .orElseGet(() -> projectPortOut.save(new Project(null, userId, owner + "/" + name)));
+
+            List<Section> existingSections = sectionPortOut.getSectionsByUserIdAndRepoFullName(userId, owner + "/" + name);
+
+            if (!existingSections.isEmpty()) {
+                sectionPortOut.deleteAllByUserIdAndRepoFullName(userId, owner + "/" + name);
+            }
+
+            List<Section> savedSections = sectionPortOut.saveAll(
+                    Section.splitContent(
+                            project.getId(),
+                            draftReadme,
+                            Section.SplitMode.SPLIT
+                    )
+            );
+
             sseSend(
                     RedisKey.SSE_EMITTER_GENERATION_KEY.getValue() + taskId,
                     taskId,
                     SSETaskName.COMPLETION_GENERATE.getTaskName(),
-                    new ResponseDraftReadme(draftReadme)
+                    new ResponseSections(
+                            savedSections.stream()
+                                    .map(SectionPortInMapper.INSTANCE::toResponseSection)
+                                    .toList()
+                    )
             );
         } catch (Exception e) {
             sseSendError(
@@ -275,7 +304,6 @@ public class RepositoryService implements RepositoryPortIn {
         T cached = redisPortOut.getObject(key, typeReference);
 
         if (cached == null) {
-
             throw new CustomException(RepositoryErrorCode.FALLBACK_NOT_FOUND);
         }
 

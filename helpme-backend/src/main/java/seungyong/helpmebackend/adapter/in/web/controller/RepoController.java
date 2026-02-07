@@ -11,6 +11,7 @@ import seungyong.helpmebackend.adapter.in.web.dto.repository.request.RequestDraf
 import seungyong.helpmebackend.adapter.in.web.dto.repository.request.RequestEvaluation;
 import seungyong.helpmebackend.adapter.in.web.dto.repository.request.RequestPull;
 import seungyong.helpmebackend.adapter.in.web.dto.repository.response.*;
+import seungyong.helpmebackend.adapter.in.web.dto.section.response.ResponseSections;
 import seungyong.helpmebackend.adapter.in.web.dto.user.common.CustomUserDetails;
 import seungyong.helpmebackend.common.exception.GlobalErrorCode;
 import seungyong.helpmebackend.domain.exception.RepositoryErrorCode;
@@ -231,7 +232,7 @@ public class RepoController {
                     """
     )
     @GetMapping("/fallback/generate/{taskId}")
-    public ResponseEntity<ResponseDraftReadme> getFallbackGenerate(
+    public ResponseEntity<ResponseSections> getFallbackGenerate(
             @PathVariable("taskId") String taskId
     ) {
         return ResponseEntity.ok(

@@ -127,28 +127,13 @@ public class SectionService implements SectionPortIn {
             return new ResponseSections(List.of(SectionPortInMapper.INSTANCE.toResponseSection(savedSection)));
         }
 
-        List<Section> sections = new ArrayList<>();
-        String[] splitContents = splitReadmeContent(readmeContent, splitMode);
-
-        for (int i = 0; i < splitContents.length; i++) {
-            String content = splitContents[i];
-            String title = content.lines()
-                    .findFirst()
-                    .orElse("Untitled Section")
-                    .replaceAll("^(#{1,2} )", "");
-
-            Section section = new Section(
-                    null,
-                    project.getId(),
-                    title,
-                    content.trim(),
-                    (short) (i + 1)
-            );
-
-            sections.add(section);
-        }
-
-        List<Section> savedSections = sectionPortOut.saveAll(sections);
+        List<Section> savedSections = sectionPortOut.saveAll(
+                Section.splitContent(
+                        project.getId(),
+                        readmeContent,
+                        splitMode.equals("split") ? Section.SplitMode.SPLIT : Section.SplitMode.WHOLE
+                )
+        );
         return new ResponseSections(savedSections.stream()
                 .map(SectionPortInMapper.INSTANCE::toResponseSection)
                 .toList());
@@ -207,14 +192,6 @@ public class SectionService implements SectionPortIn {
         );
 
         sectionPortOut.delete(section);
-    }
-
-    private String[] splitReadmeContent(String content, String splitMode) {
-        if (splitMode.equals("split")) {
-            return content.split("(?m)(?=^#{1,2} )");
-        } else {
-            return new String[] { content };
-        }
     }
 
     private void checkAccessRepository(User user, String owner, String name) {
