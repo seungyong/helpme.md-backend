@@ -198,7 +198,7 @@ public class RepoController {
                     errorCodes = { "JSON_PROCESSING_ERROR", "GITHUB_ERROR", "INTERNAL_SERVER_ERROR" }
             )
     })
-    @GetMapping("/{owner}/{name}/braches")
+    @GetMapping("/{owner}/{name}/branches")
     public ResponseEntity<ResponseBranches> getBranches(
             @PathVariable("owner") String owner,
             @PathVariable("name") String name,
