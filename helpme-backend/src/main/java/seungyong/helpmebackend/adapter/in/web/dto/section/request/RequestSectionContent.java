@@ -5,7 +5,7 @@ import jakarta.validation.constraints.NotNull;
 
 public record RequestSectionContent(
         @NotNull(message = "섹션 ID는 필수입니다.")
-        Long id,
+        Long sectionId,
         @NotBlank(message = "섹션 내용은 필수입니다.")
         String content
 ) {

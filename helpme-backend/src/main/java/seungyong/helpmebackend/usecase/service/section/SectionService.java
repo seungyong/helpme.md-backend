@@ -144,7 +144,7 @@ public class SectionService implements SectionPortIn {
         User user = userPortOut.getById(userId);
         checkAccessRepository(user, owner, name);
 
-        Section section = sectionPortOut.getByIdAndUserId(request.id(), userId)
+        Section section = sectionPortOut.getByIdAndUserId(request.sectionId(), userId)
                 .orElseThrow(() -> new CustomException(SectionErrorCode.NOT_FOUND_SECTIONS));
 
         section.updateContent(request.content());

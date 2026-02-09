@@ -21,7 +21,6 @@ import seungyong.helpmebackend.infrastructure.swagger.annotation.ApiErrorRespons
 import seungyong.helpmebackend.usecase.port.in.section.SectionPortIn;
 
 import java.net.URI;
-import java.util.List;
 
 @Tag(
         name = "Section",
@@ -234,7 +233,7 @@ public class SectionController {
                     errorCodes = { "INTERNAL_SERVER_ERROR" }
             )
     })
-    @PutMapping("/content")
+    @PatchMapping("/content")
     public ResponseEntity<Void> updateSectionContent(
             @PathVariable String owner,
             @PathVariable String name,
