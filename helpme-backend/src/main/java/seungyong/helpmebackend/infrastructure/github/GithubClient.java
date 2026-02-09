@@ -62,7 +62,7 @@ public class GithubClient {
      */
     public static PageInfo extractLastAndMiddlePage(HttpHeaders headers) {
         String link = headers.getFirst(HttpHeaders.LINK);
-        if (link.isEmpty()) {
+        if (link == null || link.isEmpty()) {
             return new PageInfo(null, null);
         }
 
