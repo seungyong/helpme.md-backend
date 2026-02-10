@@ -12,14 +12,15 @@ import java.util.Collection;
 import java.util.Collections;
 
 @ToString
-@AllArgsConstructor
 @Getter
+@AllArgsConstructor
 public class CustomUserDetails implements UserDetails {
     private Long userId;
+    private String username;
 
     @Override
-    public Collection<? extends GrantedAuthority> getAuthorities() {
-        return Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"));
+    public String getUsername() {
+        return username;
     }
 
     @Override
@@ -28,8 +29,8 @@ public class CustomUserDetails implements UserDetails {
     }
 
     @Override
-    public String getUsername() {
-        return null;
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"));
     }
 
     @Override

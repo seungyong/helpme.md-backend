@@ -8,6 +8,7 @@ import seungyong.helpmebackend.adapter.out.persistence.mapper.UserPortOutMapper;
 import seungyong.helpmebackend.common.exception.CustomException;
 import seungyong.helpmebackend.common.exception.GlobalErrorCode;
 import seungyong.helpmebackend.domain.entity.user.GithubUser;
+import seungyong.helpmebackend.domain.entity.user.JWTUser;
 import seungyong.helpmebackend.domain.entity.user.User;
 import seungyong.helpmebackend.infrastructure.jwt.JWT;
 import seungyong.helpmebackend.infrastructure.redis.RedisKey;
@@ -72,7 +73,7 @@ public class OAuth2Service implements OAuth2PortIn {
             userPortOut.save(user);
         }
 
-        JWT jwt = jwtPortOut.generate(user.getId());
+        JWT jwt = jwtPortOut.generate(new JWTUser(user.getId(), user.getGithubUser().getName()));
 
         String key = RedisKey.REFRESH_KEY.getValue() + user.getId();
         Instant expireTime = jwt.getRefreshTokenExpireTime();

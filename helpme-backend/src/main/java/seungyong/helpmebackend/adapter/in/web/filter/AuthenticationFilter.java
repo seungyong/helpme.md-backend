@@ -16,6 +16,7 @@ import seungyong.helpmebackend.adapter.in.web.dto.user.common.CustomUserDetails;
 import seungyong.helpmebackend.common.exception.CustomException;
 import seungyong.helpmebackend.common.exception.ErrorResponse;
 import seungyong.helpmebackend.common.exception.GlobalErrorCode;
+import seungyong.helpmebackend.domain.entity.user.JWTUser;
 import seungyong.helpmebackend.infrastructure.jwt.JWTProvider;
 
 import java.io.IOException;
@@ -101,12 +102,17 @@ public class AuthenticationFilter extends OncePerRequestFilter {
     }
 
     private Authentication getAuthentication(String accessToken) {
-        Long userId = jwtProvider.getUserIdByAccessToken(accessToken);
+        JWTUser jwtUser = jwtProvider.getUserByToken(accessToken);
 
         CustomUserDetails customUser = new CustomUserDetails(
-                userId
+                jwtUser.getId(),
+                jwtUser.getUsername()
         );
 
-        return new UsernamePasswordAuthenticationToken(customUser, null, customUser.getAuthorities());
+        return new UsernamePasswordAuthenticationToken(
+                customUser,
+                null,
+                customUser.getAuthorities()
+        );
     }
 }

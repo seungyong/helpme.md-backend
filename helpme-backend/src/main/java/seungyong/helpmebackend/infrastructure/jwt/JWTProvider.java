@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import seungyong.helpmebackend.common.exception.CustomException;
 import seungyong.helpmebackend.common.exception.GlobalErrorCode;
+import seungyong.helpmebackend.domain.entity.user.JWTUser;
 
 import java.security.Key;
 import java.time.Instant;
@@ -35,12 +36,24 @@ public class JWTProvider implements JwtGenerator<JWT> {
     }
 
     /**
-     * UserId를 통해 AccessToken, RefreshToken 생성
+     * 지원하지 않는 메서드
      *
-     * @param userId 사용자 ID
+     * @param id 사용자 ID
      * @return {@link JWT}
      */
-    public JWT generate(Long userId) {
+    @Override
+    @Deprecated
+    public JWT generate(Long id) {
+        throw new UnsupportedOperationException("Use generate(JWTUser user) instead.");
+    }
+
+    /**
+     * JWTUser를 통해 JWT 생성
+     *
+     * @param user {@link JWTUser}
+     * @return {@link JWT}
+     */
+    public JWT generate(JWTUser user) {
         Instant accessExpire = Instant.now().plusSeconds(accessTokenExpirationTime);
         Date accessTokenExpireDate = Date.from(accessExpire);
 
@@ -48,13 +61,14 @@ public class JWTProvider implements JwtGenerator<JWT> {
         Date refreshTokenExpireDate = Date.from(refreshExpire);
 
         String accessToken = Jwts.builder()
-                .setSubject(String.valueOf(userId))
+                .setSubject(String.valueOf(user.getId()))
+                .claim("username", user.getUsername())
                 .setExpiration(accessTokenExpireDate)
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
 
         String refreshToken = Jwts.builder()
-                .setSubject(String.valueOf(userId))
+                .setSubject(String.valueOf(user.getId()))
                 .setExpiration(refreshTokenExpireDate)
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
@@ -69,25 +83,31 @@ public class JWTProvider implements JwtGenerator<JWT> {
     }
 
     /**
-     * AccessToken을 통해 UserId를 반환
+     * AccessToken을 통해 JWTUser 생성
      *
      * @param accessToken AccessToken
-     * @return UserId
+     * @return {@link JWTUser}
      */
-    public Long getUserIdByAccessToken(String accessToken) {
+    public JWTUser getUserByToken(String accessToken) {
         Claims claims = parseClaims(accessToken, true);
-        return Long.valueOf(claims.getSubject());
+        Long userId = Long.valueOf(claims.getSubject());
+        String username = claims.get("username", String.class);
+
+        return new JWTUser(userId, username);
     }
 
     /**
-     * AccessToken을 통해 UserId를 반환 (만료 시간 체크 X)
+     * AccessToken을 통해 JWTUser 생성 (만료된 토큰도 허용)
      *
      * @param accessToken AccessToken
-     * @return 만료 시간
+     * @return {@link JWTUser}
      */
-    public Long getUserIdByTokenWithoutCheck(String accessToken){
+    public JWTUser getUserByTokenWithoutCheck(String accessToken){
         Claims claims = parseClaims(accessToken, false);
-        return Long.valueOf(claims.getSubject());
+        Long userId = Long.valueOf(claims.getSubject());
+        String username = claims.get("username", String.class);
+
+        return new JWTUser(userId, username);
     }
 
     /**

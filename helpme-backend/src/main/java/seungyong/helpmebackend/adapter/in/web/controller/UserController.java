@@ -1,6 +1,8 @@
 package seungyong.helpmebackend.adapter.in.web.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.Cookie;
@@ -13,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import seungyong.helpmebackend.adapter.in.web.dto.user.common.CustomUserDetails;
+import seungyong.helpmebackend.adapter.in.web.dto.user.response.ResponseUser;
 import seungyong.helpmebackend.common.exception.CustomException;
 import seungyong.helpmebackend.common.exception.GlobalErrorCode;
 import seungyong.helpmebackend.infrastructure.jwt.JWT;
@@ -44,6 +47,42 @@ public class UserController {
         }
 
         return null;
+    }
+
+    @Operation(
+            summary = "현재 사용자 정보 조회",
+            description = "현재 인증된 사용자의 정보를 조회합니다.",
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "사용자 정보 조회 성공",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    schema = @Schema(implementation = ResponseUser.class)
+                            )
+                    )
+            }
+    )
+    @ApiErrorResponses({
+            @ApiErrorResponse(
+                    responseCode = "401",
+                    description = "인증되지 않은 사용자입니다.",
+                    errorCodeClasses = GlobalErrorCode.class,
+                    errorCodes = { "EXPIRED_ACCESS_TOKEN", "NOT_FOUND_TOKEN" }
+            ),
+            @ApiErrorResponse(
+                    responseCode = "500",
+                    description = "서버 에러입니다.",
+                    errorCodeClasses = GlobalErrorCode.class,
+                    errorCodes = { "INTERNAL_SERVER_ERROR" }
+            )
+    })
+    @GetMapping("/me")
+    public ResponseEntity<ResponseUser> getUser(
+            @AuthenticationPrincipal CustomUserDetails details
+    ) {
+        ResponseUser responseUser = new ResponseUser(details.getUsername());
+        return ResponseEntity.ok(responseUser);
     }
 
     @Operation(
@@ -190,15 +229,24 @@ public class UserController {
     ) {
         userPortIn.withdraw(details.getUserId());
 
-        // 쿠키 삭제
-        ResponseCookie cookie = ResponseCookie.from("refreshToken", "")
+        // 쿠키 삭제 (AT, RT)
+        ResponseCookie accessCookie = ResponseCookie.from("accessToken", "")
                 .httpOnly(true)
                 .secure(true)
                 .path("/")
                 .maxAge(0)
                 .sameSite("Lax")
                 .build();
-        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+        response.addHeader(HttpHeaders.SET_COOKIE, accessCookie.toString());
+
+        ResponseCookie refreshCookie = ResponseCookie.from("refreshToken", "")
+                .httpOnly(true)
+                .secure(true)
+                .path("/")
+                .maxAge(0)
+                .sameSite("Lax")
+                .build();
+        response.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
 
         return ResponseEntity.noContent().build();
     }

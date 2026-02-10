@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import seungyong.helpmebackend.common.exception.CustomException;
 import seungyong.helpmebackend.common.exception.GlobalErrorCode;
+import seungyong.helpmebackend.domain.entity.user.JWTUser;
 import seungyong.helpmebackend.domain.entity.user.User;
 import seungyong.helpmebackend.infrastructure.jwt.JWT;
 import seungyong.helpmebackend.infrastructure.redis.RedisKey;
@@ -30,7 +31,8 @@ public class UserService implements UserPortIn {
             throw new CustomException(GlobalErrorCode.INVALID_TOKEN);
         }
 
-        Long userId = jwtPortOut.getUserIdByTokenWithoutCheck(refreshToken);
+        JWTUser user = jwtPortOut.getUserByTokenWithoutCheck(refreshToken);
+        Long userId = user.getId();
 
         String refreshTokenKey = RedisKey.REFRESH_KEY.getValue() + userId;
         String storedRefreshToken = redisPortOut.get(refreshTokenKey);
@@ -39,7 +41,7 @@ public class UserService implements UserPortIn {
             throw new CustomException(GlobalErrorCode.INVALID_TOKEN);
         }
 
-        JWT jwt = jwtPortOut.generate(userId);
+        JWT jwt = jwtPortOut.generate(new JWTUser(userId, user.getUsername()));
         redisPortOut.set(refreshTokenKey, jwt.getRefreshToken(), jwt.getRefreshTokenExpireTime());
 
         return jwt;
