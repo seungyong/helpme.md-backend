@@ -236,6 +236,7 @@ public class RepositoryService implements RepositoryPortIn {
     }
 
     @Async
+    @Transactional
     @Override
     public void generateDraftReadme(RequestEvaluation request, String taskId, Long userId, String owner, String name) {
         try {
