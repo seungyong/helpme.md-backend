@@ -60,16 +60,22 @@ public class JWTProvider implements JwtGenerator<JWT> {
         Instant refreshExpire = Instant.now().plusSeconds(refreshTokenExpirationTime);
         Date refreshTokenExpireDate = Date.from(refreshExpire);
 
+        Date now = new Date();
         String accessToken = Jwts.builder()
                 .setSubject(String.valueOf(user.getId()))
                 .claim("username", user.getUsername())
+                .setIssuer("helpmebackend")
                 .setExpiration(accessTokenExpireDate)
+                .setIssuedAt(now)
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
 
         String refreshToken = Jwts.builder()
                 .setSubject(String.valueOf(user.getId()))
+                .claim("username", user.getUsername())
+                .setIssuer("helpmebackend")
                 .setExpiration(refreshTokenExpireDate)
+                .setIssuedAt(now)
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
 
