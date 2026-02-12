@@ -28,6 +28,7 @@ import seungyong.helpmebackend.infrastructure.redis.RedisKeyFactory;
 import seungyong.helpmebackend.infrastructure.sse.SSETaskName;
 import seungyong.helpmebackend.usecase.port.in.repository.RepositoryPortIn;
 import seungyong.helpmebackend.usecase.port.out.cipher.CipherPortOut;
+import seungyong.helpmebackend.usecase.port.out.cipher.ObjectCipherPortOut;
 import seungyong.helpmebackend.usecase.port.out.github.repository.RepositoryPortOut;
 import seungyong.helpmebackend.usecase.port.out.github.repository.RepositoryTreeFilterPortOut;
 import seungyong.helpmebackend.usecase.port.out.gpt.GPTPortOut;
@@ -37,11 +38,13 @@ import seungyong.helpmebackend.usecase.port.out.section.SectionPortOut;
 import seungyong.helpmebackend.usecase.port.out.sse.SSEPortOut;
 import seungyong.helpmebackend.usecase.port.out.user.UserPortOut;
 import seungyong.helpmebackend.usecase.service.github.dto.ReadmeContext;
-import seungyong.helpmebackend.usecase.service.github.helper.CacheLoader;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 @Slf4j
 @Service
@@ -50,6 +53,7 @@ public class RepositoryService implements RepositoryPortIn {
     private final UserPortOut userPortOut;
     private final RepositoryPortOut repositoryPortOut;
     private final CipherPortOut cipherPortOut;
+    private final ObjectCipherPortOut objectCipherPortOut;
     private final GPTPortOut gptPortOut;
     private final RedisPortOut redisPortOut;
     private final RepositoryTreeFilterPortOut repositoryTreeFilterPortOut;
@@ -398,8 +402,7 @@ public class RepositoryService implements RepositoryPortIn {
         List<RepositoryFileContentResult> importantFileContents;
 
         if (latestShaKey != null) {
-            // 캐시 만료 시간: 3일
-            Instant expiration = Instant.now().plus(3, ChronoUnit.DAYS);
+            Instant expiration = Instant.now().plus(3, ChronoUnit.HOURS);
 
             languages = getLanguagesWithCache(repoInfoCommand, latestShaKey, expiration);
             trees = getTreesWithCache(branchCommand, latestShaKey, expiration);
@@ -464,23 +467,27 @@ public class RepositoryService implements RepositoryPortIn {
 
     private <T> T getOrLoadAndCache(
             String key,
-            CacheLoader<T> loader,
-            TypeReference<T> typeReference,
-            Instant expiration
+            Supplier<T> loader,
+            Function<String, T> cacheReader,
+            BiConsumer<String, T> cacheWriter
     ) {
-        T cachedData = redisPortOut.getObject(key, typeReference);
-
-        if (cachedData != null) {
-            return cachedData;
+        try {
+            T cachedData = cacheReader.apply(key);
+            if (cachedData != null) {
+                return cachedData;
+            }
+        } catch (Exception e) {
+            log.warn("Cache read failed for key {}: {}", key, e.getMessage());
         }
 
-        T data = loader.load();
+        T data = loader.get();
+
         if (data != null) {
-            redisPortOut.setObject(
-                    key,
-                    data,
-                    expiration
-            );
+            try {
+                cacheWriter.accept(key, data);
+            } catch (Exception e) {
+                log.warn("Cache write failed for key {}: {}", key, e.getMessage());
+            }
         }
 
         return data;
@@ -500,8 +507,8 @@ public class RepositoryService implements RepositoryPortIn {
         return getOrLoadAndCache(
                 key,
                 () -> repositoryPortOut.getRepositoryLanguages(command),
-                new TypeReference<List<RepositoryLanguageResult>>() {},
-                expiration
+                (readKey) -> redisPortOut.getObject(readKey, new TypeReference<List<RepositoryLanguageResult>>() {}),
+                (writeKey, val) -> redisPortOut.setObject(writeKey, val, expiration)
         );
     }
 
@@ -522,8 +529,8 @@ public class RepositoryService implements RepositoryPortIn {
                     List<RepositoryTreeResult> results = repositoryPortOut.getRepositoryTree(command);
                     return repositoryTreeFilterPortOut.filter(results);
                 },
-                new TypeReference<List<RepositoryTreeResult>>() {},
-                expiration
+                (readKey) -> redisPortOut.getObject(readKey, new TypeReference<List<RepositoryTreeResult>>() {}),
+                (writeKey, val) -> redisPortOut.setObject(writeKey, val, expiration)
         );
     }
 
@@ -542,8 +549,8 @@ public class RepositoryService implements RepositoryPortIn {
                         owner + "/" + name,
                         repositoryInfo
                 ),
-                new TypeReference<GPTRepositoryInfoResult>() {},
-                expiration
+                (readKey) -> redisPortOut.getObject(readKey, new TypeReference<GPTRepositoryInfoResult>() {}),
+                (writeKey, val) -> redisPortOut.setObject(writeKey, val, expiration)
         );
     }
 
@@ -565,9 +572,17 @@ public class RepositoryService implements RepositoryPortIn {
                         command,
                         getFilePaths(repositoryInfo.entryPoints())
                 ),
-                new TypeReference<List<RepositoryFileContentResult>>() {
+                (readKey) -> {
+                    String encrypted = redisPortOut.get(readKey);
+                    return objectCipherPortOut.decrypt(
+                            encrypted,
+                            new TypeReference<List<RepositoryFileContentResult>>() {}
+                    );
                 },
-                expiration
+                (writeKey, val) -> {
+                    String encrypted = objectCipherPortOut.encrypt(val);
+                    redisPortOut.set(writeKey, encrypted, expiration);
+                }
         );
     }
 
@@ -589,8 +604,17 @@ public class RepositoryService implements RepositoryPortIn {
                         command,
                         getFilePaths(repositoryInfo.importantFiles())
                 ),
-                new TypeReference<List<RepositoryFileContentResult>>() {},
-                expiration
+                (readKey) -> {
+                    String encrypted = redisPortOut.get(readKey);
+                    return objectCipherPortOut.decrypt(
+                            encrypted,
+                            new TypeReference<List<RepositoryFileContentResult>>() {}
+                    );
+                },
+                (writeKey, val) -> {
+                    String encrypted = objectCipherPortOut.encrypt(val);
+                    redisPortOut.set(writeKey, encrypted, expiration);
+                }
         );
     }
 
