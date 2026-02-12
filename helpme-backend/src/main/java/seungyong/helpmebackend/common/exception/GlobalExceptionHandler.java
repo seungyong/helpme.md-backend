@@ -1,10 +1,8 @@
 package seungyong.helpmebackend.common.exception;
 
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -23,8 +21,33 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     @ExceptionHandler(value = { CustomException.class })
-    protected ResponseEntity<ErrorResponse> handleCustomException(CustomException e) {
+    protected ResponseEntity<ErrorResponse> handleCustomException(CustomException e, HttpServletResponse response) {
         log.warn("handleCustomException throw CustomException : {}", e.getErrorCode());
+
+        if (e.getErrorCode().getErrorCode().equals(GlobalErrorCode.INVALID_TOKEN.getErrorCode())) {
+            log.info("Invalid token detected. Detailed trace: {}", (Object) e.getStackTrace());
+
+            ResponseCookie accessCookie = ResponseCookie.from("accessToken", "")
+                    .httpOnly(true)
+                    .secure(true)
+                    .path("/")
+                    .maxAge(0)
+                    .sameSite("Lax")
+                    .build();
+
+            response.addHeader(HttpHeaders.SET_COOKIE, accessCookie.toString());
+
+            ResponseCookie refreshCookie = ResponseCookie.from("refreshToken", "")
+                    .httpOnly(true)
+                    .secure(true)
+                    .path("/")
+                    .maxAge(0)
+                    .sameSite("Lax")
+                    .build();
+
+            response.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
+        }
+
         return ErrorResponse.toResponseEntity(e.getErrorCode());
     }
 
