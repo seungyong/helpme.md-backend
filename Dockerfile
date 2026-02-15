@@ -16,7 +16,7 @@ RUN --mount=type=cache,target=/root/.gradle \
     --mount=type=bind,source=settings.gradle,target=settings.gradle \
     --mount=type=bind,source=gradle,target=gradle \
     --mount=type=bind,source=src,target=src \
-    ./gradlew clean build -x test # 테스트는 제외하고 빌드
+    sh ./gradlew clean build -x test # 테스트는 제외하고 빌드
 
 # 빌드된 JAR 파일에서 필요한 라이브러리를 추출하여 build/dependency 디렉토리에 저장
 # 라이브러리와 코드를 분리함으로써, 캐싱이 더 효과적으로 작동하도록 함
