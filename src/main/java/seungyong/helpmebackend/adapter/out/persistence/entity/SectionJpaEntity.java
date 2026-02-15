@@ -37,10 +37,10 @@ public class SectionJpaEntity {
     private Short orderIdx;
 
     @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false, columnDefinition = "TIMESTAMPZ DEFAULT now()")
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdTime;
 
     @UpdateTimestamp
-    @Column(name = "updated_at", nullable = false, columnDefinition = "TIMESTAMPZ DEFAULT now()")
+    @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedTime;
 }
