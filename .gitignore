@@ -12,6 +12,7 @@
 
 # Package Files #
 *.jar
+!gradle/wrapper/gradle-wrapper.jar
 *.war
 *.nar
 *.ear
@@ -33,7 +34,7 @@ replay_pid*
 application.properties
 application-dev.properties
 application-prod.properties
-/helpme-backend/src/main/resources/static/index.html
+/src/main/resources/static/index.html
 
 # exclude
 exclude_folder.txt
