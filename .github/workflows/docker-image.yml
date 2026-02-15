@@ -76,6 +76,8 @@ jobs:
             set -e
             cd /home
             
+            echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+            
             TAG="${{ needs.docker-push.outputs.image_tag }}"
             
             if [ -f .env ] && grep -q '^IMAGE_TAG=' .env; then
