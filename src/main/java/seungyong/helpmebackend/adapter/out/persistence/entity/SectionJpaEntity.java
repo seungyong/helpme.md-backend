@@ -33,7 +33,7 @@ public class SectionJpaEntity {
     @Column(name = "content", nullable = false, columnDefinition = "TEXT")
     private String content;
 
-    @Column(name = "order_idx", nullable = false, columnDefinition = "CHECK (order_idx > 0)")
+    @Column(name = "order_idx", nullable = false)
     private Short orderIdx;
 
     @CreationTimestamp
