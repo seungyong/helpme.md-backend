@@ -57,9 +57,5 @@ COPY --from=app-builder ${DEPENDENCY}/BOOT-INF/lib /app/lib
 COPY --from=app-builder ${DEPENDENCY}/META-INF /app/META-INF
 COPY --from=app-builder ${DEPENDENCY}/BOOT-INF/classes /app
 COPY src/main/resources/application.properties /app/application.properties
-COPY src/main/resources/exclude_extension.txt /app/exclude_extension.txt
-COPY src/main/resources/exclude_file.txt /app/exclude_file.txt
-COPY src/main/resources/exclude_folder.txt /app/exclude_folder.txt
-
 # 실행
 ENTRYPOINT ["java", "-cp", "/app:/app/lib/*", "seungyong.helpmebackend.HelpmeBackendApplication"]
