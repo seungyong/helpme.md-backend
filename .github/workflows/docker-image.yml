@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [ "main" ]
   push:
-    branches: [ "main" ]
+    branches: [ "main", "hotfix" ]
 
 jobs:
   build:
@@ -44,8 +44,16 @@ jobs:
       - name: Create application.properties
         run: |
           mkdir -p src/main/resources
-          printf '%s' "${{ secrets.APPLICATION }}" > src/main/resources/application.properties
+          cat <<EOF > src/main/resources/application.properties
+          ${{ secrets.APPLICATION }}
+          EOF
           ls -l src/main/resources/
+
+      - name: Debug properties
+        run: |
+          echo "----- START -----"
+          cat src/main/resources/application.properties
+          echo "----- END -----"
 
       - name: Login to Docker Hub
         uses: docker/login-action@v3
