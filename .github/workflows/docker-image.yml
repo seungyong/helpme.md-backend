@@ -1,0 +1,108 @@
+name: Backend CI/CD
+
+on:
+  pull_request:
+    branches: [ "main" ]
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create application.properties
+        run: |
+          mkdir -p ./src/main/resources
+          touch ./src/main/resources/application.properties
+          touch ./src/main/resources/exclude_extension.txt
+          touch ./src/main/resources/exclude_file.txt
+          touch ./src/main/resources/exclude_folder.txt
+          printf '%s' "${{ secrets.APPLICATION }}" > ./src/main/resources/application.properties
+          printf '%s' "${{ secrets.EXCLUDE_EXTENSION }}" > ./src/main/resources/exclude_extension.txt
+          printf '%s' "${{ secrets.EXCLUDE_FILE }}" > ./src/main/resources/exclude_file.txt
+          printf '%s' "${{ secrets.EXCLUDE_FOLDER }}" > ./src/main/resources/exclude_folder.txt
+          ls -l src/main/resources/
+          ls -l ./src/main/resources/
+          wc -l ./src/main/resources/*
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Gradle"
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+
+      - name: Build bootJar
+        run: ./gradlew clean bootJar
+
+      - name: Test bootJar
+        run: ./gradlew test
+
+  docker-push:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    needs: build
+    outputs:
+        image_tag: ${{ steps.vars.outputs.image_tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Generate image tag
+        id: vars
+        run: |
+          IMAGE_TAG=${GITHUB_SHA::7}
+          echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_REPOSITORY }}:${{ steps.vars.outputs.image_tag }}
+            ${{ secrets.DOCKERHUB_REPOSITORY }}:latest
+
+  server-pull:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    needs: docker-push
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          script: |
+            set -e
+            cd /home
+            
+            echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+            
+            TAG="${{ needs.docker-push.outputs.image_tag }}"
+            
+            if [ -f .env ] && grep -q '^IMAGE_TAG=' .env; then
+              sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=${TAG}/" .env
+            else
+              echo "IMAGE_TAG=${TAG}" >> .env
+            fi
+            
+            docker-compose pull backend
+            docker-compose up -d --no-deps backend
+            docker image prune -f
