@@ -13,21 +13,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Create application.properties
-        run: |
-          mkdir -p ./src/main/resources
-          touch ./src/main/resources/application.properties
-          touch ./src/main/resources/exclude_extension.txt
-          touch ./src/main/resources/exclude_file.txt
-          touch ./src/main/resources/exclude_folder.txt
-          printf '%s' "${{ secrets.APPLICATION }}" > ./src/main/resources/application.properties
-          printf '%s' "${{ secrets.EXCLUDE_EXTENSION }}" > ./src/main/resources/exclude_extension.txt
-          printf '%s' "${{ secrets.EXCLUDE_FILE }}" > ./src/main/resources/exclude_file.txt
-          printf '%s' "${{ secrets.EXCLUDE_FOLDER }}" > ./src/main/resources/exclude_folder.txt
-          ls -l src/main/resources/
-          ls -l ./src/main/resources/
-          wc -l ./src/main/resources/*
-
       - name: Setup JDK
         uses: actions/setup-java@v4
         with:
