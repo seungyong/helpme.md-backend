@@ -7,7 +7,3 @@ build
 target
 !build/libs/*.jar
 !target/*.jar
-
-exclude_extension.txt
-exclude_file.txt
-exclude_folder.txt
