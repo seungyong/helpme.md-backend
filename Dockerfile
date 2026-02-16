@@ -2,8 +2,8 @@
 # 멀티 스테이지 빌드 사용
 
 # 첫 번째 스테이지: 애플리케이션 빌드
-# Eclipse Temurin 17 JDK Alpine 이미지를 불러와 'app-builder'라는 이름으로 지정
-FROM eclipse-temurin:17-jdk-alpine AS app-builder
+# Eclipse Temurin 17 JDK 이미지를 불러와 'app-builder'라는 이름으로 지정
+FROM eclipse-temurin:17-jdk-jammy AS app-builder
 
 # 작업 디렉토리를 /workspace/app으로 설정
 WORKDIR /workspace/app
@@ -16,7 +16,8 @@ RUN --mount=type=cache,target=/root/.gradle \
     --mount=type=bind,source=settings.gradle,target=settings.gradle \
     --mount=type=bind,source=gradle,target=gradle \
     --mount=type=bind,source=src,target=src \
-    sh ./gradlew clean build -x test # 테스트는 제외하고 빌드
+    # 테스트는 제외하고 빌드
+    sh ./gradlew clean build -x test
 
 # 빌드된 JAR 파일에서 필요한 라이브러리를 추출하여 build/dependency 디렉토리에 저장
 # 라이브러리와 코드를 분리함으로써, 캐싱이 더 효과적으로 작동하도록 함
@@ -41,14 +42,7 @@ RUN jlink \
     --output /customjre
 
 # 세 번째 스테이지: 최종 이미지 설정
-FROM alpine:latest
-
-# 자바가 어딨는지 환경 변수로 알려줌
-ENV JAVA_HOME=/jre
-ENV PATH="${JAVA_HOME}/bin:${PATH}"
-
-# 두 번째 스테이지에서 생성된 커스텀 JRE를 복사하여 최종 이미지에 포함
-COPY --from=jre-builder /customjre $JAVA_HOME
+FROM eclipse-temurin:17-jre
 
 WORKDIR /app
 
@@ -62,6 +56,7 @@ ARG DEPENDENCY=/workspace/app/build/dependency
 COPY --from=app-builder ${DEPENDENCY}/BOOT-INF/lib /app/lib
 COPY --from=app-builder ${DEPENDENCY}/META-INF /app/META-INF
 COPY --from=app-builder ${DEPENDENCY}/BOOT-INF/classes /app
+COPY src/main/resources/application.properties /app/application.properties
 
 # 실행
 ENTRYPOINT ["java", "-cp", "/app:/app/lib/*", "seungyong.helpmebackend.HelpmeBackendApplication"]
