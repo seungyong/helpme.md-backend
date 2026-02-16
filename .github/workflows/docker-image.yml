@@ -42,18 +42,15 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Create application.properties
+        env:
+          APPLICATION_SECRET: ${{ secrets.APPLICATION }}
         run: |
           mkdir -p src/main/resources
-          cat <<EOF > src/main/resources/application.properties
-          ${{ secrets.APPLICATION }}
-          EOF
+          echo "$APPLICATION_SECRET" > src/main/resources/application.properties
           ls -l src/main/resources/
 
       - name: Debug properties
-        run: |
-          echo "----- START -----"
-          cat src/main/resources/application.properties
-          echo "----- END -----"
+        run: cat src/main/resources/application.properties
 
       - name: Login to Docker Hub
         uses: docker/login-action@v3
