@@ -42,9 +42,11 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Create application.properties
+        env:
+          APPLICATION_SECRET: ${{ secrets.APPLICATION }}
         run: |
           mkdir -p src/main/resources
-          printf '%s' "${{ secrets.APPLICATION }}" > src/main/resources/application.properties
+          echo "$APPLICATION_SECRET" > src/main/resources/application.properties
           ls -l src/main/resources/
 
       - name: Login to Docker Hub
