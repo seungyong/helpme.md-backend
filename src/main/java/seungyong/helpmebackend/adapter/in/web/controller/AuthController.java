@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseCookie;
@@ -36,6 +37,9 @@ import java.time.ZoneOffset;
 @ResponseBody
 @RequiredArgsConstructor
 public class AuthController {
+    @Value("${frontend.url}")
+    private String frontendUrl;
+
     private final OAuth2PortIn oAuth2PortIn;
 
     @Operation(
@@ -87,7 +91,7 @@ public class AuthController {
         boolean isInstallation = installationId != null && !installationId.isEmpty() && setupAction != null && !setupAction.isEmpty();
 
         if (isInstallation) {
-            redirectUrl = UriComponentsBuilder.fromUriString("http://localhost:3000/oauth2/callback")
+            redirectUrl = UriComponentsBuilder.fromUriString(frontendUrl + "oauth2/callback")
                     .build()
                     .toUriString();
         }
@@ -173,13 +177,13 @@ public class AuthController {
                     .build();
             response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
 
-            return UriComponentsBuilder.fromUriString("http://localhost:3000/oauth2/callback")
+            return UriComponentsBuilder.fromUriString(frontendUrl + "oauth2/callback")
                     .build()
                     .toUriString();
         } catch (Exception e) {
             log.error("OAuth2 login/signup failed", e);
 
-            return UriComponentsBuilder.fromUriString("http://localhost:3000/oauth2/callback")
+            return UriComponentsBuilder.fromUriString(frontendUrl + "oauth2/callback")
                     .queryParam("error", "authentication_failed")
                     .build()
                     .toUriString();
