@@ -26,9 +26,7 @@ import seungyong.helpmebackend.infrastructure.swagger.annotation.ApiErrorRespons
 import seungyong.helpmebackend.usecase.port.in.oauth2.OAuth2PortIn;
 
 import java.io.IOException;
-import java.time.Duration;
 import java.time.Instant;
-import java.time.ZoneOffset;
 
 @Slf4j
 @Tag(name = "OAuth2", description = "OAuth2 관련 API")
@@ -91,7 +89,7 @@ public class AuthController {
         boolean isInstallation = installationId != null && !installationId.isEmpty() && setupAction != null && !setupAction.isEmpty();
 
         if (isInstallation) {
-            redirectUrl = UriComponentsBuilder.fromUriString(frontendUrl + "oauth2/callback")
+            redirectUrl = UriComponentsBuilder.fromUriString(frontendUrl + "/oauth2/callback")
                     .build()
                     .toUriString();
         }
@@ -177,13 +175,13 @@ public class AuthController {
                     .build();
             response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
 
-            return UriComponentsBuilder.fromUriString(frontendUrl + "oauth2/callback")
+            return UriComponentsBuilder.fromUriString(frontendUrl + "/oauth2/callback")
                     .build()
                     .toUriString();
         } catch (Exception e) {
             log.error("OAuth2 login/signup failed", e);
 
-            return UriComponentsBuilder.fromUriString(frontendUrl + "oauth2/callback")
+            return UriComponentsBuilder.fromUriString(frontendUrl + "/oauth2/callback")
                     .queryParam("error", "authentication_failed")
                     .build()
                     .toUriString();
