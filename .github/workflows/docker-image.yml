@@ -96,6 +96,6 @@ jobs:
               echo "IMAGE_TAG=${TAG}" >> .env
             fi
             
-            docker-compose pull backend
-            docker-compose up -d --no-deps backend
+            docker-compose pull spring-app
+            docker-compose up -d --no-deps spring-app
             docker image prune -f
