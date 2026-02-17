@@ -156,10 +156,9 @@ public class AuthController {
             long refreshMaxAgeSeconds = jwt.getRefreshTokenExpireTime().getEpochSecond() - now.getEpochSecond();
 
             // Cookie에 Access Token, Refresh Token 설정
-            // TODO : secure(true)로 변경 (배포 시)
             ResponseCookie accessTokenCookie = ResponseCookie.from("accessToken", jwt.getAccessToken())
                     .httpOnly(true)
-                    .secure(false)
+                    .secure(true)
                     .path("/")
                     .maxAge(accessMaxAgeSeconds)
                     .sameSite("Lax")
@@ -168,7 +167,7 @@ public class AuthController {
 
             ResponseCookie cookie = ResponseCookie.from("refreshToken", jwt.getRefreshToken())
                     .httpOnly(true)
-                    .secure(false)
+                    .secure(true)
                     .path("/")
                     .maxAge(refreshMaxAgeSeconds)
                     .sameSite("Lax")
