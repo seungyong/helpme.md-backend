@@ -3,6 +3,7 @@ package seungyong.helpmebackend.adapter.out.oauth2;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import seungyong.helpmebackend.adapter.out.result.OAuthTokenResult;
 import seungyong.helpmebackend.domain.entity.installation.Installation;
@@ -25,6 +26,7 @@ public class OAuth2Adapter extends GithubPortConfig implements OAuth2PortOut {
     public String generateLoginUrl(String state) {
         return "https://github.com/login/oauth/authorize?client_id=" + super.getClientId()
                 + "&scope=read:user"
+                + "&redirect_uri=" + super.getRedirectUri()
                 + "&state=" + state;
     }
 
