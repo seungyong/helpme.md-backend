@@ -89,7 +89,7 @@ public class AuthController {
         boolean isInstallation = installationId != null && !installationId.isEmpty() && setupAction != null && !setupAction.isEmpty();
 
         if (isInstallation) {
-            redirectUrl = UriComponentsBuilder.fromUriString(frontendUrl + "/oauth2/callback")
+            redirectUrl = UriComponentsBuilder.fromUriString("https://github.com/apps/helpme-md/installations/new")
                     .build()
                     .toUriString();
         }
