@@ -30,29 +30,34 @@ public class UserService implements UserPortIn {
             throw new CustomException(GlobalErrorCode.INVALID_TOKEN);
         }
 
-        JWTUser user = jwtPortOut.getUserByTokenWithoutCheck(refreshToken);
-        Long userId = user.getId();
+        String refreshTokenKey = RedisKey.REFRESH_KEY.getValue() + refreshToken;
+        String userId = redisPortOut.get(refreshTokenKey);
 
-        String refreshTokenKey = RedisKey.REFRESH_KEY.getValue() + userId;
-        String storedRefreshToken = redisPortOut.get(refreshTokenKey);
-
-        if (storedRefreshToken == null || !storedRefreshToken.equals(refreshToken)) {
+        if (userId == null) {
             throw new CustomException(GlobalErrorCode.INVALID_TOKEN);
         }
 
-        JWT jwt = jwtPortOut.generate(new JWTUser(userId, user.getUsername()));
-        redisPortOut.set(refreshTokenKey, jwt.getRefreshToken(), jwt.getRefreshTokenExpireTime());
+        Long userIdLong = Long.valueOf(userId);
+        User user = userPortOut.getById(userIdLong);
+
+        JWT jwt = jwtPortOut.generate(new JWTUser(userIdLong, user.getGithubUser().getName()));
+        redisPortOut.set(refreshTokenKey, userId, jwt.getRefreshTokenExpireTime());
 
         return jwt;
     }
 
     @Override
-    public void withdraw(Long userId) {
+    public void logout(Long userId, String refreshToken) {
+        String refreshTokenKey = RedisKey.REFRESH_KEY.getValue() + refreshToken;
+        redisPortOut.delete(refreshTokenKey);
+    }
+
+    @Override
+    public void withdraw(Long userId, String refreshToken) {
         User user = userPortOut.getById(userId);
         userPortOut.delete(user);
 
-        // Redis에 저장된 refresh token 삭제
-        String refreshTokenKey = RedisKey.REFRESH_KEY.getValue() + userId;
+        String refreshTokenKey = RedisKey.REFRESH_KEY.getValue() + refreshToken;
         redisPortOut.delete(refreshTokenKey);
     }
 }

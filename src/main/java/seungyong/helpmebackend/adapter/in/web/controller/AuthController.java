@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 import seungyong.helpmebackend.adapter.in.web.dto.installation.response.ResponseInstallations;
 import seungyong.helpmebackend.adapter.in.web.dto.user.common.CustomUserDetails;
+import seungyong.helpmebackend.adapter.in.web.util.CookieUtil;
 import seungyong.helpmebackend.common.exception.GlobalErrorCode;
 import seungyong.helpmebackend.domain.exception.UserErrorCode;
 import seungyong.helpmebackend.infrastructure.jwt.JWT;
@@ -39,6 +40,7 @@ public class AuthController {
     private String frontendUrl;
 
     private final OAuth2PortIn oAuth2PortIn;
+    private final CookieUtil cookieUtil;
 
     @Operation(
             summary = "OAuth2 로그인 URL 생성 및 리다이렉트",
@@ -149,30 +151,7 @@ public class AuthController {
     private String loginOrSignup(String code, String state, HttpServletResponse response) {
         try {
             JWT jwt = oAuth2PortIn.signupOrLogin(code, state);
-
-            Instant now = Instant.now();
-
-            long accessMaxAgeSeconds = jwt.getAccessTokenExpireTime().getEpochSecond() - now.getEpochSecond();
-            long refreshMaxAgeSeconds = jwt.getRefreshTokenExpireTime().getEpochSecond() - now.getEpochSecond();
-
-            // Cookie에 Access Token, Refresh Token 설정
-            ResponseCookie accessTokenCookie = ResponseCookie.from("accessToken", jwt.getAccessToken())
-                    .httpOnly(true)
-                    .secure(true)
-                    .path("/")
-                    .maxAge(accessMaxAgeSeconds)
-                    .sameSite("Lax")
-                    .build();
-            response.addHeader(HttpHeaders.SET_COOKIE, accessTokenCookie.toString());
-
-            ResponseCookie cookie = ResponseCookie.from("refreshToken", jwt.getRefreshToken())
-                    .httpOnly(true)
-                    .secure(true)
-                    .path("/")
-                    .maxAge(refreshMaxAgeSeconds)
-                    .sameSite("Lax")
-                    .build();
-            response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+            cookieUtil.setTokenCookie(response, jwt);
 
             return UriComponentsBuilder.fromUriString(frontendUrl + "/oauth2/callback")
                     .build()

@@ -71,8 +71,6 @@ public class JWTProvider implements JwtGenerator<JWT> {
                 .compact();
 
         String refreshToken = Jwts.builder()
-                .setSubject(String.valueOf(user.getId()))
-                .claim("username", user.getUsername())
                 .setIssuer("helpmebackend")
                 .setExpiration(refreshTokenExpireDate)
                 .setIssuedAt(now)
