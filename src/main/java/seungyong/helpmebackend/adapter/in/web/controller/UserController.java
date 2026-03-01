@@ -16,6 +16,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import seungyong.helpmebackend.adapter.in.web.dto.user.common.CustomUserDetails;
 import seungyong.helpmebackend.adapter.in.web.dto.user.response.ResponseUser;
+import seungyong.helpmebackend.adapter.in.web.util.CookieUtil;
 import seungyong.helpmebackend.common.exception.CustomException;
 import seungyong.helpmebackend.common.exception.GlobalErrorCode;
 import seungyong.helpmebackend.infrastructure.jwt.JWT;
@@ -23,9 +24,7 @@ import seungyong.helpmebackend.infrastructure.swagger.annotation.ApiErrorRespons
 import seungyong.helpmebackend.infrastructure.swagger.annotation.ApiErrorResponses;
 import seungyong.helpmebackend.usecase.port.in.user.UserPortIn;
 
-import java.time.Duration;
 import java.time.Instant;
-import java.time.ZoneOffset;
 
 @Tag(name = "User", description = "User 관련 API")
 @RestController
@@ -34,20 +33,7 @@ import java.time.ZoneOffset;
 @RequiredArgsConstructor
 public class UserController {
     private final UserPortIn userPortIn;
-
-    private String getToken(HttpServletRequest request, String cookieName) {
-        Cookie[] cookies = request.getCookies();
-
-        if (cookies != null) {
-            for (Cookie cookie : cookies) {
-                if (cookieName.equals(cookie.getName())) {
-                    return cookie.getValue();
-                }
-            }
-        }
-
-        return null;
-    }
+    private final CookieUtil cookieUtil;
 
     @Operation(
             summary = "현재 사용자 정보 조회",
@@ -114,36 +100,14 @@ public class UserController {
             HttpServletRequest request,
             HttpServletResponse response
     ) {
-        String refreshToken = getToken(request, "refreshToken");
+        String refreshToken = cookieUtil.getRefreshToken(request);
 
         if (refreshToken == null) {
             throw new CustomException(GlobalErrorCode.NOT_FOUND_TOKEN);
         }
 
         JWT jwt = userPortIn.reissue(refreshToken);
-
-        // 쿠키 설정
-        Instant now = Instant.now();
-        long accessMaxAgeSeconds = jwt.getAccessTokenExpireTime().getEpochSecond() - now.getEpochSecond();
-        long refreshMaxAgeSeconds = jwt.getRefreshTokenExpireTime().getEpochSecond() - now.getEpochSecond();
-
-        ResponseCookie accessCookie = ResponseCookie.from("accessToken", jwt.getAccessToken())
-                .httpOnly(true)
-                .secure(true)
-                .path("/")
-                .maxAge(accessMaxAgeSeconds)
-                .sameSite("Lax")
-                .build();
-        response.addHeader(HttpHeaders.SET_COOKIE, accessCookie.toString());
-
-        ResponseCookie cookie = ResponseCookie.from("refreshToken", jwt.getRefreshToken())
-                .httpOnly(true)
-                .secure(true)
-                .path("/")
-                .maxAge(refreshMaxAgeSeconds)
-                .sameSite("Lax")
-                .build();
-        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+        cookieUtil.setTokenCookie(response, jwt);
 
         return ResponseEntity.noContent().build();
     }
@@ -173,28 +137,13 @@ public class UserController {
             )
     })
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout(HttpServletResponse response) {
-        // 쿠키 삭제 (AT, RT)
-        ResponseCookie accessCookie = ResponseCookie.from("accessToken", "")
-                .httpOnly(true)
-                .secure(true)
-                .path("/")
-                .maxAge(0)
-                .sameSite("Lax")
-                .build();
-
-        response.addHeader(HttpHeaders.SET_COOKIE, accessCookie.toString());
-
-        ResponseCookie refreshCookie = ResponseCookie.from("refreshToken", "")
-                .httpOnly(true)
-                .secure(true)
-                .path("/")
-                .maxAge(0)
-                .sameSite("Lax")
-                .build();
-
-        response.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
-
+    public ResponseEntity<Void> logout(
+                HttpServletRequest request,
+            HttpServletResponse response,
+            @AuthenticationPrincipal CustomUserDetails details
+    ) {
+        userPortIn.logout(details.getUserId(), cookieUtil.getRefreshToken(request));
+        cookieUtil.clearTokenCookie(response);
         return ResponseEntity.noContent().build();
     }
 
@@ -224,29 +173,14 @@ public class UserController {
     })
     @DeleteMapping
     public ResponseEntity<Void> withdraw(
+            HttpServletRequest request,
             HttpServletResponse response,
             @AuthenticationPrincipal CustomUserDetails details
     ) {
-        userPortIn.withdraw(details.getUserId());
+        String refreshTokenKey = cookieUtil.getRefreshToken(request);
+        userPortIn.withdraw(details.getUserId(), refreshTokenKey);
 
-        // 쿠키 삭제 (AT, RT)
-        ResponseCookie accessCookie = ResponseCookie.from("accessToken", "")
-                .httpOnly(true)
-                .secure(true)
-                .path("/")
-                .maxAge(0)
-                .sameSite("Lax")
-                .build();
-        response.addHeader(HttpHeaders.SET_COOKIE, accessCookie.toString());
-
-        ResponseCookie refreshCookie = ResponseCookie.from("refreshToken", "")
-                .httpOnly(true)
-                .secure(true)
-                .path("/")
-                .maxAge(0)
-                .sameSite("Lax")
-                .build();
-        response.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
+        cookieUtil.clearTokenCookie(response);
 
         return ResponseEntity.noContent().build();
     }

@@ -1,6 +1,7 @@
 package seungyong.helpmebackend.common.exception;
 
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -9,10 +10,14 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
+import seungyong.helpmebackend.adapter.in.web.util.CookieUtil;
 
 @Slf4j
 @RestControllerAdvice
+@RequiredArgsConstructor
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
+    private final CookieUtil cookieUtil;
+
     @ExceptionHandler(value = { Exception.class })
     protected ResponseEntity<ErrorResponse> handleException(Exception e) {
         log.error("handleException throw Exception = {}", e.getMessage());
@@ -25,27 +30,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         log.warn("handleCustomException throw CustomException : {}", e.getErrorCode());
 
         if (e.getErrorCode().getErrorCode().equals(GlobalErrorCode.INVALID_TOKEN.getErrorCode())) {
-            log.info("Invalid token detected. Detailed trace: {}", (Object) e.getStackTrace());
-
-            ResponseCookie accessCookie = ResponseCookie.from("accessToken", "")
-                    .httpOnly(true)
-                    .secure(true)
-                    .path("/")
-                    .maxAge(0)
-                    .sameSite("Lax")
-                    .build();
-
-            response.addHeader(HttpHeaders.SET_COOKIE, accessCookie.toString());
-
-            ResponseCookie refreshCookie = ResponseCookie.from("refreshToken", "")
-                    .httpOnly(true)
-                    .secure(true)
-                    .path("/")
-                    .maxAge(0)
-                    .sameSite("Lax")
-                    .build();
-
-            response.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
+            log.warn("Invalid token detected. Detailed trace: {}", (Object) e.getStackTrace());
+            cookieUtil.clearTokenCookie(response);
         }
 
         return ErrorResponse.toResponseEntity(e.getErrorCode());

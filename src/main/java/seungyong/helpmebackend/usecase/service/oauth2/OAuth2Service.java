@@ -75,9 +75,9 @@ public class OAuth2Service implements OAuth2PortIn {
 
         JWT jwt = jwtPortOut.generate(new JWTUser(user.getId(), user.getGithubUser().getName()));
 
-        String key = RedisKey.REFRESH_KEY.getValue() + user.getId();
+        String key = RedisKey.REFRESH_KEY.getValue() + jwt.getRefreshToken();
         Instant expireTime = jwt.getRefreshTokenExpireTime();
-        redisPortOut.set(key, jwt.getRefreshToken(), expireTime);
+        redisPortOut.set(key, user.getId().toString(), expireTime);
 
         return jwt;
     }

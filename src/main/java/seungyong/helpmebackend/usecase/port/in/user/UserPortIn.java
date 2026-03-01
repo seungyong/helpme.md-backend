@@ -4,5 +4,6 @@ import seungyong.helpmebackend.infrastructure.jwt.JWT;
 
 public interface UserPortIn {
     JWT reissue(String refreshToken);
-    void withdraw(Long userId);
+    void logout(Long userId, String refreshToken);
+    void withdraw(Long userId, String refreshToken);
 }
