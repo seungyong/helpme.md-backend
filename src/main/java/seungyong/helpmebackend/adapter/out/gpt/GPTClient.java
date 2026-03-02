@@ -1,4 +1,4 @@
-package seungyong.helpmebackend.infrastructure.gpt;
+package seungyong.helpmebackend.adapter.out.gpt;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,11 +17,11 @@ import seungyong.helpmebackend.adapter.out.command.EvaluationCommand;
 import seungyong.helpmebackend.adapter.out.command.GenerateReadmeCommand;
 import seungyong.helpmebackend.adapter.out.command.RepositoryInfoCommand;
 import seungyong.helpmebackend.adapter.out.result.*;
-import seungyong.helpmebackend.infrastructure.gpt.dto.GPTDraftReadmeGenerationSchema;
-import seungyong.helpmebackend.infrastructure.gpt.dto.GPTEvaluationSchema;
-import seungyong.helpmebackend.infrastructure.gpt.dto.GPTRepositoryAnalyzeSchema;
-import seungyong.helpmebackend.infrastructure.gpt.dto.PromptContext;
-import seungyong.helpmebackend.infrastructure.gpt.type.GPTSystemPrompt;
+import seungyong.helpmebackend.adapter.out.gpt.dto.GPTDraftReadmeGenerationSchema;
+import seungyong.helpmebackend.adapter.out.gpt.dto.GPTEvaluationSchema;
+import seungyong.helpmebackend.adapter.out.gpt.dto.GPTRepositoryAnalyzeSchema;
+import seungyong.helpmebackend.adapter.out.gpt.dto.PromptContext;
+import seungyong.helpmebackend.adapter.out.gpt.type.GPTSystemPrompt;
 
 import java.util.Arrays;
 import java.util.List;
@@ -30,7 +30,7 @@ import java.util.stream.Collectors;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class GPTClient {
+class GPTClient {
 
     private final OpenAiChatModel openAiChatModel;
 

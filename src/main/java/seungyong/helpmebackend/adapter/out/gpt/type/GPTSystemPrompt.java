@@ -1,4 +1,4 @@
-package seungyong.helpmebackend.infrastructure.gpt.type;
+package seungyong.helpmebackend.adapter.out.gpt.type;
 
 public final class GPTSystemPrompt {
     public static final String REPOSITORY_ANALYZE_PROMPT = """

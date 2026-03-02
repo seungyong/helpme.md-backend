@@ -1,4 +1,4 @@
-package seungyong.helpmebackend.infrastructure.gpt.dto;
+package seungyong.helpmebackend.adapter.out.gpt.dto;
 
 public record PromptContext(
         String repositoryInfo,
