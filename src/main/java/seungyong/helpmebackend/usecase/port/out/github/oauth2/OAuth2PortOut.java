@@ -1,5 +1,7 @@
 package seungyong.helpmebackend.usecase.port.out.github.oauth2;
 
+import seungyong.helpmebackend.adapter.out.command.RepoInfoCommand;
+import seungyong.helpmebackend.adapter.out.result.ContributorsResult;
 import seungyong.helpmebackend.adapter.out.result.OAuthTokenResult;
 import seungyong.helpmebackend.domain.entity.installation.Installation;
 import seungyong.helpmebackend.domain.entity.user.GithubUser;

@@ -10,7 +10,6 @@ import seungyong.helpmebackend.adapter.out.result.EvaluationContentResult;
 import seungyong.helpmebackend.adapter.out.result.GPTRepositoryInfoResult;
 import seungyong.helpmebackend.common.exception.CustomException;
 import seungyong.helpmebackend.common.exception.GlobalErrorCode;
-import seungyong.helpmebackend.infrastructure.gpt.GPTClient;
 import seungyong.helpmebackend.usecase.port.out.gpt.GPTPortOut;
 
 @Slf4j

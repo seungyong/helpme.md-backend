@@ -6,6 +6,7 @@ import java.util.List;
 
 public record GenerateReadmeCommand(
         String fullName,
+        String readme,
         RepositoryInfoCommand repoInfo,
         List<RepositoryFileContentResult> entryPoints,
         List<RepositoryFileContentResult> importantFiles,

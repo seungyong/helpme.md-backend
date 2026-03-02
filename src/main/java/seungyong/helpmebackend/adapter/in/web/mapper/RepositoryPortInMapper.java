@@ -5,9 +5,6 @@ import org.mapstruct.Mapping;
 import org.mapstruct.factory.Mappers;
 import seungyong.helpmebackend.adapter.in.web.dto.repository.response.ResponseRepository;
 import seungyong.helpmebackend.adapter.out.result.RepositoryDetailResult;
-import seungyong.helpmebackend.domain.entity.section.Section;
-
-import java.util.List;
 
 @Mapper
 public interface RepositoryPortInMapper {

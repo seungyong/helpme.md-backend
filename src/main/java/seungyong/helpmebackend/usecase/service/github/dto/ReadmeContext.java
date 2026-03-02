@@ -9,7 +9,8 @@ import seungyong.helpmebackend.adapter.out.result.RepositoryTreeResult;
 import java.util.List;
 
 public record ReadmeContext(
-        RepositoryInfoCommand.CommitCommand commits,
+        String readme,
+        List<RepositoryInfoCommand.CommitCommand> commits,
         GPTRepositoryInfoResult repositoryInfo,
         List<RepositoryLanguageResult> languages,
         List<RepositoryTreeResult> trees,
