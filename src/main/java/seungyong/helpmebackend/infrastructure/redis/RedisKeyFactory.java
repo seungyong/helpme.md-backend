@@ -7,11 +7,10 @@ import java.util.Arrays;
 @AllArgsConstructor
 public enum RedisKeyFactory {
     // commit cache
-    COMMIT_LATEST_KEY("gh:commits:latest:"),
-    COMMIT_MIDDLE_KEY("gh:commits:middle:"),
-    COMMIT_INITIAL_KEY("gh:commits:initial:"),
+    COMMITS_KEY("gh:commits:"),
 
     // repository cache
+    README_KEY("gh:readme:"),
     LANGUAGE_KEY("gh:languages:"),
     TREE_KEY("gh:trees:"),
     TECH_STACK_KEY("gh:tech-stack:"),
@@ -29,6 +28,14 @@ public enum RedisKeyFactory {
                         .map(String::valueOf)
                         .toList()
         );
+    }
+
+    public static String createReadmeKey(String owner, String name, String sha) {
+        return README_KEY.buildKey(owner, name, sha);
+    }
+
+    public static String createCommitsKey(String owner, String name, String sha) {
+        return COMMITS_KEY.buildKey(owner, name, sha);
     }
 
     public static String createLanguageKey(String owner, String name, String sha) {

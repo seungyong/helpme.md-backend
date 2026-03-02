@@ -1,7 +1,5 @@
 package seungyong.helpmebackend.infrastructure.gpt;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.Message;
@@ -27,6 +25,7 @@ import seungyong.helpmebackend.infrastructure.gpt.type.GPTSystemPrompt;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Component
@@ -34,7 +33,6 @@ import java.util.List;
 public class GPTClient {
 
     private final OpenAiChatModel openAiChatModel;
-    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Value("${spring.ai.openai.chat.cache-key.reviewer.prefix}")
     private String reviewerCacheKeyPrefix;
@@ -43,22 +41,11 @@ public class GPTClient {
     private String repositoryInfoCacheKeyPrefix;
 
     public GPTRepositoryInfoResult getRepositoryInfo(String fullName, RepositoryInfoCommand repository) {
-        String languageList = languagesToString(repository.languages());
-        String latestCommits = listToString(repository.commits().latestCommit(), "최근 커밋 메시지:\n");
-        String middleCommits = listToString(repository.commits().middleCommit(), "중간 커밋 메시지:\n");
-        String oldCommits = listToString(repository.commits().initialCommit(), "초기 커밋 메시지:\n");
-        String trees = treeToString(repository.trees());
+        String message = repositoryPrompt(repository);
 
         List<Message> messages = buildMessages(
                 GPTSystemPrompt.REPOSITORY_ANALYZE_PROMPT,
-                String.format(
-                        "%s\n%s\n%s\n%s\n%s",
-                        languageList,
-                        latestCommits,
-                        middleCommits,
-                        oldCommits,
-                        trees
-                )
+                message
         );
 
         BeanOutputConverter<GPTRepositoryAnalyzeSchema> converter = new BeanOutputConverter<>(GPTRepositoryAnalyzeSchema.class);
@@ -82,17 +69,13 @@ public class GPTClient {
         );
 
         String systemPrompt = String.format(
-                "README.md 내용:\n<<<<README_START>>>>\n%s\n<<<<README_END>>>>\n\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s",
+                "README.md 내용:\n<<<<README_START>>>>\n%s\n<<<<README_END>>>>\n\n%s\n%s\n%s\n%s\n%s",
                 command.readmeContent(),
-                ctx.languages(),
+                ctx.repositoryInfo(),
                 ctx.techStacks(),
-                ctx.tree(),
                 ctx.entryPoints(),
                 ctx.importantFiles(),
-                ctx.projectSize(),
-                ctx.latestCommits(),
-                ctx.middleCommits(),
-                ctx.oldCommits()
+                ctx.projectSize()
         );
 
         List<Message> messages = buildMessages(GPTSystemPrompt.EVALUATION_PROMPT, systemPrompt);
@@ -115,16 +98,13 @@ public class GPTClient {
         );
 
         String systemPrompt = String.format(
-                "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s",
-                ctx.languages(),
+                "README.md 내용:\n<<<<README_START>>>>\n%s\n<<<<README_END>>>>\n\n%s\n%s\n%s\n%s\n%s",
+                command.readme(),
+                ctx.repositoryInfo(),
                 ctx.techStacks(),
-                ctx.tree(),
                 ctx.entryPoints(),
                 ctx.importantFiles(),
-                ctx.projectSize(),
-                ctx.latestCommits(),
-                ctx.middleCommits(),
-                ctx.oldCommits()
+                ctx.projectSize()
         );
 
         List<Message> messages = buildMessages(GPTSystemPrompt.DRAFT_README_GENERATION_PROMPT, systemPrompt);
@@ -141,23 +121,7 @@ public class GPTClient {
             String[] techStack,
             String projectSize
     ) {
-        String languages = languagesToString(repoInfo.languages());
-
-        String latestCommits = listToString(
-                repoInfo.commits().latestCommit(),
-                "최근 커밋 메시지:\n"
-        );
-        String middleCommits = listToString(
-                repoInfo.commits().middleCommit(),
-                "중간 커밋 메시지:\n"
-        );
-        String oldCommits = listToString(
-                repoInfo.commits().initialCommit(),
-                "초기 커밋 메시지:\n"
-        );
-
-        String tree = treeToString(repoInfo.trees());
-
+        String repositoryPrompt = repositoryPrompt(repoInfo);
         String entryPointsStr = listToString(
                 entryPoints.stream()
                         .map(RepositoryFileContentResult::path)
@@ -180,15 +144,34 @@ public class GPTClient {
         String projectSizeStr = "프로젝트 규모:\n" + projectSize + "\n";
 
         return new PromptContext(
-                languages,
-                latestCommits,
-                middleCommits,
-                oldCommits,
-                tree,
+                repositoryPrompt,
                 entryPointsStr,
                 importantFilesStr,
                 techStacks,
                 projectSizeStr
+        );
+    }
+
+    private String repositoryPrompt(RepositoryInfoCommand repository) {
+        String languages = languagesToString(repository.languages());
+
+        String commits = repository.commits().stream()
+                .map(commit -> String.format("커밋 작성자: %s\n%s\n%s\n%s\n%s",
+                        commit.contributor().username(),
+                        commit.contributor().avatarUrl(),
+                        listToString(commit.latestCommit(), "최근 커밋 메시지:\n"),
+                        listToString(commit.middleCommit(), "중간 커밋 메시지:\n"),
+                        listToString(commit.initialCommit(), "초기 커밋 메시지:\n")
+                ))
+                .collect(Collectors.joining("\n\n"));
+
+        String trees = treeToString(repository.trees());
+
+        return String.format(
+                "%s\n%s\n%s",
+                languages,
+                trees,
+                commits
         );
     }
 

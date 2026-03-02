@@ -23,22 +23,22 @@ public class Section {
     }
 
     public static List<Section> splitContent(Long projectId, String fullContent, SplitMode splitMode) {
-        String[] splitContents = splitReadmeContent(fullContent, splitMode);
+        List<String> splitContents = splitReadmeContent(fullContent, splitMode);
         List<Section> sections = new ArrayList<>();
 
-        for (int i = 0; i < splitContents.length; i++) {
-            String content = splitContents[i];
+        for (String content : splitContents) {
             String title = content.lines()
                     .findFirst()
                     .orElse("Untitled Section")
-                    .replaceAll("^(#{1,2} )", "");
+                    .replaceAll("^(#{1,2} )", "")
+                    .trim();
 
             Section section = new Section(
                     null,
                     projectId,
                     title,
                     content.trim(),
-                    (short) (i + 1)
+                    (short) (sections.size() + 1)
             );
 
             sections.add(section);
@@ -47,11 +47,11 @@ public class Section {
         return sections;
     }
 
-    private static String[] splitReadmeContent(String content, SplitMode splitMode) {
+    private static List<String> splitReadmeContent(String content, SplitMode splitMode) {
         if (splitMode.equals(SplitMode.SPLIT)) {
-            return content.split("(?m)(?=^#{1,2} )");
+            return splitMarkdownSafely(content);
         } else {
-            return new String[] { content };
+            return List.of(content);
         }
     }
 
@@ -71,5 +71,34 @@ public class Section {
         }
 
         this.orderIdx = orderIdx;
+    }
+
+    public static List<String> splitMarkdownSafely(String fullMarkdown) {
+        List<String> sections = new ArrayList<>();
+        StringBuilder currentSection = new StringBuilder();
+        boolean inCodeBlock = false;
+
+        String[] lines = fullMarkdown.split("\n");
+
+        for (String line : lines) {
+            if (line.trim().startsWith("```")) {
+                inCodeBlock = !inCodeBlock;
+            }
+
+            if (!inCodeBlock && line.matches("^(#{1,2})\\s+.*")) {
+                if (!currentSection.isEmpty()) {
+                    sections.add(currentSection.toString().trim());
+                    currentSection.setLength(0);
+                }
+            }
+
+            currentSection.append(line).append("\n");
+        }
+
+        if (!currentSection.isEmpty()) {
+            sections.add(currentSection.toString().trim());
+        }
+
+        return sections;
     }
 }

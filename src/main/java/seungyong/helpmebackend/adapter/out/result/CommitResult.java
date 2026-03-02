@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.List;
 
 public record CommitResult(
+    ContributorsResult.Contributor contributor,
     List<Commit> latestCommits,
     List<Commit> initialCommits,
     List<Commit> middleCommits

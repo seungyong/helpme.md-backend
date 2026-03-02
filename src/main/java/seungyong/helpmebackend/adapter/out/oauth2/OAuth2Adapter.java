@@ -5,6 +5,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import seungyong.helpmebackend.adapter.out.command.RepoInfoCommand;
+import seungyong.helpmebackend.adapter.out.result.ContributorsResult;
 import seungyong.helpmebackend.adapter.out.result.OAuthTokenResult;
 import seungyong.helpmebackend.domain.entity.installation.Installation;
 import seungyong.helpmebackend.domain.entity.user.GithubUser;

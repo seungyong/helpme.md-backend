@@ -9,6 +9,7 @@ import java.util.Optional;
 public interface RepositoryPortOut {
     RepositoryResult getRepositoriesByInstallationId(String accessToken, Long installationId, Integer page, Integer perPage);
     RepositoryDetailResult getRepository(RepoInfoCommand command);
+    ContributorsResult getContributors(RepoInfoCommand info);
     String getRecentSHA(RepoBranchCommand command);
     void createBranch(CreateBranchCommand command);
     void deleteBranch(RepoBranchCommand command);
@@ -18,7 +19,6 @@ public interface RepositoryPortOut {
     List<RepositoryLanguageResult> getRepositoryLanguages(RepoInfoCommand command);
     String getReadmeContent(RepoBranchCommand command);
     List<String> getAllBranches(RepoInfoCommand command);
-    Optional<CommitResult> getCommitsByBranch(RepoBranchCommand command);
     List<RepositoryTreeResult> getRepositoryTree(RepoBranchCommand command);
     RepositoryFileContentResult getFileContent(RepoBranchCommand command, RepositoryTreeResult file);
     boolean checkPermission(RepoPermissionCommand command);

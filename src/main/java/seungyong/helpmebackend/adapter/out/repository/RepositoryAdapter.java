@@ -1,10 +1,8 @@
 package seungyong.helpmebackend.adapter.out.repository;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import seungyong.helpmebackend.adapter.out.command.*;
@@ -14,11 +12,9 @@ import seungyong.helpmebackend.domain.entity.repository.Repository;
 import seungyong.helpmebackend.domain.exception.RepositoryErrorCode;
 import seungyong.helpmebackend.infrastructure.github.GithubApiExecutor;
 import seungyong.helpmebackend.infrastructure.github.GithubClient;
-import seungyong.helpmebackend.infrastructure.github.dto.PageInfo;
 import seungyong.helpmebackend.usecase.port.out.github.GithubPortConfig;
 import seungyong.helpmebackend.usecase.port.out.github.repository.RepositoryPortOut;
 
-import java.time.Instant;
 import java.util.*;
 
 @Slf4j
@@ -75,6 +71,42 @@ public class RepositoryAdapter extends GithubPortConfig implements RepositoryPor
                 e -> {
                     if (e instanceof HttpClientErrorException.NotFound) {
                         throw new CustomException(RepositoryErrorCode.REPOSITORY_CANNOT_PULL);
+                    }
+
+                    return Optional.empty();
+                }
+        );
+    }
+
+    @Override
+    public ContributorsResult getContributors(RepoInfoCommand info) {
+        String url = String.format("https://api.github.com/repos/%s/%s/contributors", info.owner(), info.name());
+
+return githubApiExecutor.executeGet(
+                url,
+                info.accessToken(),
+                jsonNode -> {
+                    List<ContributorsResult.Contributor> contributors = new ArrayList<>();
+
+                    for (JsonNode contributorNode : jsonNode) {
+                        String type = contributorNode.get("type").asText().toLowerCase();
+                        // 사용자가 아닌 경우 (예: Bot, Organization) 건너뛰기
+                        if (!type.equals("user")) {
+                            continue;
+                        }
+
+                        String username = contributorNode.get("login").asText();
+                        String avatarUrl = contributorNode.get("avatar_url").asText();
+
+                        contributors.add(new ContributorsResult.Contributor(username, avatarUrl));
+                    }
+
+                    return new ContributorsResult(contributors);
+                },
+                "Get contributors for " + info.owner() + "/" + info.name(),
+                e -> {
+                    if (e instanceof HttpClientErrorException.NotFound) {
+                        throw new CustomException(RepositoryErrorCode.REPOSITORY_OR_BRANCH_NOT_FOUND);
                     }
 
                     return Optional.empty();
@@ -337,55 +369,6 @@ public class RepositoryAdapter extends GithubPortConfig implements RepositoryPor
     }
 
     @Override
-    public Optional<CommitResult> getCommitsByBranch(RepoBranchCommand command) {
-        int page = 1;
-
-        ResponseEntity<String> latestResponse = fetchCommit(command, page);
-        String latestResponseBody = latestResponse.getBody();
-
-        PageInfo link = GithubClient.extractLastAndMiddlePage(latestResponse.getHeaders());
-
-        // 커밋이 한 페이지에 모두 있는 경우
-        if (
-                link.lastPage() == null || link.middlePage() == null ||
-                        Objects.equals(link.lastPage(), link.middlePage()) ||
-                        link.lastPage() == 1
-        ) {
-            return Optional.of(new CommitResult(
-                    parseJsonCommit(latestResponseBody),
-                    Collections.emptyList(),
-                    Collections.emptyList()
-            ));
-        }
-
-        List<CommitResult.Commit> latestCommits = parseJsonCommit(latestResponseBody);
-
-        // 중간 페이지와 마지막 페이지를 모두 가져오기
-        ResponseEntity<String> middleResponse = fetchCommit(command, link.middlePage());
-        List<CommitResult.Commit> middleCommits = parseJsonCommit(middleResponse.getBody());
-
-        ResponseEntity<String> initialResponse = fetchCommit(command, link.lastPage());
-        List<CommitResult.Commit> initialCommits = parseJsonCommit(initialResponse.getBody());
-
-        // 30개보다 적은 경우 추가 요청하여 30개 맞추기
-        if (initialCommits.size() < 30 && link.lastPage() > 1) {
-            ResponseEntity<String> penultimateResponse = fetchCommit(command, link.lastPage() - 1);
-            List<CommitResult.Commit> penultimateCommits = parseJsonCommit(penultimateResponse.getBody());
-            int needed = 30 - initialCommits.size();
-
-            for (int i = penultimateCommits.size() - 1; i >= 0 && needed > 0; i--, needed--) {
-                initialCommits.add(0, penultimateCommits.get(i));
-            }
-        }
-
-        return Optional.of(new CommitResult(
-                latestCommits,
-                initialCommits,
-                middleCommits
-        ));
-    }
-
-    @Override
     public List<RepositoryTreeResult> getRepositoryTree(RepoBranchCommand command) {
         String url = String.format(
                 "https://api.github.com/repos/%s/%s/git/trees/%s?recursive=1",
@@ -464,58 +447,5 @@ public class RepositoryAdapter extends GithubPortConfig implements RepositoryPor
                     return Optional.empty();
                 }
         );
-    }
-
-    private ResponseEntity<String> fetchCommit(RepoBranchCommand command, int page) {
-        String url = String.format(
-                "https://api.github.com/repos/%s/%s/commits?sha=%s&per_page=30&page=%d",
-                command.repoInfo().owner(),
-                command.repoInfo().name(),
-                command.branch(),
-                page
-        );
-
-        return githubApiExecutor.executeGetJson(
-                url,
-                command.repoInfo().accessToken(),
-                GithubClient.Accept.APPLICATION_GITHUB_VND_GITHUB_JSON,
-                response -> response,
-                "Fetch commits for " + command.repoInfo().owner() + "/" + command.repoInfo().name() + " on branch " + command.branch() + " page " + page,
-                e -> {
-                    if (e instanceof HttpClientErrorException.NotFound) {
-                        throw new CustomException(RepositoryErrorCode.REPOSITORY_OR_BRANCH_NOT_FOUND);
-                    }
-
-                    return Optional.empty();
-                }
-        );
-    }
-
-    private List<CommitResult.Commit> parseJsonCommit(String body) {
-        if (body == null || body.isEmpty()) {
-            return Collections.emptyList();
-        }
-
-        try {
-            JsonNode jsonNode = super.getObjectMapper().readTree(body);
-            List<CommitResult.Commit> commits = new ArrayList<>();
-
-            for (JsonNode commitNode : jsonNode) {
-                String sha = commitNode.get("sha").asText();
-                String message = commitNode.get("commit").get("message").asText();
-                Instant date = Instant.parse(commitNode.get("commit").get("committer").get("date").asText());
-
-                commits.add(new CommitResult.Commit(
-                        sha,
-                        message,
-                        date
-                ));
-            }
-
-            return commits;
-        } catch (JsonProcessingException e) {
-            log.error("Error parsing Github commit JSON response = {}", body, e);
-            throw new CustomException(RepositoryErrorCode.JSON_PROCESSING_ERROR);
-        }
     }
 }

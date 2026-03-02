@@ -29,6 +29,7 @@ import seungyong.helpmebackend.infrastructure.sse.SSETaskName;
 import seungyong.helpmebackend.usecase.port.in.repository.RepositoryPortIn;
 import seungyong.helpmebackend.usecase.port.out.cipher.CipherPortOut;
 import seungyong.helpmebackend.usecase.port.out.cipher.ObjectCipherPortOut;
+import seungyong.helpmebackend.usecase.port.out.github.repository.CommitPortOut;
 import seungyong.helpmebackend.usecase.port.out.github.repository.RepositoryPortOut;
 import seungyong.helpmebackend.usecase.port.out.github.repository.RepositoryTreeFilterPortOut;
 import seungyong.helpmebackend.usecase.port.out.gpt.GPTPortOut;
@@ -42,6 +43,7 @@ import seungyong.helpmebackend.usecase.service.github.dto.ReadmeContext;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -60,6 +62,7 @@ public class RepositoryService implements RepositoryPortIn {
     private final SSEPortOut ssePortOut;
     private final ProjectPortOut projectPortOut;
     private final SectionPortOut sectionPortOut;
+    private final CommitPortOut commitPortOut;
 
     @Override
     public ResponseRepositories getRepositories(Long userId, Long installationId, Integer page, Integer perPage) {
@@ -208,7 +211,7 @@ public class RepositoryService implements RepositoryPortIn {
                     request.branch()
             );
 
-            ResponseEvaluation response = evaluate(
+            EvaluationContentResult response = gptPortOut.evaluateReadme(
                     new EvaluationCommand(
                             owner + "/" + name,
                             request.content(),
@@ -228,7 +231,10 @@ public class RepositoryService implements RepositoryPortIn {
                     RedisKey.SSE_EMITTER_EVALUATION_DRAFT_KEY.getValue() + taskId,
                     taskId,
                     SSETaskName.COMPLETION_EVALUATE_DRAFT.getTaskName(),
-                    response
+                    new ResponseEvaluation(
+                            response.rating(),
+                            response.contents()
+                    )
             );
         } catch (Exception e) {
             sseSendError(
@@ -257,6 +263,7 @@ public class RepositoryService implements RepositoryPortIn {
             String draftReadme = gptPortOut.generateDraftReadme(
                     new GenerateReadmeCommand(
                             owner + "/" + name,
+                            readmeContext.readme(),
                             new RepositoryInfoCommand(
                                     readmeContext.languages(),
                                     readmeContext.commits(),
@@ -364,38 +371,12 @@ public class RepositoryService implements RepositoryPortIn {
                 branch
         );
 
-        // 커밋 목록 (최신, 중간, 초기 각 30개 이내)
-        Optional<CommitResult> commitsOpt = repositoryPortOut.getCommitsByBranch(branchCommand);
+        // 최신 커밋 SHA 조회 (캐싱 여부 판단용)
+        String latestShaKey = repositoryPortOut.getRecentSHA(branchCommand);
 
-        RepositoryInfoCommand.CommitCommand commitCommand = commitsOpt
-                .map(commitResult -> new RepositoryInfoCommand.CommitCommand(
-                        commitResult.latestCommits().stream()
-                                .map(CommitResult.Commit::message)
-                                .toList(),
-                        commitResult.middleCommits().stream()
-                                .map(CommitResult.Commit::message)
-                                .toList(),
-                        commitResult.initialCommits().stream()
-                                .map(CommitResult.Commit::message)
-                                .toList()
-                ))
-                .orElseGet(() -> new RepositoryInfoCommand.CommitCommand(
-                        Collections.emptyList(),
-                        Collections.emptyList(),
-                        Collections.emptyList()
-                ));
-
-        String latestShaKey = null;
-
-        // 가장 최근 Commit SHA 조회
-        if (commitsOpt.isPresent()) {
-            CommitResult commitResult = commitsOpt.get();
-            if (!commitResult.latestCommits().isEmpty()) {
-                latestShaKey = commitResult.latestCommits().get(0).sha();
-            }
-        }
-
+        String readme;
         GPTRepositoryInfoResult repositoryInfo;
+        List<RepositoryInfoCommand.CommitCommand> commits;
         List<RepositoryLanguageResult> languages;
         List<RepositoryTreeResult> trees;
         List<RepositoryFileContentResult> entryContents;
@@ -404,13 +385,19 @@ public class RepositoryService implements RepositoryPortIn {
         if (latestShaKey != null) {
             Instant expiration = Instant.now().plus(3, ChronoUnit.HOURS);
 
+            readme = getReadmeWithCache(branchCommand, latestShaKey, expiration);
+            commits = getCommitsWithCache(
+                    branchCommand,
+                    latestShaKey,
+                    expiration
+            );
             languages = getLanguagesWithCache(repoInfoCommand, latestShaKey, expiration);
             trees = getTreesWithCache(branchCommand, latestShaKey, expiration);
             repositoryInfo = getRepositoryWithCache(
                     owner, name, latestShaKey,
                     new RepositoryInfoCommand(
                             languages,
-                            commitCommand,
+                            commits,
                             trees
                     ),
                     expiration
@@ -422,6 +409,8 @@ public class RepositoryService implements RepositoryPortIn {
                     latestShaKey, expiration
             );
         } else {
+            readme = repositoryPortOut.getReadmeContent(branchCommand);
+            commits = getCommits(branchCommand);
             languages = repositoryPortOut.getRepositoryLanguages(repoInfoCommand);
             trees = repositoryTreeFilterPortOut.filter(
                     repositoryPortOut.getRepositoryTree(branchCommand)
@@ -431,7 +420,7 @@ public class RepositoryService implements RepositoryPortIn {
                     owner + "/" + name,
                     new RepositoryInfoCommand(
                             languages,
-                            commitCommand,
+                            commits,
                             trees
                     )
             );
@@ -448,20 +437,13 @@ public class RepositoryService implements RepositoryPortIn {
         }
 
         return new ReadmeContext(
-                commitCommand,
+                readme,
+                commits,
                 repositoryInfo,
                 languages,
                 trees,
                 entryContents,
                 importantFileContents
-        );
-    }
-
-    private ResponseEvaluation evaluate(EvaluationCommand command) {
-        EvaluationContentResult evaluationResponse = gptPortOut.evaluateReadme(command);
-        return new ResponseEvaluation(
-                evaluationResponse.rating(),
-                evaluationResponse.contents()
         );
     }
 
@@ -491,6 +473,80 @@ public class RepositoryService implements RepositoryPortIn {
         }
 
         return data;
+    }
+
+    private List<RepositoryInfoCommand.CommitCommand> getCommits(
+            RepoBranchCommand command
+    ) {
+        ContributorsResult contributors = repositoryPortOut.getContributors(command.repoInfo());
+        List<CompletableFuture<CommitResult>> commitFutures = contributors.contributors().stream()
+                .map(contributor -> CompletableFuture.supplyAsync(() ->
+                        commitPortOut.getCommits(command, contributor)
+                ))
+                .toList();
+
+        // size 계산보다 자바가 알아서 크기 최적화하는 것이 빠르므로 toArray에 0 전달
+        CompletableFuture<List<CommitResult>> commitsFuture = CompletableFuture.allOf(commitFutures.toArray(new CompletableFuture[0]))
+                .thenApply(v -> commitFutures.stream()
+                        .map(CompletableFuture::join)
+                        .toList()
+                );
+
+        return commitsFuture.join().stream()
+                .map(commitResult -> new RepositoryInfoCommand.CommitCommand(
+                        new RepositoryInfoCommand.ContributorCommand(
+                                commitResult.contributor().username(),
+                                commitResult.contributor().avatarUrl()
+                        ),
+                        commitResult.latestCommits().stream()
+                                .map(CommitResult.Commit::message)
+                                .toList(),
+                        commitResult.middleCommits().stream()
+                                .map(CommitResult.Commit::message)
+                                .toList(),
+                        commitResult.initialCommits().stream()
+                                .map(CommitResult.Commit::message)
+                                .toList()
+                ))
+                .toList();
+    }
+
+    private String getReadmeWithCache(
+            RepoBranchCommand command,
+            String sha,
+            Instant expiration
+    ) {
+        String key = RedisKeyFactory.createReadmeKey(
+                command.repoInfo().owner(),
+                command.repoInfo().name(),
+                sha
+        );
+
+        return getOrLoadAndCache(
+                key,
+                () -> repositoryPortOut.getReadmeContent(command),
+                redisPortOut::get,
+                (writeKey, val) -> redisPortOut.set(writeKey, val, expiration)
+        );
+    }
+
+    private List<RepositoryInfoCommand.CommitCommand> getCommitsWithCache(
+        RepoBranchCommand command,
+        String sha,
+        Instant expiration
+    ) {
+        String key = RedisKeyFactory.createCommitsKey(
+                command.repoInfo().owner(),
+                command.repoInfo().name(),
+                sha
+        );
+
+        return getOrLoadAndCache(
+                key,
+                () -> getCommits(command),
+                (readKey) -> redisPortOut.getObject(readKey, new TypeReference<List<RepositoryInfoCommand.CommitCommand>>() {}),
+                (writeKey, val) -> redisPortOut.setObject(writeKey, val, expiration)
+        );
     }
 
     private List<RepositoryLanguageResult> getLanguagesWithCache(
