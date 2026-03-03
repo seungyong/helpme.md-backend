@@ -1,9 +1,7 @@
 package seungyong.helpmebackend.project.adapter.out.persistence.entity;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
@@ -12,8 +10,7 @@ import seungyong.helpmebackend.user.adapter.out.persistence.entity.UserJpaEntity
 import java.time.LocalDateTime;
 
 @Getter
-@Setter
-@NoArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(
         name = "projects",
         uniqueConstraints = {
@@ -41,4 +38,11 @@ public class ProjectJpaEntity {
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    @Builder
+    public ProjectJpaEntity(Long id, UserJpaEntity user, String repoFullName) {
+        this.id = id;
+        this.user = user;
+        this.repoFullName = repoFullName;
+    }
 }

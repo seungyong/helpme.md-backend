@@ -14,8 +14,8 @@ import java.time.Instant;
  * AccessTokenExpireTime : AccessToken의 만료 시간입니다. <br><br>
  * RefreshTokenExpireTime : RefreshToken의 만료 시간입니다.
  */
-@Builder
 @Getter
+@Builder
 @AllArgsConstructor
 public class JWT {
     private String grantType;

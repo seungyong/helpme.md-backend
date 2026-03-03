@@ -2,10 +2,8 @@ package seungyong.helpmebackend.repository.domain.entity;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.Setter;
 
 @Getter
-@Setter
 @AllArgsConstructor
 public class Repository {
     private String avatarUrl;

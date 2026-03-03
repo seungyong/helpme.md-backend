@@ -7,7 +7,7 @@ import seungyong.helpmebackend.user.adapter.out.persistence.entity.UserJpaEntity
 import seungyong.helpmebackend.user.domain.entity.GithubUser;
 import seungyong.helpmebackend.user.domain.entity.User;
 
-@Mapper
+@Mapper(componentModel = "spring")
 public interface UserPortOutMapper {
     UserPortOutMapper INSTANCE = Mappers.getMapper(UserPortOutMapper.class);
 

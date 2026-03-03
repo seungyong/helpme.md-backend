@@ -85,7 +85,7 @@ public class RepositoryAdapter extends GithubPortConfig implements RepositoryPor
     public ContributorsResult getContributors(RepoInfoCommand info) {
         String url = String.format("https://api.github.com/repos/%s/%s/contributors", info.owner(), info.name());
 
-return githubApiExecutor.executeGet(
+        return githubApiExecutor.executeGet(
                 url,
                 info.accessToken(),
                 jsonNode -> {

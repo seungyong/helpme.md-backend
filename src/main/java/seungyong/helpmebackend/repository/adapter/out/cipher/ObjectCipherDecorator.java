@@ -17,7 +17,6 @@ public class ObjectCipherDecorator implements ObjectCipherPortOut {
     private final CipherPortOut cipherPortOut;
     private final ObjectMapper objectMapper;
 
-
     @Override
     public <T> String encrypt(T data) {
         if (data == null) { return null; }
@@ -27,19 +26,6 @@ public class ObjectCipherDecorator implements ObjectCipherPortOut {
             return cipherPortOut.encrypt(json);
         } catch (Exception e) {
             log.error("Object encryption error = {}", e.getMessage());
-            throw new CustomException(GlobalErrorCode.INTERNAL_SERVER_ERROR);
-        }
-    }
-
-    @Override
-    public <T> T decrypt(String encryptedText, Class<T> type) {
-        if (encryptedText == null) { return null; }
-
-        try {
-            String json = cipherPortOut.decrypt(encryptedText);
-            return objectMapper.readValue(json, type);
-        } catch (Exception e) {
-            log.error("Object decryption error = {}", e.getMessage());
             throw new CustomException(GlobalErrorCode.INTERNAL_SERVER_ERROR);
         }
     }

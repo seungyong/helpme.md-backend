@@ -6,7 +6,7 @@ import org.mapstruct.factory.Mappers;
 import seungyong.helpmebackend.section.adapter.out.persistence.entity.SectionJpaEntity;
 import seungyong.helpmebackend.section.domain.entity.Section;
 
-@Mapper
+@Mapper(componentModel = "spring")
 public interface SectionPortOutMapper {
     SectionPortOutMapper INSTANCE = Mappers.getMapper(SectionPortOutMapper.class);
 

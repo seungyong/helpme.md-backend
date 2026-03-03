@@ -1,9 +1,7 @@
 package seungyong.helpmebackend.section.adapter.out.persistence.entity;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
@@ -13,8 +11,7 @@ import seungyong.helpmebackend.project.adapter.out.persistence.entity.ProjectJpa
 import java.time.LocalDateTime;
 
 @Getter
-@Setter
-@NoArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "sections")
 @Entity(name = "Section")
 public class SectionJpaEntity {
@@ -44,4 +41,13 @@ public class SectionJpaEntity {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedTime;
+
+    @Builder
+    public SectionJpaEntity(Long id, ProjectJpaEntity project, String title, String content, Short orderIdx) {
+        this.id = id;
+        this.project = project;
+        this.title = title;
+        this.content = content;
+        this.orderIdx = orderIdx;
+    }
 }

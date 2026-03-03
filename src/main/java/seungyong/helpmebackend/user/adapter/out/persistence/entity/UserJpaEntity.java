@@ -1,16 +1,13 @@
 package seungyong.helpmebackend.user.adapter.out.persistence.entity;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
 @Getter
-@Setter
-@NoArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "users")
 @Entity(name = "User")
 public class UserJpaEntity {
@@ -31,4 +28,12 @@ public class UserJpaEntity {
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    @Builder
+    public UserJpaEntity(Long id, String name, Long githubId, String githubToken) {
+        this.id = id;
+        this.name = name;
+        this.githubId = githubId;
+        this.githubToken = githubToken;
+    }
 }

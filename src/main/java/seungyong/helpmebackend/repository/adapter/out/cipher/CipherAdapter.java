@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 import seungyong.helpmebackend.global.exception.CustomException;
 import seungyong.helpmebackend.global.exception.GlobalErrorCode;
 import seungyong.helpmebackend.repository.application.port.out.CipherPortOut;
+import seungyong.helpmebackend.repository.domain.entity.EncryptedToken;
 
 import javax.crypto.Cipher;
 import javax.crypto.spec.GCMParameterSpec;

@@ -13,6 +13,7 @@ import seungyong.helpmebackend.global.domain.type.RedisKey;
 import seungyong.helpmebackend.repository.application.port.out.CipherPortOut;
 import seungyong.helpmebackend.global.application.port.out.JWTPortOut;
 import seungyong.helpmebackend.global.application.port.out.RedisPortOut;
+import seungyong.helpmebackend.repository.domain.entity.EncryptedToken;
 import seungyong.helpmebackend.user.application.port.out.UserPortOutMapper;
 import seungyong.helpmebackend.user.application.port.out.UserPortOut;
 import seungyong.helpmebackend.user.domain.entity.GithubUser;
@@ -62,14 +63,15 @@ public class AuthService implements AuthPortIn {
 
         String accessToken = oAuth2PortOut.getAccessToken(code).accessToken();
         GithubUser githubUser = oAuth2PortOut.getGithubUser(accessToken);
+
         String encryptedAccessToken = cipherPortOut.encrypt(accessToken);
-        githubUser.setGithubToken(encryptedAccessToken);
+        githubUser.updateGithubToken(new EncryptedToken(encryptedAccessToken));
 
         User user = userPortOut.getByGithubId(githubUser.getGithubId())
                 .orElseGet(() -> userPortOut.save(UserPortOutMapper.INSTANCE.toDomainEntity(githubUser)));
 
         if (user.isDiffToken(encryptedAccessToken)) {
-            user.updateGithubToken(encryptedAccessToken);
+            user.updateGithubToken(new EncryptedToken(encryptedAccessToken));
             userPortOut.save(user);
         }
 
