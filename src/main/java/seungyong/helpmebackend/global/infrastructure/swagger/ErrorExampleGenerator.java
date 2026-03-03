@@ -105,11 +105,7 @@ public class ErrorExampleGenerator {
         try {
             // Raw type으로 변환하여 Enum.valueOf 사용
             return (ErrorCode) Enum.valueOf((Class) errorCodeClass, errorCodeName);
-        } catch (IllegalArgumentException e) {
-            log.warn("Invalid ErrorCode name: {} in class: {}", errorCodeName, errorCodeClass.getSimpleName());
-            return null;
         } catch (Exception e) {
-            log.error("Error getting ErrorCode: {} in class: {}", errorCodeName, errorCodeClass.getSimpleName(), e);
             return null;
         }
     }

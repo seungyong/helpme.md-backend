@@ -11,7 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-import seungyong.helpmebackend.user.adapter.in.web.dto.common.CustomUserDetails;
+import seungyong.helpmebackend.global.domain.entity.CustomUserDetails;
 import seungyong.helpmebackend.user.adapter.in.web.dto.response.ResponseUser;
 import seungyong.helpmebackend.global.infrastructure.cookie.CookieUtil;
 import seungyong.helpmebackend.global.exception.CustomException;
@@ -71,7 +71,7 @@ public class UserController {
             description = "만료된 Access Token과 유효한 Refresh Token을 사용하여 새로운 JWT 토큰을 발급합니다.",
             responses = {
                     @ApiResponse(
-                            responseCode = "200",
+                            responseCode = "204",
                             description = "토큰 재발급 성공"
                     )
             }

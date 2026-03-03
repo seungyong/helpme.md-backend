@@ -1,6 +1,9 @@
 package seungyong.helpmebackend.repository.adapter.in.web;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +21,7 @@ import seungyong.helpmebackend.repository.adapter.in.web.dto.request.RequestEval
 import seungyong.helpmebackend.repository.adapter.in.web.dto.request.RequestPull;
 import seungyong.helpmebackend.repository.adapter.in.web.dto.response.*;
 import seungyong.helpmebackend.repository.application.port.in.RepositoryPortIn;
-import seungyong.helpmebackend.user.adapter.in.web.dto.common.CustomUserDetails;
+import seungyong.helpmebackend.global.domain.entity.CustomUserDetails;
 
 @Tag(
         name = "Repo",
@@ -43,7 +46,18 @@ public class RepoController {
                     
                     - 각 요청 시점에 `GitHub API`를 호출하여 실시간으로 데이터를 가져옵니다.
                     - DB에 레포지토리 정보가 저장되지 않습니다.
-                    """
+                    """,
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "레포지토리 목록 조회 성공",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    schema = @Schema(implementation = ResponseRepositories.class)
+                            )
+                    )
+
+            }
     )
     @ApiErrorResponses({
             @ApiErrorResponse(
@@ -103,7 +117,17 @@ public class RepoController {
                     - 각 요청 시점에 `GitHub API`를 호출하여 실시간으로 데이터를 가져옵니다.
                     - DB에 레포지토리 정보가 저장되지 않습니다.
                     - Readme.md 파일이 없는 경우 빈 내용을 반환합니다.
-                    """
+                    """,
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "레포지토리 상세 조회 성공",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    schema = @Schema(implementation = ResponseRepository.class)
+                            )
+                    )
+            }
     )
     @ApiErrorResponses({
             @ApiErrorResponse(
@@ -158,7 +182,17 @@ public class RepoController {
             summary = "레포지토리 브랜치 목록 조회",
             description = """
                     특정 레포지토리의 브랜치 목록을 조회합니다.
-                    """
+                    """,
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "레포지토리 브랜치 목록 조회 성공",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    schema = @Schema(implementation = ResponseBranches.class)
+                            )
+                    )
+            }
     )
     @ApiErrorResponses({
             @ApiErrorResponse(
@@ -213,8 +247,38 @@ public class RepoController {
             summary = "임시 저장된 README 초안 평가 결과 조회",
             description = """
                     SSE 작업 중 에러가 발생한 경우, 임시 저장된 README 초안 평가 결과를 조회합니다.
-                    """
+                    """,
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "임시 저장된 README 초안 평가 결과 조회 성공",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    schema = @Schema(implementation = ResponseEvaluation.class)
+                            )
+                    )
+            }
     )
+    @ApiErrorResponses({
+            @ApiErrorResponse(
+                    responseCode = "401",
+                    description = "인증에 실패했습니다.",
+                    errorCodeClasses = { GlobalErrorCode.class },
+                    errorCodes = { "EXPIRED_ACCESS_TOKEN", "NOT_FOUND_TOKEN" }
+            ),
+            @ApiErrorResponse(
+                    responseCode = "404",
+                    description = "리소스를 찾을 수 없습니다.",
+                    errorCodeClasses = RepositoryErrorCode.class,
+                    errorCodes = { "FALLBACK_NOT_FOUND" }
+            ),
+            @ApiErrorResponse(
+                    responseCode = "500",
+                    description = "서버 에러입니다.",
+                    errorCodeClasses = {GlobalErrorCode.class},
+                    errorCodes = { "INTERNAL_SERVER_ERROR", "REDIS_ERROR" }
+            )
+    })
     @GetMapping("/fallback/evaluate/draft/{taskId}")
     public ResponseEntity<ResponseEvaluation> getFallbackDraftEvaluation(
             @PathVariable("taskId") String taskId
@@ -228,8 +292,38 @@ public class RepoController {
             summary = "임시 저장된 README 내용 조회",
             description = """
                     SSE 작업 중 에러가 발생한 경우, 임시 저장된 README 평가 또는 생성 결과를 조회합니다.
-                    """
+                    """,
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "임시 저장된 README 내용 조회 성공",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    schema = @Schema(implementation = ResponseSections.class)
+                            )
+                    )
+            }
     )
+    @ApiErrorResponses({
+            @ApiErrorResponse(
+                    responseCode = "401",
+                    description = "인증에 실패했습니다.",
+                    errorCodeClasses = {GlobalErrorCode.class},
+                    errorCodes = {"EXPIRED_ACCESS_TOKEN", "NOT_FOUND_TOKEN"}
+            ),
+            @ApiErrorResponse(
+                    responseCode = "404",
+                    description = "리소스를 찾을 수 없습니다.",
+                    errorCodeClasses = RepositoryErrorCode.class,
+                    errorCodes = {"FALLBACK_NOT_FOUND"}
+            ),
+            @ApiErrorResponse(
+                    responseCode = "500",
+                    description = "서버 에러입니다.",
+                    errorCodeClasses = {GlobalErrorCode.class},
+                    errorCodes = {"INTERNAL_SERVER_ERROR", "REDIS_ERROR"}
+            )
+    })
     @GetMapping("/fallback/generate/{taskId}")
     public ResponseEntity<ResponseSections> getFallbackGenerate(
             @PathVariable("taskId") String taskId
@@ -254,7 +348,17 @@ public class RepoController {
                     3. 시스템이 `readme-proposals/{UUID}` 브랜치를 기준으로 README.md 수정 내용을 Push
                     4. 시스템이 `readme-proposals/{UUID}` 브랜치를 기준으로 `main` 브랜치에 대한 풀 리퀘스트 생성
                     5. 만약, 중간에 에러가 발생하는 경우 생성된 브랜치 삭제
-                    """
+                    """,
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "풀 리퀘스트 생성 성공",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    schema = @Schema(implementation = ResponsePull.class)
+                            )
+                    )
+            }
     )
     @ApiErrorResponses({
             @ApiErrorResponse(
@@ -317,7 +421,13 @@ public class RepoController {
                         - 가장 최신 커밋 SHA를 활용하여, 동일한 커밋에 대해 중복 평가를 방지합니다.
                     - SSE를 사용하며, 비동기 작업을 진행합니다.
                     - 평가 결과는 DB에 저장되지 않습니다.
-                    """
+                    """,
+            responses = {
+                    @ApiResponse(
+                            responseCode = "202",
+                            description = "README 평가 요청이 수락되었습니다. SSE를 통해 평가 결과가 전송됩니다."
+                    )
+            }
     )
     @ApiErrorResponses({
             @ApiErrorResponse(
@@ -378,7 +488,13 @@ public class RepoController {
                     - AI 모델을 사용하여 레포지토리의 특성에 맞는 README.md 초안을 생성합니다.
                     - SSE를 사용하며, 비동기 작업을 진행합니다.
                     - 커밋 내역, 프로젝트 구조, 주요 파일 내용 및 목록, 언어 통계 등을 Redis 캐시에 저장하여 생성에 활용합니다.
-                    """
+                    """,
+            responses = {
+                    @ApiResponse(
+                            responseCode = "202",
+                            description = "README 초안 생성 요청이 수락되었습니다. SSE를 통해 생성된 README 초안이 전송됩니다."
+                    )
+            }
     )
     @ApiErrorResponses({
             @ApiErrorResponse(

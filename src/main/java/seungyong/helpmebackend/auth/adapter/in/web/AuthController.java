@@ -22,7 +22,7 @@ import seungyong.helpmebackend.user.domain.exception.UserErrorCode;
 import seungyong.helpmebackend.global.domain.entity.JWT;
 import seungyong.helpmebackend.global.infrastructure.swagger.annotation.ApiErrorResponse;
 import seungyong.helpmebackend.global.infrastructure.swagger.annotation.ApiErrorResponses;
-import seungyong.helpmebackend.user.adapter.in.web.dto.common.CustomUserDetails;
+import seungyong.helpmebackend.global.domain.entity.CustomUserDetails;
 
 import java.io.IOException;
 
@@ -140,6 +140,16 @@ public class AuthController {
         return ResponseEntity.ok(installation);
     }
 
+    @Operation(
+            summary = "인증 상태 확인",
+            description = "현재 사용자의 인증 상태를 확인합니다. 유효한 토큰이 있는 경우 204 No Content를 반환합니다.",
+            responses = {
+                    @ApiResponse(
+                            responseCode = "204",
+                            description = "인증 상태 확인 성공"
+                    )
+            }
+    )
     @PostMapping("/check")
     public ResponseEntity<Void> checkAuth() {
         return ResponseEntity.noContent().build();

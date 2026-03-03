@@ -1,6 +1,9 @@
 package seungyong.helpmebackend.section.adapter.in.web;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -11,7 +14,7 @@ import seungyong.helpmebackend.section.adapter.in.web.dto.request.RequestReorder
 import seungyong.helpmebackend.section.adapter.in.web.dto.request.RequestSection;
 import seungyong.helpmebackend.section.adapter.in.web.dto.request.RequestSectionContent;
 import seungyong.helpmebackend.section.adapter.in.web.dto.response.ResponseSections;
-import seungyong.helpmebackend.user.adapter.in.web.dto.common.CustomUserDetails;
+import seungyong.helpmebackend.global.domain.entity.CustomUserDetails;
 import seungyong.helpmebackend.global.exception.GlobalErrorCode;
 import seungyong.helpmebackend.repository.domain.exception.RepositoryErrorCode;
 import seungyong.helpmebackend.section.domain.exception.SectionErrorCode;
@@ -38,7 +41,17 @@ public class SectionController {
             description = """
                     특정 Repository의 Section 목록을 조회합니다.
                     - 저장된 Section이 없는 경우 404 NOT FOUND 에러를 반환합니다.
-                    """
+                    """,
+                responses = {
+                        @ApiResponse(
+                                responseCode = "200",
+                                description = "Section 목록 조회 성공",
+                                content = @Content(
+                                        mediaType = "application/json",
+                                        schema = @Schema(implementation = ResponseSections.class)
+                                )
+                        )
+                }
     )
     @ApiErrorResponses({
             @ApiErrorResponse(
@@ -88,7 +101,17 @@ public class SectionController {
             description = """
                     특정 Repository에 Section을 생성합니다.
                     - title에 따라 '## title'로 content가 생성됩니다.
-                    """
+                    """,
+            responses = {
+                    @ApiResponse(
+                            responseCode = "201",
+                            description = "Section 생성 성공",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    schema = @Schema(implementation = ResponseSections.Section.class)
+                            )
+                    )
+            }
     )
     @ApiErrorResponses({
             @ApiErrorResponse(
@@ -147,7 +170,17 @@ public class SectionController {
                     - branch: Section을 생성할 기준이 되는 브랜치 이름입니다.
                     - splitMode: Section 생성 모드입니다. "split" 또는 "whole" 값을 가질 수 있으며, 그 외의 값이 들어올 경우 "whole"로 처리됩니다.
                     - 이미 Section이 존재하는 경우 기존 Section을 모두 삭제하고 새로 생성합니다.
-                    """
+                    """,
+            responses = {
+                    @ApiResponse(
+                            responseCode = "201",
+                            description = "Section 초기화 성공",
+                            content = @Content(
+                                    mediaType = "application/json",
+                                    schema = @Schema(implementation = ResponseSections.class)
+                            )
+                    )
+            }
     )
     @ApiErrorResponses({
             @ApiErrorResponse(
@@ -199,7 +232,13 @@ public class SectionController {
             summary = "Section 내용 수정",
             description = """
                     특정 Repository의 Section 내용을 수정합니다.
-                    """
+                    """,
+            responses = {
+                    @ApiResponse(
+                            responseCode = "204",
+                            description = "Section 내용 수정 성공"
+                    )
+            }
     )
     @ApiErrorResponses({
             @ApiErrorResponse(
@@ -249,7 +288,13 @@ public class SectionController {
             description = """
                     특정 Repository의 Section 순서를 변경합니다.
                     - request.ids에 들어있는 Section ID 순서대로 Section의 순서가 변경됩니다.
-                    """
+                    """,
+            responses = {
+                    @ApiResponse(
+                            responseCode = "204",
+                            description = "Section 순서 변경 성공"
+                    )
+            }
     )
     @ApiErrorResponses({
             @ApiErrorResponse(
@@ -298,7 +343,13 @@ public class SectionController {
             summary = "Section 삭제",
             description = """
                     특정 Section을 삭제합니다.
-                    """
+                    """,
+            responses = {
+                    @ApiResponse(
+                            responseCode = "204",
+                            description = "Section 삭제 성공"
+                    )
+            }
     )
     @ApiErrorResponses({
             @ApiErrorResponse(

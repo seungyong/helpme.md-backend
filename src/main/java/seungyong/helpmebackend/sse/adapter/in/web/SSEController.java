@@ -1,5 +1,7 @@
 package seungyong.helpmebackend.sse.adapter.in.web;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -21,6 +23,16 @@ import seungyong.helpmebackend.sse.application.port.in.SSEPortIn;
 public class SSEController {
     private final SSEPortIn ssePortIn;
 
+    @Operation(
+            summary = "SSE 구독",
+            description = "클라이언트가 SSE를 구독하여 서버에서 실시간으로 데이터를 받을 수 있도록 합니다.",
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "SSE 구독 성공"
+                    )
+            }
+    )
     @GetMapping(value = "/subscribe", produces = "text/event-stream;charset=UTF-8")
     public SseEmitter subscribe() {
         return ssePortIn.createEmitter();

@@ -1,4 +1,4 @@
-package seungyong.helpmebackend.user.adapter.in.web.dto.common;
+package seungyong.helpmebackend.global.domain.entity;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

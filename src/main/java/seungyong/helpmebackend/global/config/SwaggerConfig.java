@@ -14,7 +14,7 @@ import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 import seungyong.helpmebackend.global.infrastructure.swagger.ErrorResponseOpenApiCustomizer;
 import seungyong.helpmebackend.global.infrastructure.swagger.ErrorResponseOperationCustomizer;
 
-import java.util.Arrays;
+import java.util.Collections;
 
 @Configuration
 @EnableWebMvc
@@ -37,9 +37,8 @@ public class SwaggerConfig {
 
         return new OpenAPI()
                 .info(apiInfo())
-                .servers(Arrays.asList(
-                        new Server().url("http://localhost:8080").description("개발 서버"),
-                        new Server().url("https://#").description("운영 서버")
+                .servers(Collections.singletonList(
+                        new Server().url("http://localhost:8080").description("개발 서버")
                 ))
                 .addSecurityItem(securityRequirement)
                 .components(components);
@@ -59,6 +58,6 @@ public class SwaggerConfig {
         return new Info()
                 .title("Helpme.md API")
                 .description("Helpme.md API Documents")
-                .version("1.0.0");
+                .version("1.1.0");
     }
 }

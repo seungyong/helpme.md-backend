@@ -12,7 +12,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
-import seungyong.helpmebackend.user.adapter.in.web.dto.common.CustomUserDetails;
+import seungyong.helpmebackend.global.domain.entity.CustomUserDetails;
 import seungyong.helpmebackend.global.exception.CustomException;
 import seungyong.helpmebackend.global.exception.ErrorResponse;
 import seungyong.helpmebackend.global.exception.GlobalErrorCode;
