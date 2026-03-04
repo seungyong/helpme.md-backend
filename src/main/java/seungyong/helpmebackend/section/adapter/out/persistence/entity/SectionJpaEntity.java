@@ -36,11 +36,11 @@ public class SectionJpaEntity {
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdTime;
+    private LocalDateTime createdAt;
 
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedTime;
+    private LocalDateTime updatedAt;
 
     @Builder
     public SectionJpaEntity(Long id, ProjectJpaEntity project, String title, String content, Short orderIdx) {

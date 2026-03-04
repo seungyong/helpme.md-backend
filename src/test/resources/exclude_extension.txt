@@ -1,0 +1,5 @@
+.jpg, .jpeg, .png, .gif, .bmp, .tiff, .svg, .webp, .mp4, .avi, .mov, .wmv, .flv, .mkv, .mp3, .wav, .flac, .aac, .ogg,
+.pdf, .doc, .docx, .xls, .xlsx, .ppt, .pptx, .rtf, .zip, .rar, .7z, .tar, .gz, .ttf, .otf, .woff, .woff2, .eot, .mid,
+.midi, .ics, .vcf, .log, .exe, .dll, .apk, .iso, .dmg, .bin, .img, .sys, .tmp, .srt, .sub, .cue, .nfo, .swf, .fla, .psd,
+.ai, .indd, .eps, .cdr, .3gp, .rm, .rmvb, .m4a, .wma, .alac, .dsf, .dff, .mobi, .epub, .azw, .azw3, .fb2, .cbz, .cbr,
+.djvu, .lit, .oxps, .xps, .class, .pyc, .map, .ico, .DS_Store

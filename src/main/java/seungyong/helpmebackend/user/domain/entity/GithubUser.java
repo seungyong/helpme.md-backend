@@ -9,7 +9,7 @@ import seungyong.helpmebackend.repository.domain.entity.EncryptedToken;
 public class GithubUser {
     private String name;
     private Long githubId;
-    private String githubToken;
+    private EncryptedToken githubToken;
 
     /**
      * 깃허브 토큰을 업데이트하는 메서드입니다.
@@ -19,6 +19,10 @@ public class GithubUser {
      * @param newToken 업데이트할 새로운 암호화된 토큰
      */
     public void updateGithubToken(EncryptedToken newToken) {
-        this.githubToken = newToken.value();
+        if (newToken == null) {
+            throw new IllegalArgumentException("새로운 토큰은 null일 수 없습니다.");
+        }
+
+        this.githubToken = newToken;
     }
 }

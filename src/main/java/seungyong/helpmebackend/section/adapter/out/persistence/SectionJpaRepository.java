@@ -21,7 +21,7 @@ public interface SectionJpaRepository extends JpaRepository<SectionJpaEntity, Lo
     @Query(
         "SELECT s " +
         "FROM Section s " +
-        "JOIN s.project p " +
+        "JOIN FETCH s.project p " +
         "WHERE p.user.id = :userId AND p.repoFullName = :repoFullName " +
         "ORDER BY s.orderIdx DESC LIMIT 1"
     )

@@ -89,7 +89,7 @@ public class SectionService implements SectionPortIn {
     @Override
     public ResponseSections initSections(Long userId, String owner, String name, String branch, String splitMode) {
         User user = userPortOut.getById(userId);
-        String accessToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken());
+        String accessToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken().value());
         checkAccessRepository(user, owner, name);
         String fullName = owner + "/" + name;
 
@@ -202,7 +202,7 @@ public class SectionService implements SectionPortIn {
 
         RepoPermissionCommand command = new RepoPermissionCommand(
                 new RepoInfoCommand(
-                        cipherPortOut.decrypt(user.getGithubUser().getGithubToken()),
+                        cipherPortOut.decrypt(user.getGithubUser().getGithubToken().value()),
                         owner,
                         name
                 ),

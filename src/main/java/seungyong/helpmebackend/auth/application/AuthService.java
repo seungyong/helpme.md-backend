@@ -6,6 +6,7 @@ import org.springframework.transaction.annotation.Transactional;
 import seungyong.helpmebackend.auth.adapter.in.web.dto.response.ResponseInstallations;
 import seungyong.helpmebackend.auth.application.port.in.AuthPortIn;
 import seungyong.helpmebackend.auth.application.port.out.OAuth2PortOut;
+import seungyong.helpmebackend.auth.application.port.out.result.OAuthGithubUser;
 import seungyong.helpmebackend.global.exception.CustomException;
 import seungyong.helpmebackend.global.exception.GlobalErrorCode;
 import seungyong.helpmebackend.global.domain.entity.JWT;
@@ -62,10 +63,10 @@ public class AuthService implements AuthPortIn {
         redisPortOut.delete(stateKey);
 
         String accessToken = oAuth2PortOut.getAccessToken(code).accessToken();
-        GithubUser githubUser = oAuth2PortOut.getGithubUser(accessToken);
+        OAuthGithubUser oauthInfo = oAuth2PortOut.getGithubUser(accessToken);
 
         String encryptedAccessToken = cipherPortOut.encrypt(accessToken);
-        githubUser.updateGithubToken(new EncryptedToken(encryptedAccessToken));
+        GithubUser githubUser = new GithubUser(oauthInfo.name(), oauthInfo.githubId(), new EncryptedToken(encryptedAccessToken));
 
         User user = userPortOut.getByGithubId(githubUser.getGithubId())
                 .orElseGet(() -> userPortOut.save(UserPortOutMapper.INSTANCE.toDomainEntity(githubUser)));
@@ -87,7 +88,7 @@ public class AuthService implements AuthPortIn {
     @Override
     public ResponseInstallations getInstallations(Long userId) {
         User user = userPortOut.getById(userId);
-        String decryptedToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken());
+        String decryptedToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken().value());
         return new ResponseInstallations(oAuth2PortOut.getInstallations(decryptedToken));
     }
 }

@@ -69,7 +69,7 @@ public class RepositoryService implements RepositoryPortIn {
     @Override
     public ResponseRepositories getRepositories(Long userId, Long installationId, Integer page, Integer perPage) {
         User user = userPortOut.getById(userId);
-        String accessToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken());
+        String accessToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken().value());
         RepositoryResult result = repositoryPortOut.getRepositoriesByInstallationId(accessToken, installationId, page, perPage);
         return new ResponseRepositories(result.repositories(), result.totalCount());
     }
@@ -78,7 +78,7 @@ public class RepositoryService implements RepositoryPortIn {
     @Transactional
     public ResponseRepository getRepository(Long userId, String owner, String name) {
         User user = userPortOut.getById(userId);
-        String accessToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken());
+        String accessToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken().value());
 
         RepoInfoCommand repoInfo = new RepoInfoCommand(
                 accessToken,
@@ -95,7 +95,7 @@ public class RepositoryService implements RepositoryPortIn {
     @Override
     public ResponseBranches getBranches(Long userId, String owner, String name) {
         User user = userPortOut.getById(userId);
-        String accessToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken());
+        String accessToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken().value());
 
         RepoInfoCommand repoInfo = new RepoInfoCommand(
                 accessToken,
@@ -128,7 +128,7 @@ public class RepositoryService implements RepositoryPortIn {
     @Override
     public ResponsePull createPullRequest(RequestPull request, Long userId, String owner, String name) {
         User user = userPortOut.getById(userId);
-        String accessToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken());
+        String accessToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken().value());
 
         RepoInfoCommand repoInfo = new RepoInfoCommand(
                 accessToken,
@@ -204,7 +204,7 @@ public class RepositoryService implements RepositoryPortIn {
     public void evaluateDraftReadme(RequestDraftEvaluation request, String taskId, Long userId, String owner, String name) {
         try {
             User user = userPortOut.getById(userId);
-            String accessToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken());
+            String accessToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken().value());
 
             ReadmeContext readmeContext = generateReadmeContext(
                     owner,
@@ -253,7 +253,7 @@ public class RepositoryService implements RepositoryPortIn {
     public void generateDraftReadme(RequestEvaluation request, String taskId, Long userId, String owner, String name) {
         try {
             User user = userPortOut.getById(userId);
-            String accessToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken());
+            String accessToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken().value());
 
             ReadmeContext readmeContext = generateReadmeContext(
                     owner,
