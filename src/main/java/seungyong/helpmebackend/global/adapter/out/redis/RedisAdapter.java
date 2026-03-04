@@ -27,7 +27,6 @@ public class RedisAdapter implements RedisPortOut {
         redisStore.setObjectIfAbsent(key, value, expireAt);
     }
 
-
     @Override
     public boolean exists(String key) {
         return redisStore.exists(key);

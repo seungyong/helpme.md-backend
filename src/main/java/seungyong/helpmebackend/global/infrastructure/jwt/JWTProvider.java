@@ -102,20 +102,6 @@ public class JWTProvider implements JwtGenerator<JWT> {
     }
 
     /**
-     * AccessToken을 통해 JWTUser 생성 (만료된 토큰도 허용)
-     *
-     * @param accessToken AccessToken
-     * @return {@link JWTUser}
-     */
-    public JWTUser getUserByTokenWithoutCheck(String accessToken){
-        Claims claims = parseClaims(accessToken, false);
-        Long userId = Long.valueOf(claims.getSubject());
-        String username = claims.get("username", String.class);
-
-        return new JWTUser(userId, username);
-    }
-
-    /**
      * token 만료 여부 확인
      *
      * @param token AccessToken
