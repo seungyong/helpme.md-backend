@@ -8,7 +8,7 @@ import seungyong.helpmebackend.section.adapter.out.persistence.entity.SectionJpa
 import java.util.List;
 import java.util.Optional;
 
-public interface SectionJpaRepository extends JpaRepository<SectionJpaEntity, Long> {
+interface SectionJpaRepository extends JpaRepository<SectionJpaEntity, Long> {
     @Query(
         "SELECT s " +
         "FROM Section s " +

@@ -42,7 +42,7 @@ class GithubClientTest {
     @DisplayName("extractNextUrl - 다음 페이지 URL 추출")
     class ExtractNextUrl {
         @Test
-        @DisplayName("extractNextUrl - 성공")
+        @DisplayName("성공")
         void extractNextUrl_success() {
             HttpHeaders headers = new HttpHeaders();
             headers.set(HttpHeaders.LINK, "<https://api.github.com/user/repos?page=2>; rel=\"next\", <https://api.github.com/user/repos?page=5>; rel=\"last\"");
@@ -54,7 +54,7 @@ class GithubClientTest {
         }
 
         @Test
-        @DisplayName("extractNextUrl - 실패 (Link 헤더 없음)")
+        @DisplayName("실패 (Link 헤더 없음)")
         void extractNextUrl_failure_noLinkHeader() {
             HttpHeaders headers = new HttpHeaders();
 
@@ -68,7 +68,7 @@ class GithubClientTest {
     @DisplayName("extractLastAndMiddlePage - 페이지 정보 추출")
     class ExtractLastAndMiddlePage {
         @Test
-        @DisplayName("extractLastAndMiddlePage - 성공")
+        @DisplayName("성공")
         void extractLastAndMiddlePage_success() {
             HttpHeaders headers = new HttpHeaders();
             headers.set(HttpHeaders.LINK, "<https://api.github.com/user/repos?page=10>; rel=\"last\"");
@@ -80,7 +80,7 @@ class GithubClientTest {
         }
 
         @Test
-        @DisplayName("extractLastAndMiddlePage - 성공 (홀수 페이지)")
+        @DisplayName("성공 (홀수 페이지)")
         void extractLastAndMiddlePage_success_oddPage() {
             HttpHeaders headers = new HttpHeaders();
             headers.set(HttpHeaders.LINK, "<https://api.github.com/user/repos?page=7>; rel=\"last\"");
@@ -92,7 +92,7 @@ class GithubClientTest {
         }
 
         @Test
-        @DisplayName("extractLastAndMiddlePage - 실패 (페이지 번호 없음)")
+        @DisplayName("실패 (페이지 번호 없음)")
         void extractLastAndMiddlePage_failure_noPageParam() {
             HttpHeaders headers = new HttpHeaders();
             headers.set(HttpHeaders.LINK, "<https://api.github.com/user/repos>; rel=\"last\"");
@@ -107,7 +107,7 @@ class GithubClientTest {
     @DisplayName("fetchGet - GET 요청 실행")
     class FetchGet {
         @Test
-        @DisplayName("fetchGet - 성공")
+        @DisplayName("성공")
         void fetchGet_success() {
             String url = "url";
             ResponseEntity<String> response = ResponseEntity.ok("body");
@@ -125,7 +125,7 @@ class GithubClientTest {
     @DisplayName("postWithBearer - POST 요청 실행")
     class PostWithBearer {
         @Test
-        @DisplayName("postWithBearer - 성공")
+        @DisplayName("성공")
         void postWithBearer_success() {
             String url = "url";
             Map<String, String> body = Map.of("data", "test");
@@ -138,7 +138,7 @@ class GithubClientTest {
         }
 
         @Test
-        @DisplayName("postWithBearer - 실패 (API 오류)")
+        @DisplayName("실패 (API 오류)")
         void postWithBearer_failure_apiError() {
             given(restTemplate.exchange(
                     anyString(),
@@ -156,7 +156,7 @@ class GithubClientTest {
     @DisplayName("deleteWithBearer - DELETE 요청 실행")
     class DeleteWithBearer {
         @Test
-        @DisplayName("deleteWithBearer - 성공")
+        @DisplayName("성공")
         void deleteWithBearer_success() {
             githubClient.deleteWithBearer("url", "token");
 
@@ -164,7 +164,7 @@ class GithubClientTest {
         }
 
         @Test
-        @DisplayName("deleteWithBearer - 실패")
+        @DisplayName("실패")
         void deleteWithBearer_failure() {
             given(restTemplate.exchange(anyString(), eq(HttpMethod.DELETE), any(HttpEntity.class), eq(Void.class)))
                     .willThrow(new RestClientResponseException("error", 404, "Not Found", null, null, null));

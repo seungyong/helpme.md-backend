@@ -36,7 +36,7 @@ import seungyong.helpmebackend.global.domain.entity.CustomUserDetails;
 @RequestMapping("/api/v1/repos")
 @ResponseBody
 @RequiredArgsConstructor
-public class RepoController {
+class RepoController {
     private final RepositoryPortIn repositoryPortIn;
 
     @Operation(

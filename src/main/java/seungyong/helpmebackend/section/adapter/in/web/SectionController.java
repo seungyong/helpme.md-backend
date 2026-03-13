@@ -33,7 +33,7 @@ import java.net.URI;
 @RequestMapping("/api/v1/repos/{owner}/{name}/sections")
 @ResponseBody
 @RequiredArgsConstructor
-public class SectionController {
+class SectionController {
     private final SectionPortIn sectionPortIn;
 
     @Operation(

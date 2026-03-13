@@ -26,7 +26,7 @@ import seungyong.helpmebackend.user.application.port.in.UserPortIn;
 @RequestMapping("/api/v1/users")
 @ResponseBody
 @RequiredArgsConstructor
-public class UserController {
+class UserController {
     private final UserPortIn userPortIn;
     private final CookieUtil cookieUtil;
 

@@ -34,7 +34,7 @@ class GithubApiExecutorTest {
     @DisplayName("executeGet - GET 요청 실행")
     class ExecuteGet {
         @Test
-        @DisplayName("executeGet - 성공")
+        @DisplayName("성공")
         void executeGet_success() throws Exception {
             String url = "https://api.github.com/test";
             String token = "token";
@@ -50,7 +50,7 @@ class GithubApiExecutorTest {
         }
 
         @Test
-        @DisplayName("executeGet - 성공 (ExceptionHandler로 예외 복구)")
+        @DisplayName("성공 (ExceptionHandler로 예외 복구)")
         void executeGet_success_withExceptionHandler() {
             given(githubClient.fetchGetMethodForBody(anyString(), anyString())).willThrow(new RuntimeException());
 
@@ -63,7 +63,7 @@ class GithubApiExecutorTest {
         }
 
         @Test
-        @DisplayName("executeGet - 실패 (401 미인증)")
+        @DisplayName("실패 (401 미인증)")
         void executeGet_failure_unauthorized() {
             String url = "https://api.github.com/test";
             HttpClientErrorException unauthorizedException = new HttpClientErrorException(HttpStatus.UNAUTHORIZED);
@@ -90,7 +90,7 @@ class GithubApiExecutorTest {
         }
 
         @Test
-        @DisplayName("executeGet - 실패 (사용자 정의 예외)")
+        @DisplayName("실패 (사용자 정의 예외)")
         void executeGet_failure_customException() {
             String url = "https://api.github.com/test";
             String token = "token";
@@ -114,7 +114,7 @@ class GithubApiExecutorTest {
     @DisplayName("executePost - POST 요청 실행")
     class ExecutePost {
         @Test
-        @DisplayName("executePost - 성공")
+        @DisplayName("성공")
         void executePost_success() throws Exception {
             Map<String, String> body = Map.of("title", "hello");
             String responseStr = "{}";
@@ -129,7 +129,7 @@ class GithubApiExecutorTest {
         }
 
         @Test
-        @DisplayName("executePost - 실패 (일반 에러)")
+        @DisplayName("실패 (일반 에러)")
         void executePost_failure() {
             given(githubClient.postWithBearer(anyString(), anyString(), anyMap(), any())).willThrow(new RuntimeException());
 
@@ -142,7 +142,7 @@ class GithubApiExecutorTest {
     @DisplayName("executePut - PUT 요청 실행")
     class ExecutePut {
         @Test
-        @DisplayName("executePut - 성공")
+        @DisplayName("성공")
         void executePut_success() {
             githubApiExecutor.executePut("url", "token", Map.of(), "putOp");
 
@@ -150,7 +150,7 @@ class GithubApiExecutorTest {
         }
 
         @Test
-        @DisplayName("executePut - 실패 (429 Too Many Requests)")
+        @DisplayName("실패 (429 Too Many Requests)")
         void executePut_failure_tooManyRequests() {
             HttpClientErrorException tooManyRequestsException = new HttpClientErrorException(HttpStatus.TOO_MANY_REQUESTS);
 
@@ -166,7 +166,7 @@ class GithubApiExecutorTest {
     class ExecuteDelete {
 
         @Test
-        @DisplayName("executeDelete - 성공")
+        @DisplayName("성공")
         void executeDelete_success() {
             githubApiExecutor.executeDelete("url", "token", "deleteOp");
 
@@ -174,7 +174,7 @@ class GithubApiExecutorTest {
         }
 
         @Test
-        @DisplayName("executeDelete - 실패")
+        @DisplayName("실패")
         void executeDelete_failure() {
             doThrow(new RuntimeException()).when(githubClient).deleteWithBearer(anyString(), anyString());
 

@@ -5,6 +5,6 @@ import seungyong.helpmebackend.project.adapter.out.persistence.entity.ProjectJpa
 
 import java.util.Optional;
 
-public interface ProjectJpaRepository extends JpaRepository<ProjectJpaEntity, Long> {
+interface ProjectJpaRepository extends JpaRepository<ProjectJpaEntity, Long> {
     Optional<ProjectJpaEntity> findByUser_IdAndRepoFullName(Long userId, String repoFullName);
 }
