@@ -5,13 +5,16 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Component;
-import seungyong.helpmebackend.repository.application.port.out.result.RepositoryTreeResult;
 import seungyong.helpmebackend.repository.application.port.out.RepositoryTreeFilterPortOut;
+import seungyong.helpmebackend.repository.application.port.out.result.RepositoryTreeResult;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Component
@@ -29,6 +32,13 @@ public class RepositoryTreeFilterAdapter implements RepositoryTreeFilterPortOut 
         this.excludedExtensions = loadFile(resourceLoader, excludedExtensionsPath);
         this.excludedDirectories = loadFile(resourceLoader, excludedDirectoriesPath);
         this.excludedFilenames = loadFile(resourceLoader, excludedFilenamesPath);
+
+        if (
+                excludedExtensions == null || excludedDirectories == null || excludedFilenames == null ||
+                excludedExtensions.isEmpty() || excludedDirectories.isEmpty() || excludedFilenames.isEmpty()
+        ) {
+            throw new IllegalStateException("필터링 기준 파일이 비어 있습니다.");
+        }
     }
 
     @Override
@@ -41,6 +51,10 @@ public class RepositoryTreeFilterAdapter implements RepositoryTreeFilterPortOut 
 
     private Set<String> loadFile(ResourceLoader resourceLoader, String path) throws Exception {
         Resource resource = resourceLoader.getResource(path);
+
+        if (!resource.exists()) {
+            throw new IllegalStateException("필터링 기준 파일이 존재하지 않습니다: " + path);
+        }
 
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8))) {
             return reader.lines()
