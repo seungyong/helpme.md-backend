@@ -53,8 +53,16 @@ public class CommitAdapter extends GithubPortConfig implements CommitPortOut {
 
         List<CommitResult.Commit> latestCommits = parseJsonCommit(latestResponseBody);
 
-        // 중간 페이지와 마지막 페이지를 모두 가져오기
-        CompletableFuture<List<CommitResult.Commit>> middleFuture = CompletableFuture.supplyAsync(() -> {
+        // 중간 페이지가 1페이지거나, 마지막 페이지인 경우
+        boolean isMiddleRedundant = (
+                Objects.equals(link.middlePage(), 1) ||
+                        Objects.equals(link.middlePage(), link.lastPage()) ||
+                        link.middlePage() == null
+        );
+
+        CompletableFuture<List<CommitResult.Commit>> middleFuture = isMiddleRedundant
+                ? CompletableFuture.completedFuture(Collections.emptyList())
+                : CompletableFuture.supplyAsync(() -> {
             ResponseEntity<String> middleResponse = fetchCommit(command, link.middlePage(), contributor.username());
             return parseJsonCommit(middleResponse.getBody());
         });
@@ -63,11 +71,14 @@ public class CommitAdapter extends GithubPortConfig implements CommitPortOut {
             ResponseEntity<String> initialResponse = fetchCommit(command, link.lastPage(), contributor.username());
             List<CommitResult.Commit> initialCommits = parseJsonCommit(initialResponse.getBody());
 
-            // 30개보다 적은 경우 추가 요청하여 30개 맞추기
-            if (initialCommits.size() < 30 && link.lastPage() > 1) {
+            int penultimatePage = link.lastPage() - 1;
+            boolean isDuplicatePage = (penultimatePage <= 1 || Objects.equals(penultimatePage, link.middlePage()));
+
+            // 40개보다 적은 경우 추가 요청하여 40개 맞추기
+            if (initialCommits.size() < 40 && !isDuplicatePage) {
                 ResponseEntity<String> penultimateResponse = fetchCommit(command, link.lastPage() - 1, contributor.username());
                 List<CommitResult.Commit> penultimateCommits = parseJsonCommit(penultimateResponse.getBody());
-                int needed = 30 - initialCommits.size();
+                int needed = 40 - initialCommits.size();
 
                 for (int i = penultimateCommits.size() - 1; i >= 0 && needed > 0; i--, needed--) {
                     initialCommits.add(0, penultimateCommits.get(i));
@@ -101,7 +112,7 @@ public class CommitAdapter extends GithubPortConfig implements CommitPortOut {
             );
         } else {
             url = String.format(
-                    "https://api.github.com/repos/%s/%s/commits?sha=%s&per_page=20&page=%d&author=%s",
+                    "https://api.github.com/repos/%s/%s/commits?sha=%s&per_page=40&page=%d&author=%s",
                     command.repoInfo().owner(),
                     command.repoInfo().name(),
                     command.branch(),
