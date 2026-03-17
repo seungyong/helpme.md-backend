@@ -5,10 +5,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.converter.BeanOutputConverter;
-import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.openai.api.ResponseFormat;
 import org.springframework.beans.factory.annotation.Value;
@@ -30,9 +30,8 @@ import java.util.stream.Collectors;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-class GPTClient {
-
-    private final OpenAiChatModel openAiChatModel;
+public class GPTClient {
+    private final ChatModel chatModel;
 
     @Value("${spring.ai.openai.chat.cache-key.reviewer.prefix}")
     private String reviewerCacheKeyPrefix;
@@ -242,7 +241,7 @@ class GPTClient {
                         .promptCacheKey(promptCacheKey)
                         .build());
 
-        ChatResponse response = openAiChatModel.call(prompt);
+        ChatResponse response = chatModel.call(prompt);
 
         // 로그에 토큰 사용량 출력
         log.info("""

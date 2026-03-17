@@ -169,7 +169,21 @@ public class RepositoryService implements RepositoryPortIn {
                             commitMessage
                     )
             );
+        } catch (Exception e) {
+            log.error("Error during README push, deleting branch: {}", newBranchName, e);
 
+            // 에러 발생 시 생성한 브랜치 삭제
+            repositoryPortOut.deleteBranch(
+                    new RepoBranchCommand(
+                            repoInfo,
+                            newBranchName
+                    )
+            );
+
+            throw new CustomException(RepositoryErrorCode.PUSH_FAILED);
+        }
+
+        try {
             // 5. Pull Request 생성
             String prTitle = "[HelpMe] Improve README.md";
             String prBody = "This pull request is created automatically by HelpMe to improve the README.md file.";
@@ -185,7 +199,7 @@ public class RepositoryService implements RepositoryPortIn {
 
             return new ResponsePull(prUrl);
         } catch (Exception e) {
-            log.error("Deleting branch due to error during pull request creation: {}", newBranchName, e);
+            log.error("Error during Pull Request creation, deleting branch: {}", newBranchName, e);
 
             // 에러 발생 시 생성한 브랜치 삭제
             repositoryPortOut.deleteBranch(
@@ -195,7 +209,7 @@ public class RepositoryService implements RepositoryPortIn {
                     )
             );
 
-            throw e;
+            throw new CustomException(RepositoryErrorCode.PR_CREATION_FAILED);
         }
     }
 

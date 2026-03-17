@@ -9,6 +9,8 @@ import seungyong.helpmebackend.global.exception.ErrorCode;
 @RequiredArgsConstructor
 public enum RepositoryErrorCode implements ErrorCode {
     BAD_REQUEST_SAME_BRANCH(HttpStatus.BAD_REQUEST, "같은 브랜치에 Pull Request를 요청할 수 없습니다.", "REPO_40001"),
+    PUSH_FAILED(HttpStatus.BAD_REQUEST, "커밋을 푸시하는 데 실패했습니다.", "REPO_40002"),
+    PR_CREATION_FAILED(HttpStatus.BAD_REQUEST, "Pull Request 생성에 실패했습니다.", "REPO_40003"),
 
     GITHUB_UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "GitHub 연동이 해제되었습니다.\n다시 로그인해주세요.", "REPO_40101"),
 

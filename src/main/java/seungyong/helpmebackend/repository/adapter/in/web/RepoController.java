@@ -365,7 +365,7 @@ class RepoController {
                     responseCode = "400",
                     description = "잘못된 요청입니다.",
                     errorCodeClasses = { GlobalErrorCode.class, RepositoryErrorCode.class },
-                    errorCodes = { "BAD_REQUEST", "BAD_REQUEST_SAME_BRANCH" }
+                    errorCodes = { "BAD_REQUEST", "BAD_REQUEST_SAME_BRANCH", "PUSH_FAILED", "PR_CREATION_FAILED" }
             ),
             @ApiErrorResponse(
                     responseCode = "401",
