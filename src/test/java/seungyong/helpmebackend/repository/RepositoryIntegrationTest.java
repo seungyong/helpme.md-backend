@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.navercorp.fixturemonkey.FixtureMonkey;
 import com.navercorp.fixturemonkey.api.introspector.ConstructorPropertiesArbitraryIntrospector;
 import jakarta.servlet.http.Cookie;
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -28,6 +29,7 @@ import seungyong.helpmebackend.global.config.SecurityConfig;
 import seungyong.helpmebackend.global.domain.entity.JWT;
 import seungyong.helpmebackend.global.domain.type.RedisKey;
 import seungyong.helpmebackend.global.domain.type.RedisKeyFactory;
+import seungyong.helpmebackend.global.exception.CustomException;
 import seungyong.helpmebackend.global.infrastructure.github.GithubApiExecutor;
 import seungyong.helpmebackend.global.infrastructure.github.GithubClient;
 import seungyong.helpmebackend.global.infrastructure.jwt.JWTProvider;
@@ -53,6 +55,7 @@ import seungyong.helpmebackend.user.domain.entity.User;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -64,6 +67,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.awaitility.Awaitility.await;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -96,14 +100,15 @@ public class RepositoryIntegrationTest {
 
     @BeforeEach
     void setup() {
-        doReturn(new User(
+        User user = new User(
                 1L,
                 new GithubUser(
                         "test-user",
                         123456L,
                         new EncryptedToken("encrypted-token")
                 )
-        )).when(userPortOut).getById(anyLong());
+        );
+        doReturn(user).when(userPortOut).getById(anyLong());
         jwt = jwtProvider.generate(new JWTUser(1L, "test-user"));
 
         lenient().when(cipherPortOut.decrypt(any(String.class))).thenReturn("decrypted-token");
@@ -648,7 +653,7 @@ public class RepositoryIntegrationTest {
 
             // 3. 레포 언어 비율 조회 (cache no hit)
             String languagesJson = "{\"Java\": 70, \"Python\": 30}";
-            given(githubClient.fetchGetMethodForBody(contains("/languages"), anyString()))
+            given(githubClient.fetchGetMethodForBody(eq("https://api.github.com/repos/test-owner/test-repo/languages"), any()))
                     .willReturn(languagesJson);
 
             // 4. 프로젝트 구조 조회 (cache no hit)
@@ -660,8 +665,10 @@ public class RepositoryIntegrationTest {
             GPTRepositoryInfoResult repoInfo = fixtureMonkey.giveMeOne(GPTRepositoryInfoResult.class);
             EvaluationContentResult evaluation = fixtureMonkey.giveMeOne(EvaluationContentResult.class);
 
-            doReturn(repoInfo).when(gptClient).getRepositoryInfo(anyString(), any(RepositoryInfoCommand.class));
-            doReturn(evaluation).when(gptClient).evaluateReadme(any(EvaluationCommand.class));
+            given(gptClient.getRepositoryInfo(anyString(), any(RepositoryInfoCommand.class)))
+                    .willReturn(repoInfo);
+            given(gptClient.evaluateReadme(any(EvaluationCommand.class)))
+                    .willReturn(evaluation);
 
             // 6. 진입점, 중요파일 내용 조회
             String fileContentJson = "{\"content\": \"R0lGODlhAQABAIAAAAUEBAAAACwAAAAAAQABAAACAkQBADs=\"}"; // Base64로 인코딩된 빈 파일 내용
@@ -687,6 +694,17 @@ public class RepositoryIntegrationTest {
                             ))
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(status().isAccepted());
+
+            // 5초 동안 Async 비동기 스레드가 끝날 때까지 기달리게 함.
+            // 바로 확인하면 Redis 캐싱 처리가 되기도 전에 체크를 해버림
+            await().during(5, TimeUnit.SECONDS).untilAsserted(() -> {
+                // 폴백 저장 안 함
+                verify(redisPortOut, never()).setObjectIfAbsent(
+                        anyString(),
+                        eq(SSETaskName.COMPLETION_EVALUATE_DRAFT_ERROR.getTaskName()),
+                        any(Instant.class)
+                );
+            });
 
             String commitCacheKey = RedisKeyFactory.createCommitsKey(owner, name, sha);
             String langCacheKey = RedisKeyFactory.createLanguageKey(owner, name, sha);
@@ -715,8 +733,278 @@ public class RepositoryIntegrationTest {
             verify(redisPortOut, times(1)).set(eq(entryCacheKey), anyString(), any());
             verify(redisPortOut, times(1)).set(eq(importantCacheKey), anyString(), any());
 
+            // 결과 검증
+            verify(ssePortOut, timeout(5000)).sendCompletion(
+                    eq(taskId),
+                    eq(SSETaskName.COMPLETION_EVALUATE_DRAFT.getTaskName()),
+                    any(ResponseEvaluation.class)
+            );
+        }
+
+        @Test
+        @DisplayName("실패 - 유저가 없는 경우")
+        void evaluateDraftReadme_failure_noUser() throws Exception {
+            given(userPortOut.getById(anyLong())).willReturn(null);
+
+            MvcResult mvcResult = mockMvc.perform(get("/api/v1/sse/subscribe")
+                            .accept(MediaType.TEXT_EVENT_STREAM_VALUE))
+                    .andExpect(status().isOk())
+                    .andExpect(MockMvcResultMatchers.request().asyncStarted())
+                    .andReturn();
+
+            String contentAsString = mvcResult.getResponse().getContentAsString();
+            String taskId = extractTaskId(contentAsString);
+
+            mockMvc.perform(post("/api/v1/repos/{owner}/{name}/evaluate/draft/sse", owner, name)
+                            .param("taskId", taskId)
+                            .content(objectMapper.writeValueAsString(request))
+                            .contentType("application/json")
+                            .cookie(
+                                    new Cookie("accessToken", jwt.getAccessToken()),
+                                    new Cookie("refreshToken", jwt.getRefreshToken())
+                            ))
+                    .andDo(MockMvcResultHandlers.print())
+                    .andExpect(status().isAccepted());
+
+            // 오류 발생 시 메시지 전송
+            verify(ssePortOut, timeout(5000)).sendCompletion(
+                    eq(taskId),
+                    eq(SSETaskName.COMPLETION_EVALUATE_DRAFT_ERROR.getTaskName()),
+                    any(CustomException.class)
+            );
+
+            // 단순 오류인 경우 폴백 저장을 하지 않음
+            await().during(5, TimeUnit.SECONDS).untilAsserted(() -> {
+                verify(redisPortOut, never()).setObjectIfAbsent(anyString(), any(), any(Instant.class));
+            });
+        }
+
+        @Test
+        @DisplayName("실패 - 커밋이 없는 경우")
+        void evaluateDraftReadme_success_noCommits() throws Exception {
+            given(githubClient.fetchGetMethodForBody(eq(String.format(
+                    "https://api.github.com/repos/%s/%s/git/refs/heads/%s",
+                    owner,
+                    name,
+                    request.branch()
+            )), anyString())).willThrow(notFoundException);
+
+            MvcResult mvcResult = mockMvc.perform(get("/api/v1/sse/subscribe")
+                            .accept(MediaType.TEXT_EVENT_STREAM_VALUE))
+                    .andExpect(status().isOk())
+                    .andExpect(MockMvcResultMatchers.request().asyncStarted())
+                    .andReturn();
+
+            String contentAsString = mvcResult.getResponse().getContentAsString();
+            String taskId = extractTaskId(contentAsString);
+
+            mockMvc.perform(post("/api/v1/repos/{owner}/{name}/evaluate/draft/sse", owner, name)
+                            .param("taskId", taskId)
+                            .content(objectMapper.writeValueAsString(request))
+                            .contentType("application/json")
+                            .cookie(
+                                    new Cookie("accessToken", jwt.getAccessToken()),
+                                    new Cookie("refreshToken", jwt.getRefreshToken())
+                            ))
+                    .andDo(MockMvcResultHandlers.print())
+                    .andExpect(status().isAccepted());
+
+            // 오류 발생 시 메시지 전송
+            verify(ssePortOut, timeout(5000)).sendCompletion(
+                    eq(taskId),
+                    eq(SSETaskName.COMPLETION_EVALUATE_DRAFT_ERROR.getTaskName()),
+                    any(ResponseEntity.class)
+            );
+
+            // 단순 오류인 경우 폴백 저장을 하지 않음
+            await().during(5, TimeUnit.SECONDS).untilAsserted(() -> {
+                verify(redisPortOut, never()).setObjectIfAbsent(anyString(), any(), any(Instant.class));
+            });
+        }
+
+        @Test
+        @DisplayName("실패 - GPT 평가 실패")
+        void evaluateDraftReadme_failure_gptEvaluation() throws Exception {
+            given(githubClient.fetchGetMethodForBody(eq(String.format(
+                    "https://api.github.com/repos/%s/%s/git/refs/heads/%s",
+                    owner,
+                    name,
+                    request.branch()
+            )), anyString())).willReturn("{\"object\":{\"sha\":\"%s\"}}".formatted(sha));
+
+            // 1. README 내용 조회 (cache hit)
+            String readmeCacheKey = RedisKeyFactory.createReadmeKey(owner, name, sha);
+            redisPortOut.set(readmeCacheKey, "README content", Instant.now().plus(5, ChronoUnit.MINUTES));
+
+            // 2. Commit 조회 (cache no hit)
+            String contributorsJson = "[{\"type\": \"User\", \"login\": \"user1\", \"avatar_url\": \"url1\"}]";
+            given(githubClient.fetchGetMethodForBody(contains("/contributors"), anyString()))
+                    .willReturn(contributorsJson);
+
+            HttpHeaders commitHeaders = new HttpHeaders();
+            commitHeaders.set(HttpHeaders.LINK, "<https://api.github.com/repositories/123/commits?page=3>; rel=\"last\"");
+
+            given(githubClient.fetchGet(contains("/commits"), anyString(), anyString(), eq(String.class)))
+                    .willAnswer(invocation -> ResponseEntity.ok()
+                            .headers(commitHeaders)
+                            .body(createCommitsJson("commit")));
+
+            // 3. 레포 언어 비율 조회 (cache no hit)
+            String languagesJson = "{\"Java\": 70, \"Python\": 30}";
+            given(githubClient.fetchGetMethodForBody(contains("/languages"), anyString()))
+                    .willReturn(languagesJson);
+
+            // 4. 프로젝트 구조 조회 (cache no hit)
+            String treeJson = "{\"tree\": [{\"path\": \"file.txt\", \"type\": \"blob\"}]}";
+            given(githubClient.fetchGetMethodForBody(contains("/git/trees"), anyString()))
+                    .willReturn(treeJson);
+
+            // 5. GPT 평가 실패 시뮬레이션
+            given(gptClient.evaluateReadme(any(EvaluationCommand.class)))
+                    .willThrow(new RuntimeException("GPT evaluation failed"));
+
+            MvcResult mvcResult = mockMvc.perform(get("/api/v1/sse/subscribe")
+                            .accept(MediaType.TEXT_EVENT_STREAM_VALUE))
+                    .andExpect(status().isOk())
+                    .andExpect(MockMvcResultMatchers.request().asyncStarted())
+                    .andReturn();
+
+            String contentAsString = mvcResult.getResponse().getContentAsString();
+            String taskId = extractTaskId(contentAsString);
+
+            mockMvc.perform(post("/api/v1/repos/{owner}/{name}/evaluate/draft/sse", owner, name)
+                            .param("taskId", taskId)
+                            .content(objectMapper.writeValueAsString(request))
+                            .contentType("application/json")
+                            .cookie(
+                                    new Cookie("accessToken", jwt.getAccessToken()),
+                                    new Cookie("refreshToken", jwt.getRefreshToken())
+                            ))
+                    .andDo(MockMvcResultHandlers.print())
+                    .andExpect(status().isAccepted());
+
+            // 오류 발생 시 메시지 전송
+            verify(ssePortOut, timeout(5000)).sendCompletion(
+                    eq(taskId),
+                    eq(SSETaskName.COMPLETION_EVALUATE_DRAFT_ERROR.getTaskName()),
+                    any(CustomException.class)
+            );
+
+            // 단순 오류인 경우 폴백 저장을 하지 않음
+            await().during(5, TimeUnit.SECONDS).untilAsserted(() -> {
+                verify(redisPortOut, never()).setObjectIfAbsent(anyString(), any(), any(Instant.class));
+            });
+        }
+
+        @Test
+        @DisplayName("실패 - 성공 응답 실패 (폴백 저장)")
+        void evaluateDraftReadme_failure_sendCompletion() throws Exception {
+            given(githubClient.fetchGetMethodForBody(eq(String.format(
+                    "https://api.github.com/repos/%s/%s/git/refs/heads/%s",
+                    owner,
+                    name,
+                    request.branch()
+            )), anyString())).willReturn("{\"object\":{\"sha\":\"%s\"}}".formatted(sha));
+
+            // 1. README 내용 조회 (cache hit)
+            String readmeCacheKey = RedisKeyFactory.createReadmeKey(owner, name, sha);
+            redisPortOut.set(readmeCacheKey, "README content", Instant.now().plus(5, ChronoUnit.MINUTES));
+
+            // 2. Commit 조회 (cache no hit)
+            String contributorsJson = "[{\"type\": \"User\", \"login\": \"user1\", \"avatar_url\": \"url1\"}]";
+            given(githubClient.fetchGetMethodForBody(contains("/contributors"), anyString()))
+                    .willReturn(contributorsJson);
+
+            HttpHeaders commitHeaders = new HttpHeaders();
+            commitHeaders.set(HttpHeaders.LINK, "<https://api.github.com/repositories/123/commits?page=3>; rel=\"last\"");
+
+            given(githubClient.fetchGet(contains("/commits"), anyString(), anyString(), eq(String.class)))
+                    .willAnswer(invocation -> ResponseEntity.ok()
+                            .headers(commitHeaders)
+                            .body(createCommitsJson("commit")));
+
+            // 3. 레포 언어 비율 조회 (cache no hit)
+            String languagesJson = "{\"Java\": 70, \"Python\": 30}";
+            given(githubClient.fetchGetMethodForBody(contains("/languages"), anyString()))
+                    .willReturn(languagesJson);
+
+            // 4. 프로젝트 구조 조회 (cache no hit)
+            String treeJson = "{\"tree\": [{\"path\": \"file.txt\", \"type\": \"blob\"}]}";
+            given(githubClient.fetchGetMethodForBody(contains("/git/trees"), anyString()))
+                    .willReturn(treeJson);
+
+            // 5. GPT 분석 & 7. GPT 평가
+            GPTRepositoryInfoResult repoInfo = fixtureMonkey.giveMeOne(GPTRepositoryInfoResult.class);
+            EvaluationContentResult evaluation = fixtureMonkey.giveMeOne(EvaluationContentResult.class);
+
+            given(gptClient.getRepositoryInfo(anyString(), any(RepositoryInfoCommand.class)))
+                    .willReturn(repoInfo);
+            given(gptClient.evaluateReadme(any(EvaluationCommand.class)))
+                    .willReturn(evaluation);
+
+            // 6. 진입점, 중요파일 내용 조회
+            String fileContentJson = "{\"content\": \"R0lGODlhAQABAIAAAAUEBAAAACwAAAAAAQABAAACAkQBADs=\"}"; // Base64로 인코딩된 빈 파일 내용
+            given(githubClient.fetchGetMethodForBody(contains("/contents/"), anyString(), anyString()))
+                    .willReturn(fileContentJson);
+
+            given(ssePortOut.sendCompletion(anyString(), eq(SSETaskName.COMPLETION_EVALUATE_DRAFT.getTaskName()), any(ResponseEvaluation.class)))
+                    .willReturn(false); // 전송 실패 시뮬레이션
+
+            MvcResult mvcResult = mockMvc.perform(get("/api/v1/sse/subscribe")
+                            .accept(MediaType.TEXT_EVENT_STREAM_VALUE))
+                    .andExpect(status().isOk())
+                    .andExpect(MockMvcResultMatchers.request().asyncStarted())
+                    .andReturn();
+
+            String contentAsString = mvcResult.getResponse().getContentAsString();
+            String taskId = extractTaskId(contentAsString);
+
+            mockMvc.perform(post("/api/v1/repos/{owner}/{name}/evaluate/draft/sse", owner, name)
+                            .param("taskId", taskId)
+                            .content(objectMapper.writeValueAsString(request))
+                            .contentType("application/json")
+                            .cookie(
+                                    new Cookie("accessToken", jwt.getAccessToken()),
+                                    new Cookie("refreshToken", jwt.getRefreshToken())
+                            ))
+                    .andDo(MockMvcResultHandlers.print())
+                    .andExpect(status().isAccepted());
+
             // 폴백 저장 검증
-            verify(redisPortOut, never()).setObjectIfAbsent(anyString(), any(), any());
+            await().during(5, TimeUnit.SECONDS).untilAsserted(() -> {
+                verify(redisPortOut, times(1)).setObjectIfAbsent(
+                        eq(RedisKey.SSE_EMITTER_EVALUATION_DRAFT_KEY.getValue() + taskId),
+                        any(ResponseEvaluation.class),
+                        any(Instant.class)
+                );
+            });
+
+            String commitCacheKey = RedisKeyFactory.createCommitsKey(owner, name, sha);
+            String langCacheKey = RedisKeyFactory.createLanguageKey(owner, name, sha);
+            String treeCacheKey = RedisKeyFactory.createTreeKey(owner, name, sha);
+            String repoInfoCacheKey = RedisKeyFactory.createRepoInfoKey(owner, name, sha);
+            String entryCacheKey = RedisKeyFactory.createEntryFileKey(owner, name, sha);
+            String importantCacheKey = RedisKeyFactory.createImportanceFileKey(owner, name, sha);
+
+            // 캐시 저장 확인
+            assertThat(redisPortOut.exists(readmeCacheKey)).isTrue();
+            assertThat(redisPortOut.exists(commitCacheKey)).isTrue();
+            assertThat(redisPortOut.exists(langCacheKey)).isTrue();
+            assertThat(redisPortOut.exists(treeCacheKey)).isTrue();
+            assertThat(redisPortOut.exists(repoInfoCacheKey)).isTrue();
+            assertThat(redisPortOut.exists(entryCacheKey)).isTrue();
+            assertThat(redisPortOut.exists(importantCacheKey)).isTrue();
+
+            // cache hit redis set 안 된 거 확인
+            verify(redisPortOut, times(1)).get(readmeCacheKey);
+
+            // cache 저장
+            verify(redisPortOut, times(1)).setObject(eq(commitCacheKey), any(), any());
+            verify(redisPortOut, times(1)).setObject(eq(langCacheKey), any(), any());
+            verify(redisPortOut, times(1)).setObject(eq(treeCacheKey), any(), any());
+            verify(redisPortOut, times(1)).setObject(eq(repoInfoCacheKey), any(), any());
+            verify(redisPortOut, times(1)).set(eq(entryCacheKey), anyString(), any());
+            verify(redisPortOut, times(1)).set(eq(importantCacheKey), anyString(), any());
 
             // 결과 검증
             verify(ssePortOut, timeout(5000)).sendCompletion(

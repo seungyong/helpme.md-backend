@@ -2,10 +2,12 @@ package seungyong.helpmebackend.user.domain.entity;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.ToString;
 import seungyong.helpmebackend.repository.domain.entity.EncryptedToken;
 
 @Getter
 @AllArgsConstructor
+@ToString
 public class User {
     private Long id;
     private GithubUser githubUser;

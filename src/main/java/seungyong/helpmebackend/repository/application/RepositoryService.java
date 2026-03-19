@@ -218,6 +218,7 @@ public class RepositoryService implements RepositoryPortIn {
     public void evaluateDraftReadme(RequestDraftEvaluation request, String taskId, Long userId, String owner, String name) {
         try {
             User user = userPortOut.getById(userId);
+            log.info("User : {}", user);
             String accessToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken().value());
 
             ReadmeContext readmeContext = generateReadmeContext(
@@ -425,31 +426,7 @@ public class RepositoryService implements RepositoryPortIn {
                     latestShaKey, expiration
             );
         } else {
-            readme = repositoryPortOut.getReadmeContent(branchCommand);
-            commits = getCommits(branchCommand);
-            languages = repositoryPortOut.getRepositoryLanguages(repoInfoCommand);
-            trees = repositoryTreeFilterPortOut.filter(
-                    repositoryPortOut.getRepositoryTree(branchCommand)
-            );
-
-            repositoryInfo = gptPortOut.getRepositoryInfo(
-                    owner + "/" + name,
-                    new RepositoryInfoCommand(
-                            languages,
-                            commits,
-                            trees
-                    )
-            );
-
-            entryContents = fetchFileContents(
-                    branchCommand,
-                    getFilePaths(repositoryInfo.entryPoints())
-            );
-
-            importantFileContents = fetchFileContents(
-                    branchCommand,
-                    getFilePaths(repositoryInfo.importantFiles())
-            );
+            throw new CustomException(RepositoryErrorCode.BRANCH_NOT_FOUND);
         }
 
         return new ReadmeContext(
