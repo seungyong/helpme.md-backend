@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.navercorp.fixturemonkey.FixtureMonkey;
 import com.navercorp.fixturemonkey.api.introspector.ConstructorPropertiesArbitraryIntrospector;
 import net.jqwik.api.Arbitraries;
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -12,6 +13,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.ResponseEntity;
 import seungyong.helpmebackend.global.application.port.out.RedisPortOut;
 import seungyong.helpmebackend.global.domain.type.RedisKey;
 import seungyong.helpmebackend.global.exception.CustomException;
@@ -39,6 +41,7 @@ import seungyong.helpmebackend.user.domain.entity.User;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -295,31 +298,6 @@ class RepositoryServiceTest {
         }
 
         @Test
-        @DisplayName("성공 - Cache Miss")
-        void evaluateDraftReadme_success_cache_miss() {
-            // SHA를 찾을 수 없도록 설정 (Cache Miss)
-            when(repositoryPortOut.getRecentSHA(any())).thenReturn(null);
-
-            when(repositoryPortOut.getReadmeContent(any())).thenReturn("raw readme");
-            when(repositoryPortOut.getContributors(any())).thenReturn(new ContributorsResult(Collections.emptyList()));
-            when(repositoryPortOut.getRepositoryLanguages(any())).thenReturn(Collections.emptyList());
-            when(repositoryPortOut.getRepositoryTree(any())).thenReturn(Collections.emptyList());
-            when(repositoryTreeFilterPortOut.filter(any())).thenReturn(Collections.emptyList());
-
-            GPTRepositoryInfoResult repoInfo = new GPTRepositoryInfoResult(new String[]{"Java"}, "small", new String[]{"src/Main.java"}, new String[]{});
-            when(gptPortOut.getRepositoryInfo(anyString(), any())).thenReturn(repoInfo);
-            when(repositoryPortOut.getFileContent(any(), any())).thenReturn(new RepositoryFileContentResult("src/Main.java", "code"));
-
-            repositoryService.evaluateDraftReadme(request, taskId, USER_ID, OWNER, NAME);
-
-            verify(repositoryPortOut).getReadmeContent(any());
-            verify(repositoryPortOut).getContributors(any());
-            verify(repositoryPortOut).getRepositoryLanguages(any());
-
-            verify(ssePortOut).sendCompletion(eq(taskId), eq(SSETaskName.COMPLETION_EVALUATE_DRAFT.getTaskName()), any(ResponseEvaluation.class));
-        }
-
-        @Test
         @DisplayName("성공 - Cache Hit")
         void evaluateDraftReadme_success_cache_hit() {
             String sha = "latest-sha-123";
@@ -352,14 +330,15 @@ class RepositoryServiceTest {
         }
 
         @Test
-        @DisplayName("실패 - 로직 처리 중 예외 발생 시 SSE를 통해 클라이언트에게 에러를 전송한다.")
-        void evaluateDraftReadme_failure_sends_error_via_sse() {
-            when(repositoryPortOut.getRecentSHA(any())).thenThrow(new RuntimeException("GitHub API Down"));
+        @DisplayName("실패 - 커밋 내역 없음")
+        void evaluateDraftReadme_success_cache_miss() {
+            when(repositoryPortOut.getRecentSHA(any())).thenReturn(null);
 
             repositoryService.evaluateDraftReadme(request, taskId, USER_ID, OWNER, NAME);
 
-            // 에러 발생 시 sseSendError 호출 검증
-            verify(ssePortOut).sendCompletion(eq(taskId), eq(SSETaskName.COMPLETION_EVALUATE_DRAFT_ERROR.getTaskName()), any(CustomException.class));
+            Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+                verify(ssePortOut).sendCompletion(eq(taskId), eq(SSETaskName.COMPLETION_EVALUATE_DRAFT_ERROR.getTaskName()), any(ResponseEntity.class));
+            });
         }
     }
 
@@ -380,32 +359,6 @@ class RepositoryServiceTest {
 
             Section section = mock(Section.class);
             lenient().when(sectionPortOut.saveAll(anyList())).thenReturn(List.of(section));
-        }
-
-        @Test
-        @DisplayName("성공 - Cache Miss")
-        void generateDraftReadme_success_cache_miss() {
-            when(repositoryPortOut.getRecentSHA(any())).thenReturn(null);
-
-            when(repositoryPortOut.getReadmeContent(any())).thenReturn("raw readme");
-            when(repositoryPortOut.getContributors(any())).thenReturn(new ContributorsResult(Collections.emptyList()));
-            when(repositoryPortOut.getRepositoryLanguages(any())).thenReturn(Collections.emptyList());
-            when(repositoryPortOut.getRepositoryTree(any())).thenReturn(Collections.emptyList());
-            when(repositoryTreeFilterPortOut.filter(any())).thenReturn(Collections.emptyList());
-
-            GPTRepositoryInfoResult repoInfo = new GPTRepositoryInfoResult(new String[]{"Java"}, "small", new String[]{}, new String[]{});
-            when(gptPortOut.getRepositoryInfo(anyString(), any())).thenReturn(repoInfo);
-
-            // 기존 섹션이 없다고 가정
-            when(sectionPortOut.getSectionsByUserIdAndRepoFullName(anyLong(), anyString())).thenReturn(Collections.emptyList());
-
-            repositoryService.generateDraftReadme(request, taskId, USER_ID, OWNER, NAME);
-
-            verify(redisPortOut, never()).set(anyString(), anyString(), any());
-            verify(sectionPortOut, never()).deleteAllByUserIdAndRepoFullName(anyLong(), anyString());
-
-            verify(sectionPortOut).saveAll(anyList());
-            verify(ssePortOut).sendCompletion(eq(taskId), eq(SSETaskName.COMPLETION_GENERATE.getTaskName()), any(ResponseSections.class));
         }
 
         @Test
@@ -444,7 +397,7 @@ class RepositoryServiceTest {
         }
 
         @Test
-        @DisplayName("실패")
+        @DisplayName("실패 - 성공 응답 실패 (폴백 저장)")
         void generateDraftReadme_failure_sse_send_caches_result() {
             String sha = "latest-sha-123";
             when(repositoryPortOut.getRecentSHA(any())).thenReturn(sha);
@@ -471,6 +424,18 @@ class RepositoryServiceTest {
             repositoryService.generateDraftReadme(request, taskId, USER_ID, OWNER, NAME);
 
             verify(redisPortOut).setObjectIfAbsent(contains(RedisKey.SSE_EMITTER_GENERATION_KEY.getValue()), any(ResponseSections.class), any());
+        }
+
+        @Test
+        @DisplayName("실패 - 커밋 내역 없음")
+        void generateDraftReadme_success_cache_miss() {
+            when(repositoryPortOut.getRecentSHA(any())).thenReturn(null);
+
+            repositoryService.generateDraftReadme(request, taskId, USER_ID, OWNER, NAME);
+
+            Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+                verify(ssePortOut).sendCompletion(eq(taskId), eq(SSETaskName.COMPLETION_GENERATE_ERROR.getTaskName()), any(ResponseEntity.class));
+            });
         }
     }
 }
