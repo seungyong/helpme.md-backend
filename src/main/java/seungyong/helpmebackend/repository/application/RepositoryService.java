@@ -6,26 +6,23 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import seungyong.helpmebackend.global.application.port.out.RedisPortOut;
+import seungyong.helpmebackend.global.domain.type.RedisKey;
+import seungyong.helpmebackend.global.domain.type.RedisKeyFactory;
 import seungyong.helpmebackend.global.exception.CustomException;
 import seungyong.helpmebackend.global.exception.ErrorCode;
 import seungyong.helpmebackend.global.exception.ErrorResponse;
 import seungyong.helpmebackend.global.exception.GlobalErrorCode;
-import seungyong.helpmebackend.project.domain.entity.Project;
-import seungyong.helpmebackend.global.domain.type.RedisKey;
-import seungyong.helpmebackend.global.domain.type.RedisKeyFactory;
 import seungyong.helpmebackend.project.application.port.out.ProjectPortOut;
+import seungyong.helpmebackend.project.domain.entity.Project;
 import seungyong.helpmebackend.repository.adapter.in.web.dto.request.RequestDraftEvaluation;
-import seungyong.helpmebackend.repository.adapter.in.web.dto.request.RequestEvaluation;
+import seungyong.helpmebackend.repository.adapter.in.web.dto.request.RequestGeneration;
 import seungyong.helpmebackend.repository.adapter.in.web.dto.request.RequestPull;
 import seungyong.helpmebackend.repository.adapter.in.web.dto.response.*;
-import seungyong.helpmebackend.repository.application.port.out.command.RepoBranchCommand;
-import seungyong.helpmebackend.repository.application.port.out.command.RepoInfoCommand;
 import seungyong.helpmebackend.repository.application.dto.ReadmeContext;
 import seungyong.helpmebackend.repository.application.port.in.RepositoryPortIn;
 import seungyong.helpmebackend.repository.application.port.in.RepositoryPortInMapper;
-import seungyong.helpmebackend.repository.application.port.out.CommitPortOut;
-import seungyong.helpmebackend.repository.application.port.out.RepositoryPortOut;
-import seungyong.helpmebackend.repository.application.port.out.RepositoryTreeFilterPortOut;
+import seungyong.helpmebackend.repository.application.port.out.*;
 import seungyong.helpmebackend.repository.application.port.out.command.*;
 import seungyong.helpmebackend.repository.application.port.out.result.*;
 import seungyong.helpmebackend.repository.domain.exception.RepositoryErrorCode;
@@ -35,10 +32,6 @@ import seungyong.helpmebackend.section.application.port.out.SectionPortOut;
 import seungyong.helpmebackend.section.domain.entity.Section;
 import seungyong.helpmebackend.sse.application.port.out.SSEPortOut;
 import seungyong.helpmebackend.sse.domain.type.SSETaskName;
-import seungyong.helpmebackend.repository.application.port.out.CipherPortOut;
-import seungyong.helpmebackend.repository.application.port.out.ObjectCipherPortOut;
-import seungyong.helpmebackend.repository.application.port.out.GPTPortOut;
-import seungyong.helpmebackend.global.application.port.out.RedisPortOut;
 import seungyong.helpmebackend.user.application.port.out.UserPortOut;
 import seungyong.helpmebackend.user.domain.entity.User;
 
@@ -75,7 +68,6 @@ public class RepositoryService implements RepositoryPortIn {
     }
 
     @Override
-    @Transactional
     public ResponseRepository getRepository(Long userId, String owner, String name) {
         User user = userPortOut.getById(userId);
         String accessToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken().value());
@@ -88,7 +80,6 @@ public class RepositoryService implements RepositoryPortIn {
 
         // Repository 정보 조회
         RepositoryDetailResult repository = repositoryPortOut.getRepository(repoInfo);
-
         return RepositoryPortInMapper.INSTANCE.toResponseRepository(repository);
     }
 
@@ -265,7 +256,7 @@ public class RepositoryService implements RepositoryPortIn {
     @Async
     @Transactional
     @Override
-    public void generateDraftReadme(RequestEvaluation request, String taskId, Long userId, String owner, String name) {
+    public void generateDraftReadme(RequestGeneration request, String taskId, Long userId, String owner, String name) {
         try {
             User user = userPortOut.getById(userId);
             String accessToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken().value());
@@ -366,7 +357,7 @@ public class RepositoryService implements RepositoryPortIn {
             ssePortOut.sendCompletion(
                     taskId,
                     taskName,
-                    new CustomException(GlobalErrorCode.INTERNAL_SERVER_ERROR)
+                    ErrorResponse.toResponseEntity(GlobalErrorCode.INTERNAL_SERVER_ERROR)
             );
         }
     }
@@ -391,43 +382,35 @@ public class RepositoryService implements RepositoryPortIn {
         // 최신 커밋 SHA 조회 (캐싱 여부 판단용)
         String latestShaKey = repositoryPortOut.getRecentSHA(branchCommand);
 
-        String readme;
-        GPTRepositoryInfoResult repositoryInfo;
-        List<RepositoryInfoCommand.CommitCommand> commits;
-        List<RepositoryLanguageResult> languages;
-        List<RepositoryTreeResult> trees;
-        List<RepositoryFileContentResult> entryContents;
-        List<RepositoryFileContentResult> importantFileContents;
-
-        if (latestShaKey != null) {
-            Instant expiration = Instant.now().plus(3, ChronoUnit.HOURS);
-
-            readme = getReadmeWithCache(branchCommand, latestShaKey, expiration);
-            commits = getCommitsWithCache(
-                    branchCommand,
-                    latestShaKey,
-                    expiration
-            );
-            languages = getLanguagesWithCache(repoInfoCommand, latestShaKey, expiration);
-            trees = getTreesWithCache(branchCommand, latestShaKey, expiration);
-            repositoryInfo = getRepositoryWithCache(
-                    owner, name, latestShaKey,
-                    new RepositoryInfoCommand(
-                            languages,
-                            commits,
-                            trees
-                    ),
-                    expiration
-            );
-            entryContents = getEntryContentsWithCache(branchCommand, repositoryInfo, latestShaKey, expiration);
-            importantFileContents = getImportantFileContentsWithCache(
-                    branchCommand,
-                    repositoryInfo,
-                    latestShaKey, expiration
-            );
-        } else {
+        if (latestShaKey == null) {
             throw new CustomException(RepositoryErrorCode.BRANCH_NOT_FOUND);
         }
+
+        Instant expiration = Instant.now().plus(3, ChronoUnit.HOURS);
+
+        String readme = getReadmeWithCache(branchCommand, latestShaKey, expiration);
+        List<RepositoryInfoCommand.CommitCommand> commits = getCommitsWithCache(
+                branchCommand,
+                latestShaKey,
+                expiration
+        );
+        List<RepositoryLanguageResult> languages = getLanguagesWithCache(repoInfoCommand, latestShaKey, expiration);
+        List<RepositoryTreeResult> trees = getTreesWithCache(branchCommand, latestShaKey, expiration);
+        GPTRepositoryInfoResult repositoryInfo = getRepositoryWithCache(
+                owner, name, latestShaKey,
+                new RepositoryInfoCommand(
+                        languages,
+                        commits,
+                        trees
+                ),
+                expiration
+        );
+        List<RepositoryFileContentResult> entryContents = getEntryContentsWithCache(branchCommand, repositoryInfo, latestShaKey, expiration);
+        List<RepositoryFileContentResult> importantFileContents = getImportantFileContentsWithCache(
+                branchCommand,
+                repositoryInfo,
+                latestShaKey, expiration
+        );
 
         return new ReadmeContext(
                 readme,

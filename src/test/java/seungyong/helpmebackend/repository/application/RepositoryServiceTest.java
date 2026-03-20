@@ -18,7 +18,7 @@ import seungyong.helpmebackend.global.exception.CustomException;
 import seungyong.helpmebackend.project.application.port.out.ProjectPortOut;
 import seungyong.helpmebackend.project.domain.entity.Project;
 import seungyong.helpmebackend.repository.adapter.in.web.dto.request.RequestDraftEvaluation;
-import seungyong.helpmebackend.repository.adapter.in.web.dto.request.RequestEvaluation;
+import seungyong.helpmebackend.repository.adapter.in.web.dto.request.RequestGeneration;
 import seungyong.helpmebackend.repository.adapter.in.web.dto.request.RequestPull;
 import seungyong.helpmebackend.repository.adapter.in.web.dto.response.*;
 import seungyong.helpmebackend.repository.application.port.out.*;
@@ -367,7 +367,7 @@ class RepositoryServiceTest {
     @DisplayName("generateDraftReadme - README 생성 (비동기)")
     class GenerateDraftReadme {
         private final String taskId = "gen-task-456";
-        private final RequestEvaluation request = new RequestEvaluation("main");
+        private final RequestGeneration request = new RequestGeneration("main");
         private final String generatedReadme = "# Draft Readme\nEnjoy your code!";
 
         @BeforeEach

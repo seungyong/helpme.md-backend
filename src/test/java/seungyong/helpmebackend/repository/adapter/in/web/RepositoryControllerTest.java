@@ -18,7 +18,7 @@ import seungyong.helpmebackend.global.domain.entity.CustomUserDetails;
 import seungyong.helpmebackend.global.filter.AuthenticationFilter;
 import seungyong.helpmebackend.global.infrastructure.cookie.CookieUtil;
 import seungyong.helpmebackend.repository.adapter.in.web.dto.request.RequestDraftEvaluation;
-import seungyong.helpmebackend.repository.adapter.in.web.dto.request.RequestEvaluation;
+import seungyong.helpmebackend.repository.adapter.in.web.dto.request.RequestGeneration;
 import seungyong.helpmebackend.repository.adapter.in.web.dto.request.RequestPull;
 import seungyong.helpmebackend.repository.application.port.in.RepositoryPortIn;
 import seungyong.helpmebackend.support.config.TestSecurityConfig;
@@ -169,7 +169,7 @@ class RepoControllerTest {
         @Test
         @DisplayName("성공")
         void generateDraftReadme_success() throws Exception {
-            RequestEvaluation request = fixtureMonkey.giveMeOne(RequestEvaluation.class);
+            RequestGeneration request = fixtureMonkey.giveMeOne(RequestGeneration.class);
 
             mockMvc.perform(post("/api/v1/repos/{owner}/{name}/generate/sse", "owner", "repo")
                             .param("taskId", "task-123")
@@ -178,7 +178,7 @@ class RepoControllerTest {
                             .with(user(userDetails)))
                     .andExpect(status().isAccepted());
 
-            verify(repositoryPortIn).generateDraftReadme(any(RequestEvaluation.class), eq("task-123"), eq(1L), eq("owner"), eq("repo"));
+            verify(repositoryPortIn).generateDraftReadme(any(RequestGeneration.class), eq("task-123"), eq(1L), eq("owner"), eq("repo"));
         }
     }
 }
