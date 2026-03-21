@@ -13,7 +13,7 @@ public class Section {
     private Long projectId;
     private String title;
     private String content;
-    private Short orderIdx;
+    private Integer orderIdx;
 
     public enum SplitMode {
         WHOLE,
@@ -44,7 +44,7 @@ public class Section {
                     projectId,
                     title,
                     content.trim(),
-                    (short) (sections.size() + 1)
+                    sections.size() + 1
             );
 
             sections.add(section);
@@ -117,7 +117,7 @@ public class Section {
      * @param orderIdx 새로운 정렬 인덱스
      * @throws IllegalArgumentException orderIdx가 null이거나 음수인 경우 발생
      */
-    public void updateOrderIdx(Short orderIdx) {
+    public void updateOrderIdx(Integer orderIdx) {
         if (orderIdx == null) {
             throw new IllegalArgumentException("orderIdx cannot be null");
         } else if (orderIdx < 0) {

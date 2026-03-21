@@ -10,18 +10,18 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-import seungyong.helpmebackend.section.adapter.in.web.dto.response.ResponseSections;
+import seungyong.helpmebackend.global.domain.entity.CustomUserDetails;
 import seungyong.helpmebackend.global.exception.GlobalErrorCode;
-import seungyong.helpmebackend.repository.domain.exception.RepositoryErrorCode;
-import seungyong.helpmebackend.user.domain.exception.UserErrorCode;
 import seungyong.helpmebackend.global.infrastructure.swagger.annotation.ApiErrorResponse;
 import seungyong.helpmebackend.global.infrastructure.swagger.annotation.ApiErrorResponses;
 import seungyong.helpmebackend.repository.adapter.in.web.dto.request.RequestDraftEvaluation;
-import seungyong.helpmebackend.repository.adapter.in.web.dto.request.RequestEvaluation;
+import seungyong.helpmebackend.repository.adapter.in.web.dto.request.RequestGeneration;
 import seungyong.helpmebackend.repository.adapter.in.web.dto.request.RequestPull;
 import seungyong.helpmebackend.repository.adapter.in.web.dto.response.*;
 import seungyong.helpmebackend.repository.application.port.in.RepositoryPortIn;
-import seungyong.helpmebackend.global.domain.entity.CustomUserDetails;
+import seungyong.helpmebackend.repository.domain.exception.RepositoryErrorCode;
+import seungyong.helpmebackend.section.adapter.in.web.dto.response.ResponseSections;
+import seungyong.helpmebackend.user.domain.exception.UserErrorCode;
 
 @Tag(
         name = "Repo",
@@ -36,7 +36,7 @@ import seungyong.helpmebackend.global.domain.entity.CustomUserDetails;
 @RequestMapping("/api/v1/repos")
 @ResponseBody
 @RequiredArgsConstructor
-public class RepoController {
+class RepoController {
     private final RepositoryPortIn repositoryPortIn;
 
     @Operation(
@@ -365,7 +365,7 @@ public class RepoController {
                     responseCode = "400",
                     description = "잘못된 요청입니다.",
                     errorCodeClasses = { GlobalErrorCode.class, RepositoryErrorCode.class },
-                    errorCodes = { "BAD_REQUEST", "BAD_REQUEST_SAME_BRANCH" }
+                    errorCodes = { "BAD_REQUEST", "BAD_REQUEST_SAME_BRANCH", "PUSH_FAILED", "PR_CREATION_FAILED" }
             ),
             @ApiErrorResponse(
                     responseCode = "401",
@@ -536,7 +536,7 @@ public class RepoController {
     })
     @PostMapping("/{owner}/{name}/generate/sse")
     public ResponseEntity<Void> generateDraftReadme(
-            @Valid @RequestBody RequestEvaluation request,
+            @Valid @RequestBody RequestGeneration request,
             @PathVariable("owner") String owner,
             @PathVariable("name") String name,
             @RequestParam("taskId") String taskId,

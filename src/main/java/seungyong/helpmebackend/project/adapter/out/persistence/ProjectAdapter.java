@@ -16,7 +16,7 @@ public class ProjectAdapter implements ProjectPortOut {
 
     @Override
     public Project save(Project project) {
-        ProjectJpaEntity savedEntity = projectJpaRepository.save(ProjectPortOutMapper.INSTANCE.toEntity(project));
+        ProjectJpaEntity savedEntity = projectJpaRepository.save(ProjectPortOutMapper.INSTANCE.toJpaEntity(project));
         return ProjectPortOutMapper.INSTANCE.toDomain(savedEntity);
     }
 

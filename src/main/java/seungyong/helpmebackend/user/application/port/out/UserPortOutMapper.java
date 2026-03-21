@@ -23,6 +23,7 @@ public interface UserPortOutMapper {
     @Mapping(target = "githubUser.githubToken", source = "githubToken")
     User toDomainEntity(UserJpaEntity userJpaEntity);
 
+    @Mapping(target = "id", ignore = true)
     @Mapping(target = "githubUser.name", source = "name")
     @Mapping(target = "githubUser.githubId", source = "githubId")
     @Mapping(target = "githubUser.githubToken", source = "githubToken")

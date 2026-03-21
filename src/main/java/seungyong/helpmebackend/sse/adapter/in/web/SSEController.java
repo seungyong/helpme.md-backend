@@ -20,7 +20,7 @@ import seungyong.helpmebackend.sse.application.port.in.SSEPortIn;
 @RequestMapping("/api/v1/sse")
 @ResponseBody
 @RequiredArgsConstructor
-public class SSEController {
+class SSEController {
     private final SSEPortIn ssePortIn;
 
     @Operation(

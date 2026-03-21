@@ -5,7 +5,6 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.annotation.Profile;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -16,12 +15,11 @@ import seungyong.helpmebackend.global.domain.entity.CustomUserDetails;
 import seungyong.helpmebackend.global.exception.CustomException;
 import seungyong.helpmebackend.global.exception.ErrorResponse;
 import seungyong.helpmebackend.global.exception.GlobalErrorCode;
-import seungyong.helpmebackend.user.domain.entity.JWTUser;
 import seungyong.helpmebackend.global.infrastructure.jwt.JWTProvider;
+import seungyong.helpmebackend.user.domain.entity.JWTUser;
 
 import java.io.IOException;
 
-@Profile("!test")
 @Slf4j
 @RequiredArgsConstructor
 @Component

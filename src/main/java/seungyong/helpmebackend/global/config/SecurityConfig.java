@@ -19,7 +19,6 @@ import seungyong.helpmebackend.global.filter.AuthenticationFilter;
 
 import java.util.List;
 
-@Profile("!test")
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor

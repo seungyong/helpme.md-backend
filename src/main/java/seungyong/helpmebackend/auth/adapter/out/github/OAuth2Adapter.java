@@ -4,12 +4,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import seungyong.helpmebackend.auth.application.port.out.OAuth2PortOut;
+import seungyong.helpmebackend.auth.application.port.out.result.OAuthGithubUser;
 import seungyong.helpmebackend.auth.application.port.out.result.OAuthTokenResult;
 import seungyong.helpmebackend.auth.domain.entity.Installation;
-import seungyong.helpmebackend.user.domain.entity.GithubUser;
-import seungyong.helpmebackend.global.infrastructure.github.GithubApiExecutor;
 import seungyong.helpmebackend.global.config.GithubPortConfig;
-import seungyong.helpmebackend.auth.application.port.out.OAuth2PortOut;
+import seungyong.helpmebackend.global.infrastructure.github.GithubApiExecutor;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -47,16 +47,15 @@ public class OAuth2Adapter extends GithubPortConfig implements OAuth2PortOut {
     }
 
     @Override
-    public GithubUser getGithubUser(String accessToken) {
+    public OAuthGithubUser getGithubUser(String accessToken) {
         String url = "https://api.github.com/user";
 
         return githubApiExecutor.executeGet(
                 url,
                 accessToken,
-                jsonNode -> new GithubUser(
+                jsonNode -> new OAuthGithubUser(
                         jsonNode.get("login").asText(),
-                        jsonNode.get("id").asLong(),
-                        accessToken
+                        jsonNode.get("id").asLong()
                 ),
                 "Get GitHub User with accessToken"
         );

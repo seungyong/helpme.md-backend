@@ -1,11 +1,14 @@
 package seungyong.helpmebackend.repository.domain.entity;
 
+import lombok.Builder;
+
 /**
  * 암호화된 토큰을 나타내는 클래스입니다.
  *
  * @param value 암호화된 토큰 값
  * @throws IllegalArgumentException 토큰 값이 null이거나 공백인 경우 발생
  */
+@Builder
 public record EncryptedToken(String value) {
     public EncryptedToken {
         if (value == null || value.isBlank()) {

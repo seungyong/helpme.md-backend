@@ -32,7 +32,7 @@ import java.io.IOException;
 @RequestMapping("/api/v1/oauth2")
 @ResponseBody
 @RequiredArgsConstructor
-public class AuthController {
+class AuthController {
     @Value("${frontend.url}")
     private String frontendUrl;
 

@@ -11,9 +11,9 @@ public interface SectionPortOut {
     void delete(Section section);
     void deleteAllByUserIdAndRepoFullName(Long userId, String repoFullName);
 
-    void decreaseOrderIdxAfter(Long userId, String repoFullName, Short targetIdx);
+    void decreaseOrderIdxAfter(Long userId, String repoFullName, Integer targetIdx);
 
     Optional<Section> getByIdAndUserId(Long sectionId, Long userId);
     List<Section> getSectionsByUserIdAndRepoFullName(Long userId, String repoFullName);
-    Short lastOrderIdxByUserIdAndRepoFullName(Long userId, String repoFullName);
+    Optional<Integer> lastOrderIdxByUserIdAndRepoFullName(Long userId, String repoFullName);
 }

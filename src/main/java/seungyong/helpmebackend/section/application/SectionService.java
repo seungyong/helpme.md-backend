@@ -3,28 +3,28 @@ package seungyong.helpmebackend.section.application;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import seungyong.helpmebackend.global.application.port.out.RedisPortOut;
+import seungyong.helpmebackend.global.domain.type.RedisKey;
+import seungyong.helpmebackend.global.exception.CustomException;
+import seungyong.helpmebackend.project.application.port.out.ProjectPortOut;
+import seungyong.helpmebackend.project.domain.entity.Project;
+import seungyong.helpmebackend.repository.application.port.out.CipherPortOut;
+import seungyong.helpmebackend.repository.application.port.out.RepositoryPortOut;
+import seungyong.helpmebackend.repository.application.port.out.command.RepoBranchCommand;
+import seungyong.helpmebackend.repository.application.port.out.command.RepoInfoCommand;
+import seungyong.helpmebackend.repository.application.port.out.command.RepoPermissionCommand;
+import seungyong.helpmebackend.repository.domain.exception.RepositoryErrorCode;
 import seungyong.helpmebackend.section.adapter.in.web.dto.request.RequestReorder;
 import seungyong.helpmebackend.section.adapter.in.web.dto.request.RequestSection;
 import seungyong.helpmebackend.section.adapter.in.web.dto.request.RequestSectionContent;
 import seungyong.helpmebackend.section.adapter.in.web.dto.response.ResponseSections;
-import seungyong.helpmebackend.section.application.port.in.SectionPortInMapper;
-import seungyong.helpmebackend.repository.application.port.out.command.RepoBranchCommand;
-import seungyong.helpmebackend.repository.application.port.out.command.RepoInfoCommand;
-import seungyong.helpmebackend.repository.application.port.out.command.RepoPermissionCommand;
-import seungyong.helpmebackend.global.exception.CustomException;
-import seungyong.helpmebackend.project.domain.entity.Project;
-import seungyong.helpmebackend.section.domain.entity.Section;
-import seungyong.helpmebackend.user.domain.entity.User;
-import seungyong.helpmebackend.repository.domain.exception.RepositoryErrorCode;
-import seungyong.helpmebackend.section.domain.exception.SectionErrorCode;
-import seungyong.helpmebackend.global.domain.type.RedisKey;
 import seungyong.helpmebackend.section.application.port.in.SectionPortIn;
-import seungyong.helpmebackend.repository.application.port.out.CipherPortOut;
-import seungyong.helpmebackend.repository.application.port.out.RepositoryPortOut;
-import seungyong.helpmebackend.project.application.port.out.ProjectPortOut;
-import seungyong.helpmebackend.global.application.port.out.RedisPortOut;
+import seungyong.helpmebackend.section.application.port.in.SectionPortInMapper;
 import seungyong.helpmebackend.section.application.port.out.SectionPortOut;
+import seungyong.helpmebackend.section.domain.entity.Section;
+import seungyong.helpmebackend.section.domain.exception.SectionErrorCode;
 import seungyong.helpmebackend.user.application.port.out.UserPortOut;
+import seungyong.helpmebackend.user.domain.entity.User;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -40,7 +40,6 @@ public class SectionService implements SectionPortIn {
     private final CipherPortOut cipherPortOut;
     private final RedisPortOut redisPortOut;
 
-    @Transactional
     @Override
     public ResponseSections getSections(Long userId, String owner, String name) {
         User user = userPortOut.getById(userId);
@@ -60,7 +59,6 @@ public class SectionService implements SectionPortIn {
     }
 
     @Override
-
     public ResponseSections.Section createSection(Long userId, String owner, String name, RequestSection request) {
         User user = userPortOut.getById(userId);
         checkAccessRepository(user, owner, name);
@@ -69,7 +67,8 @@ public class SectionService implements SectionPortIn {
         Project project = projectPortOut.getByUserIdAndRepoFullName(userId, fullName)
                 .orElseGet(() -> projectPortOut.save(new Project(null, userId, fullName)));
 
-        Short lastOrderIdx = sectionPortOut.lastOrderIdxByUserIdAndRepoFullName(userId, fullName);
+        Integer lastOrderIdx = sectionPortOut.lastOrderIdxByUserIdAndRepoFullName(userId, fullName)
+                .orElse(0);
 
         String content = request.content() == null || request.content().isBlank() ?
                 "## " + request.title() + "\n\n" : request.content();
@@ -78,7 +77,7 @@ public class SectionService implements SectionPortIn {
                 project.getId(),
                 request.title(),
                 content,
-                (short) (lastOrderIdx + 1)
+                lastOrderIdx + 1
         );
 
         Section savedSection = sectionPortOut.save(section);
@@ -89,7 +88,7 @@ public class SectionService implements SectionPortIn {
     @Override
     public ResponseSections initSections(Long userId, String owner, String name, String branch, String splitMode) {
         User user = userPortOut.getById(userId);
-        String accessToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken());
+        String accessToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken().value());
         checkAccessRepository(user, owner, name);
         String fullName = owner + "/" + name;
 
@@ -121,7 +120,7 @@ public class SectionService implements SectionPortIn {
                     project.getId(),
                     "Untitled Section",
                     "",
-                    (short) 1
+                    1
             ));
             return new ResponseSections(List.of(SectionPortInMapper.INSTANCE.toResponseSection(savedSection)));
         }
@@ -139,11 +138,11 @@ public class SectionService implements SectionPortIn {
     }
 
     @Override
-    public void updateSectionContent(Long userId, String owner, String name, RequestSectionContent request) {
+    public void updateSectionContent(Long userId, String owner, String name, Long sectionId, RequestSectionContent request) {
         User user = userPortOut.getById(userId);
         checkAccessRepository(user, owner, name);
 
-        Section section = sectionPortOut.getByIdAndUserId(request.sectionId(), userId)
+        Section section = sectionPortOut.getByIdAndUserId(sectionId, userId)
                 .orElseThrow(() -> new CustomException(SectionErrorCode.NOT_FOUND_SECTIONS));
 
         section.updateContent(request.content());
@@ -168,7 +167,7 @@ public class SectionService implements SectionPortIn {
                     .findFirst()
                     .orElseThrow(() -> new CustomException(SectionErrorCode.NOT_FOUND_SECTIONS));
 
-            section.updateOrderIdx((short) (i + 1));
+            section.updateOrderIdx(i + 1);
         }
 
         sectionPortOut.saveAll(sections);
@@ -202,7 +201,7 @@ public class SectionService implements SectionPortIn {
 
         RepoPermissionCommand command = new RepoPermissionCommand(
                 new RepoInfoCommand(
-                        cipherPortOut.decrypt(user.getGithubUser().getGithubToken()),
+                        cipherPortOut.decrypt(user.getGithubUser().getGithubToken().value()),
                         owner,
                         name
                 ),

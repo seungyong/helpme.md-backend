@@ -2,10 +2,12 @@ package seungyong.helpmebackend.user.domain.entity;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.ToString;
 import seungyong.helpmebackend.repository.domain.entity.EncryptedToken;
 
 @Getter
 @AllArgsConstructor
+@ToString
 public class User {
     private Long id;
     private GithubUser githubUser;
@@ -17,7 +19,7 @@ public class User {
      * @return 현재 저장된 토큰과 새로운 토큰이 다르면 true, 같으면 false
      */
     public boolean isDiffToken(String newToken) {
-        return !this.githubUser.getGithubToken().equals(newToken);
+        return !this.githubUser.getGithubToken().value().equals(newToken);
     }
 
     /**

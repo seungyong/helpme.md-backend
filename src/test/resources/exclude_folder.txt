@@ -1,0 +1,4 @@
+node_modules, vendor, .git, .svn, .hg, dist, build, out, target, bin, obj, .next, .nuxt, .vscode, .idea, .settings,
+.gradle, .mvn, logs, temp, tmp, pycache, .cache, .pytest_cache, coverage, test-results, venv, .venv, env, .env, htmlcov,
+.tox, .nox, .mypy_cache, .metadata, .recommenders, buildSrc, .jupiter, .parcel-cache, .turbo, .vercel, captures,
+.externalNativeBuild, DerivedData, Pods, cmake-build-debug, vcpkg_installed, .docker, terraform.tfstate.d

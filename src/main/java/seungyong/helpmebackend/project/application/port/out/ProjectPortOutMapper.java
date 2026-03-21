@@ -12,7 +12,7 @@ public interface ProjectPortOutMapper {
 
     @Mapping(target = "user.id", source = "userId")
     @Mapping(target = "repoFullName", source = "repoFullName")
-    ProjectJpaEntity toEntity(Project project);
+    ProjectJpaEntity toJpaEntity(Project project);
 
     @Mapping(target = "id", source = "id")
     @Mapping(target = "userId", source = "user.id")

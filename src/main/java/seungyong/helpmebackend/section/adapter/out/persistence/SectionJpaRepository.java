@@ -8,7 +8,7 @@ import seungyong.helpmebackend.section.adapter.out.persistence.entity.SectionJpa
 import java.util.List;
 import java.util.Optional;
 
-public interface SectionJpaRepository extends JpaRepository<SectionJpaEntity, Long> {
+interface SectionJpaRepository extends JpaRepository<SectionJpaEntity, Long> {
     @Query(
         "SELECT s " +
         "FROM Section s " +
@@ -21,7 +21,7 @@ public interface SectionJpaRepository extends JpaRepository<SectionJpaEntity, Lo
     @Query(
         "SELECT s " +
         "FROM Section s " +
-        "JOIN s.project p " +
+        "JOIN FETCH s.project p " +
         "WHERE p.user.id = :userId AND p.repoFullName = :repoFullName " +
         "ORDER BY s.orderIdx DESC LIMIT 1"
     )
@@ -44,5 +44,5 @@ public interface SectionJpaRepository extends JpaRepository<SectionJpaEntity, Lo
             "AND s.project.repoFullName = :repoFullName " +
             "AND s.orderIdx > :targetIdx"
     )
-    void decreaseOrderIdxAfter(Long userId, String repoFullName, Short targetIdx);
+    void decreaseOrderIdxAfter(Long userId, String repoFullName, Integer targetIdx);
 }

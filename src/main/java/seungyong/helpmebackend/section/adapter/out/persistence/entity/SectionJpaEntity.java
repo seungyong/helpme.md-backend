@@ -1,7 +1,10 @@
 package seungyong.helpmebackend.section.adapter.out.persistence.entity;
 
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.AccessLevel;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
@@ -32,18 +35,18 @@ public class SectionJpaEntity {
     private String content;
 
     @Column(name = "order_idx", nullable = false)
-    private Short orderIdx;
+    private Integer orderIdx;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdTime;
+    private LocalDateTime createdAt;
 
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedTime;
+    private LocalDateTime updatedAt;
 
     @Builder
-    public SectionJpaEntity(Long id, ProjectJpaEntity project, String title, String content, Short orderIdx) {
+    public SectionJpaEntity(Long id, ProjectJpaEntity project, String title, String content, Integer orderIdx) {
         this.id = id;
         this.project = project;
         this.title = title;
