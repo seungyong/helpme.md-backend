@@ -188,20 +188,20 @@ public class SectionAdapterTest {
         Section section1 = fixtureMonkey.giveMeBuilder(Section.class)
                 .setNull("id")
                 .set("projectId", savedProject.getId())
-                .set("orderIdx", (short) 2)
+                .set("orderIdx", 2)
                 .sample();
 
         assert section1 != null;
 
         sectionPortOut.save(section1);
-        sectionPortOut.decreaseOrderIdxAfter(savedUser.getId(), savedProject.getRepoFullName(), (short) 1);
+        sectionPortOut.decreaseOrderIdxAfter(savedUser.getId(), savedProject.getRepoFullName(), 1);
 
         // 벌크 업데이트 후 영속성 컨텍스트 초기화
         entityManager.clear();
 
         List<Section> foundSections = sectionPortOut.getSectionsByUserIdAndRepoFullName(savedUser.getId(), savedProject.getRepoFullName());
         assertThat(foundSections).hasSize(1);
-        assertThat(foundSections.get(0).getOrderIdx()).isEqualTo((short) 1);
+        assertThat(foundSections.get(0).getOrderIdx()).isEqualTo(1);
     }
 
     @Test
@@ -297,7 +297,7 @@ public class SectionAdapterTest {
         assertThat(foundSections).isEmpty();
     }
 
-     @Test
+    @Test
     @DisplayName("유저 ID 및 레포 이름으로 마지막 섹션 순서 조회 - 성공 (섹션이 없는 경우)")
     void lastOrderIdxByUserIdAndRepoFullName_success() {
         User user = fixtureMonkey.giveMeBuilder(User.class)
@@ -314,8 +314,8 @@ public class SectionAdapterTest {
 
         Project savedProject = projectPortOut.save(project);
 
-        Short lastOrderIdx = sectionPortOut.lastOrderIdxByUserIdAndRepoFullName(savedUser.getId(), savedProject.getRepoFullName());
-        assertThat(lastOrderIdx).isEqualTo((short) 0);
+        Optional<Integer> lastOrderIdx = sectionPortOut.lastOrderIdxByUserIdAndRepoFullName(savedUser.getId(), savedProject.getRepoFullName());
+        assertThat(lastOrderIdx).isEmpty();
     }
 
     @Test
@@ -338,13 +338,13 @@ public class SectionAdapterTest {
         Section section1 = fixtureMonkey.giveMeBuilder(Section.class)
                 .setNull("id")
                 .set("projectId", savedProject.getId())
-                .set("orderIdx", (short) 1)
+                .set("orderIdx", 1)
                 .sample();
 
         Section section2 = fixtureMonkey.giveMeBuilder(Section.class)
                 .setNull("id")
                 .set("projectId", savedProject.getId())
-                .set("orderIdx", (short) 2)
+                .set("orderIdx", 2)
                 .sample();
 
         assert section1 != null;
@@ -352,7 +352,8 @@ public class SectionAdapterTest {
 
         sectionPortOut.saveAll(List.of(section1, section2));
 
-        Short lastOrderIdx = sectionPortOut.lastOrderIdxByUserIdAndRepoFullName(savedUser.getId(), savedProject.getRepoFullName());
-        assertThat(lastOrderIdx).isEqualTo((short) 2);
+        Optional<Integer> lastOrderIdx = sectionPortOut.lastOrderIdxByUserIdAndRepoFullName(savedUser.getId(), savedProject.getRepoFullName());
+        assertThat(lastOrderIdx).isNotEmpty()
+                .hasValue(2);
     }
 }

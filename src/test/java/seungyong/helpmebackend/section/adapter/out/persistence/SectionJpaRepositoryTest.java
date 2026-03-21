@@ -61,14 +61,14 @@ public class SectionJpaRepositoryTest {
                 .project(savedProjectEntity)
                 .title("Section 1")
                 .content("Content for section 1")
-                .orderIdx((short) 1)
+                .orderIdx(1)
                 .build();
 
         SectionJpaEntity section2 = SectionJpaEntity.builder()
                 .project(savedProjectEntity)
                 .title("Section 2")
                 .content("Content for section 2")
-                .orderIdx((short) 2)
+                .orderIdx(2)
                 .build();
 
         sectionJpaRepository.saveAll(List.of(section1, section2));
@@ -121,14 +121,14 @@ public class SectionJpaRepositoryTest {
                 .project(savedProjectEntity)
                 .title("Section 1")
                 .content("Content for section 1")
-                .orderIdx((short) 1)
+                .orderIdx(1)
                 .build();
 
         SectionJpaEntity section2 = SectionJpaEntity.builder()
                 .project(savedProjectEntity)
                 .title("Section 2")
                 .content("Content for section 2")
-                .orderIdx((short) 2)
+                .orderIdx(2)
                 .build();
 
         sectionJpaRepository.saveAll(List.of(section1, section2));
@@ -137,7 +137,7 @@ public class SectionJpaRepositoryTest {
                 .orElseThrow(() -> new RuntimeException("마지막 섹션을 찾을 수 없습니다."));
 
         assertThat(lastSection.getTitle()).isEqualTo("Section 2");
-        assertThat(lastSection.getOrderIdx()).isEqualTo((short) 2);
+        assertThat(lastSection.getOrderIdx()).isEqualTo(2);
     }
 
     @Test
@@ -180,7 +180,7 @@ public class SectionJpaRepositoryTest {
                 .project(savedProjectEntity)
                 .title("Section 1")
                 .content("Content for section 1")
-                .orderIdx((short) 1)
+                .orderIdx(1)
                 .build();
 
         SectionJpaEntity savedSection = sectionJpaRepository.save(section);
@@ -230,14 +230,14 @@ public class SectionJpaRepositoryTest {
                 .project(savedProjectEntity)
                 .title("Section 1")
                 .content("Content for section 1")
-                .orderIdx((short) 1)
+                .orderIdx(1)
                 .build();
 
         SectionJpaEntity section2 = SectionJpaEntity.builder()
                 .project(savedProjectEntity)
                 .title("Section 2")
                 .content("Content for section 2")
-                .orderIdx((short) 2)
+                .orderIdx(2)
                 .build();
 
         sectionJpaRepository.saveAll(List.of(section1, section2));
@@ -278,21 +278,21 @@ public class SectionJpaRepositoryTest {
                 .project(savedProjectEntity)
                 .title("Section 1")
                 .content("Content for section 1")
-                .orderIdx((short) 1)
+                .orderIdx(1)
                 .build();
 
         SectionJpaEntity section2 = SectionJpaEntity.builder()
                 .project(savedProjectEntity)
                 .title("Section 2")
                 .content("Content for section 2")
-                .orderIdx((short) 2)
+                .orderIdx(2)
                 .build();
 
         SectionJpaEntity section3 = SectionJpaEntity.builder()
                 .project(savedProjectEntity)
                 .title("Section 3")
                 .content("Content for section 3")
-                .orderIdx((short) 3)
+                .orderIdx(3)
                 .build();
 
         sectionJpaRepository.saveAll(List.of(section1, section2, section3));
@@ -308,6 +308,6 @@ public class SectionJpaRepositoryTest {
         assertThat(sections)
                 .hasSize(2)
                 .extracting(SectionJpaEntity::getOrderIdx)
-                .containsExactly((short) 1, (short) 2); // section3의 orderIdx가 3에서 2로 감소
+                .containsExactly(1, 2); // section3의 orderIdx가 3에서 2로 감소
     }
 }

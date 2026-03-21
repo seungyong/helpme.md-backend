@@ -9,7 +9,7 @@ public interface SectionPortIn {
     ResponseSections getSections(Long userId, String owner, String name);
     ResponseSections.Section createSection(Long userId, String owner, String name, RequestSection request);
     ResponseSections initSections(Long userId, String owner, String name, String branch, String splitMode);
-    void updateSectionContent(Long userId, String owner, String name, RequestSectionContent request);
+    void updateSectionContent(Long userId, String owner, String name, Long sectionId, RequestSectionContent request);
     void reorderSections(Long userId, String owner, String name, RequestReorder request);
     void deleteSection(Long userId, String owner, String name, Long sectionId);
 }

@@ -44,5 +44,5 @@ interface SectionJpaRepository extends JpaRepository<SectionJpaEntity, Long> {
             "AND s.project.repoFullName = :repoFullName " +
             "AND s.orderIdx > :targetIdx"
     )
-    void decreaseOrderIdxAfter(Long userId, String repoFullName, Short targetIdx);
+    void decreaseOrderIdxAfter(Long userId, String repoFullName, Integer targetIdx);
 }

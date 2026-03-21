@@ -272,14 +272,15 @@ class SectionController {
                     errorCodes = { "INTERNAL_SERVER_ERROR" }
             )
     })
-    @PatchMapping("/content")
+    @PatchMapping("/{sectionId}/content")
     public ResponseEntity<Void> updateSectionContent(
             @PathVariable String owner,
             @PathVariable String name,
-            @RequestBody RequestSectionContent request,
+            @PathVariable Long sectionId,
+            @Valid @RequestBody RequestSectionContent request,
             @AuthenticationPrincipal CustomUserDetails details
     ) {
-        sectionPortIn.updateSectionContent(details.getUserId(), owner, name, request);
+        sectionPortIn.updateSectionContent(details.getUserId(), owner, name, sectionId, request);
         return ResponseEntity.noContent().build();
     }
 
@@ -332,7 +333,7 @@ class SectionController {
     public ResponseEntity<Void> reorderSection(
             @PathVariable String owner,
             @PathVariable String name,
-            @RequestBody RequestReorder request,
+            @Valid @RequestBody RequestReorder request,
             @AuthenticationPrincipal CustomUserDetails details
     ) {
         sectionPortIn.reorderSections(details.getUserId(), owner, name, request);
@@ -392,6 +393,5 @@ class SectionController {
     ) {
         sectionPortIn.deleteSection(details.getUserId(), owner, name, sectionId);
         return ResponseEntity.noContent().build();
-
     }
 }

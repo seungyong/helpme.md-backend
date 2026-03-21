@@ -36,6 +36,6 @@ public record ResponseSections(
             @Schema(description = "섹션 내용 (Markdown 형식)", example = "이 섹션은 프로젝트의 개요를 설명합니다.")
             String content,
             @Schema(description = "섹션 순서 (1부터 시작)", example = "1")
-            Short orderIdx
+            Integer orderIdx
     ) { }
 }

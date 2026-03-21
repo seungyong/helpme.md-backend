@@ -2,10 +2,10 @@ package seungyong.helpmebackend.section.adapter.out.persistence;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
-import seungyong.helpmebackend.section.application.port.out.SectionPortOutMapper;
-import seungyong.helpmebackend.section.domain.entity.Section;
 import seungyong.helpmebackend.section.adapter.out.persistence.entity.SectionJpaEntity;
 import seungyong.helpmebackend.section.application.port.out.SectionPortOut;
+import seungyong.helpmebackend.section.application.port.out.SectionPortOutMapper;
+import seungyong.helpmebackend.section.domain.entity.Section;
 
 import java.util.List;
 import java.util.Optional;
@@ -63,7 +63,7 @@ public class SectionAdapter implements SectionPortOut {
      * @param targetIdx     삭제된 섹션의 orderIdx
      */
     @Override
-    public void decreaseOrderIdxAfter(Long userId, String repoFullName, Short targetIdx) {
+    public void decreaseOrderIdxAfter(Long userId, String repoFullName, Integer targetIdx) {
         sectionJpaRepository.decreaseOrderIdxAfter(userId, repoFullName, targetIdx);
     }
 
@@ -82,9 +82,8 @@ public class SectionAdapter implements SectionPortOut {
     }
 
     @Override
-    public Short lastOrderIdxByUserIdAndRepoFullName(Long userId, String repoFullName) {
+    public Optional<Integer> lastOrderIdxByUserIdAndRepoFullName(Long userId, String repoFullName) {
         return sectionJpaRepository.findLastOrderIdxByUserIdAndRepoFullName(userId, repoFullName)
-                .map(SectionJpaEntity::getOrderIdx)
-                .orElse((short) 0);
+                .map(SectionJpaEntity::getOrderIdx);
     }
 }
