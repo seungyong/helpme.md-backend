@@ -46,6 +46,7 @@ class AuthServiceTest {
 
     private final FixtureMonkey fixtureMonkey = FixtureMonkey.builder()
             .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)
+            .defaultNotNull(true)
             .build();
 
     @Nested

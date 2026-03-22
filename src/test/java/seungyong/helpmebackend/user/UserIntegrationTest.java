@@ -29,10 +29,7 @@ import seungyong.helpmebackend.user.domain.entity.JWTUser;
 import seungyong.helpmebackend.user.domain.entity.User;
 import seungyong.helpmebackend.user.domain.exception.UserErrorCode;
 
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
-
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -116,11 +113,6 @@ public class UserIntegrationTest {
             User savedUser = userPortOut.save(user);
 
             JWT jwt = jwtProvider.generate(new JWTUser(savedUser.getId(), savedUser.getGithubUser().getName()));
-
-            String refreshKey = RedisKey.REFRESH_KEY.getValue() + jwt.getRefreshToken();
-            redisAdapter.set(refreshKey, String.valueOf(savedUser.getId()), Instant.now().plus(1, ChronoUnit.SECONDS)); // 1초 후 만료
-
-            Thread.sleep(2000); // 2초 대기하여 토큰 만료
 
             mockMvc
                     .perform(
