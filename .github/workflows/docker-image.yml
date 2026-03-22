@@ -25,10 +25,18 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
+      - name: Create test application.properties
+        env:
+          APPLICATION_SECRET: ${{ secrets.TEST_APPLICATION }}
+        run: |
+          mkdir -p src/test/resources
+          echo "$APPLICATION_SECRET" > src/test/resources/application.properties
+          ls -l src/test/resources/
+
       - name: Build bootJar
         run: ./gradlew clean bootJar
 
-      - name: Test bootJar
+      - name: Test all codes
         run: ./gradlew test
 
   docker-push:
