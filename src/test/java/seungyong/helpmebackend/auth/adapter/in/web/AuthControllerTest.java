@@ -3,6 +3,7 @@ package seungyong.helpmebackend.auth.adapter.in.web;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.navercorp.fixturemonkey.FixtureMonkey;
 import com.navercorp.fixturemonkey.api.introspector.ConstructorPropertiesArbitraryIntrospector;
+import com.navercorp.fixturemonkey.jakarta.validation.plugin.JakartaValidationPlugin;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -54,6 +55,7 @@ class AuthControllerTest {
     private final FixtureMonkey fixtureMonkey = FixtureMonkey.builder()
             .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)
             .defaultNotNull(true)
+            .plugin(new JakartaValidationPlugin())
             .build();
 
     @Nested

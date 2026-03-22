@@ -2,6 +2,7 @@ package seungyong.helpmebackend.user;
 
 import com.navercorp.fixturemonkey.FixtureMonkey;
 import com.navercorp.fixturemonkey.api.introspector.ConstructorPropertiesArbitraryIntrospector;
+import com.navercorp.fixturemonkey.jakarta.validation.plugin.JakartaValidationPlugin;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -46,6 +47,7 @@ public class UserIntegrationTest {
     private final FixtureMonkey fixtureMonkey = FixtureMonkey.builder()
             .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)
             .defaultNotNull(true)
+            .plugin(new JakartaValidationPlugin())
             .build();
 
     @AfterEach

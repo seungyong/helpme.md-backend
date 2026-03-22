@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.navercorp.fixturemonkey.FixtureMonkey;
 import com.navercorp.fixturemonkey.api.introspector.ConstructorPropertiesArbitraryIntrospector;
+import com.navercorp.fixturemonkey.jakarta.validation.plugin.JakartaValidationPlugin;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.*;
 import org.mockito.ArgumentCaptor;
@@ -102,6 +103,7 @@ public class RepositoryIntegrationTest {
     private final FixtureMonkey fixtureMonkey = FixtureMonkey.builder()
             .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)
             .defaultNotNull(true)
+            .plugin(new JakartaValidationPlugin())
             .build();
 
     private final HttpClientErrorException notFoundException = HttpClientErrorException.create(

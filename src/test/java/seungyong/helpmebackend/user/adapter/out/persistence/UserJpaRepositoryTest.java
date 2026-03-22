@@ -7,6 +7,7 @@ import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import seungyong.helpmebackend.repository.domain.entity.EncryptedToken;
 import seungyong.helpmebackend.support.repository.JpaTest;
 import seungyong.helpmebackend.user.adapter.out.persistence.entity.UserJpaEntity;
 
@@ -26,6 +27,7 @@ public class UserJpaRepositoryTest {
                 .build()
                 .giveMeBuilder(UserJpaEntity.class)
                 .set("id", null)
+                .set("githubToken", new EncryptedToken("encrypted-token"))
                 .sample();
 
         assert user != null;

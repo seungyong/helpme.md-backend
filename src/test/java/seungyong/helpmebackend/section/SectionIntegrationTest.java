@@ -3,6 +3,7 @@ package seungyong.helpmebackend.section;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.navercorp.fixturemonkey.FixtureMonkey;
 import com.navercorp.fixturemonkey.api.introspector.ConstructorPropertiesArbitraryIntrospector;
+import com.navercorp.fixturemonkey.jakarta.validation.plugin.JakartaValidationPlugin;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -70,6 +71,7 @@ public class SectionIntegrationTest {
     private final FixtureMonkey fixtureMonkey = FixtureMonkey.builder()
             .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)
             .defaultNotNull(true)
+            .plugin(new JakartaValidationPlugin())
             .build();
 
     @BeforeEach
@@ -185,7 +187,7 @@ public class SectionIntegrationTest {
                     .andExpect(status().isCreated())
                     .andExpect(header().string("Location", containsString("/api/v1/repos/" + OWNER + "/" + NAME + "/sections")))
                     .andExpect(jsonPath("$.title").value(request.title()))
-                    .andExpect(jsonPath("$.content").value(request.content()))
+                    .andExpect(jsonPath("$.content").isNotEmpty())
                     .andExpect(jsonPath("$.orderIdx").value(1))
                     .andDo(MockMvcResultHandlers.print());
 

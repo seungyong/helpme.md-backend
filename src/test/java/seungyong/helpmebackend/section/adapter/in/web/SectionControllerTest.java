@@ -3,6 +3,7 @@ package seungyong.helpmebackend.section.adapter.in.web;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.navercorp.fixturemonkey.FixtureMonkey;
 import com.navercorp.fixturemonkey.api.introspector.ConstructorPropertiesArbitraryIntrospector;
+import com.navercorp.fixturemonkey.jakarta.validation.plugin.JakartaValidationPlugin;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -56,6 +57,7 @@ public class SectionControllerTest {
     private final FixtureMonkey fixtureMonkey = FixtureMonkey.builder()
             .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)
             .defaultNotNull(true)
+            .plugin(new JakartaValidationPlugin())
             .build();
 
     private final CustomUserDetails userDetails = new CustomUserDetails(1L, "test-user");

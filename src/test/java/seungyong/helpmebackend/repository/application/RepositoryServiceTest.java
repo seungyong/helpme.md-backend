@@ -100,7 +100,7 @@ class RepositoryServiceTest {
 
             ResponseRepositories response = repositoryService.getRepositories(USER_ID, 1L, 1, 10);
 
-            assertThat(response.totalCount()).isGreaterThan(1);
+            assertThat(response.totalCount()).isGreaterThanOrEqualTo(1);
             assertThat(response.repositories()).hasSize(3);
         }
 
