@@ -1,0 +1,5 @@
+.DS_Store, Thumbs.db, desktop.ini, package-lock.json, yarn.lock, pnpm-lock.yaml, composer.lock, Cargo.lock,
+Gemfile.lock, poetry.lock, .gitignore, .gitattributes, .gitmodules, .prettierrc, .eslintrc.js, .editorconfig,
+tslint.json, stylelint.config.js, .env, .env.local, .env.production, LICENSE, COPYING, CHANGELOG.md,
+.pem, .crt, .key, .pub, secrets., credentials., .eslintcache, .stylelintcache, npm-debug.log, yarn-error.log, .npmrc,
+.yarnrc, *.bak, *.swp, .history, .DS_Store, Thumbs.db, desktop.ini
