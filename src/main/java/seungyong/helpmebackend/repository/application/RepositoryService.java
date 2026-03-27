@@ -94,8 +94,10 @@ public class RepositoryService implements RepositoryPortIn {
                 name
         );
 
+        String defaultBranchName = repositoryPortOut.getRepository(repoInfo).defaultBranch();
         List<String> branches = repositoryPortOut.getAllBranches(repoInfo);
-        return new ResponseBranches(branches);
+
+        return new ResponseBranches(defaultBranchName, branches);
     }
 
     @Override

@@ -243,11 +243,26 @@ public class RepositoryIntegrationTest {
 
     @Nested
     class GetBranches {
+        String owner = "test-owner";
+        String name = "test-repo";
+        String repositoryInfoJson = """
+                    {
+                        "owner": {
+                            "avatar_url": "avatar",
+                            "login": "owner"
+                        },
+                        "default_branch": "main"
+                    }
+                    """;
+
+        @BeforeEach
+        void setup() {
+            given(githubClient.fetchGetMethodForBody(anyString(), anyString())).willReturn(repositoryInfoJson);
+        }
+
         @Test
         @DisplayName("성공")
         void getBranches_success() throws Exception {
-            String owner = "test-owner";
-            String name = "test-repo";
             String mockResponseBody = "[{\"name\": \"main\"}, {\"name\": \"feature\"}]";
             ResponseEntity<String> mockResponse = ResponseEntity.ok(mockResponseBody);
 
