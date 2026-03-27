@@ -14,7 +14,10 @@ class SSERepository implements SSERepositoryPortOut {
     @Override
     public void saveEmitter(String taskId, SseEmitter emitter) {
         emitter.onCompletion(() -> emitters.remove(taskId));
-        emitter.onTimeout(() -> emitters.remove(taskId));
+        emitter.onTimeout(() -> {
+            emitters.remove(taskId);
+            emitter.complete();
+        });
         emitter.onError((e) -> emitters.remove(taskId));
 
         emitters.put(taskId, emitter);
