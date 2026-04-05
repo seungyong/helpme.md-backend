@@ -182,6 +182,7 @@ class RepoController {
             summary = "레포지토리 브랜치 목록 조회",
             description = """
                     특정 레포지토리의 브랜치 목록을 조회합니다.
+                    - 기본 브랜치 이름과 브랜치 이름 목록을 반환합니다.
                     """,
             responses = {
                     @ApiResponse(

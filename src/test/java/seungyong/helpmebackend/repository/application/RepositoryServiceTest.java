@@ -148,10 +148,18 @@ class RepositoryServiceTest {
         @Test
         @DisplayName("성공")
         void getBranches_success() {
+            RepositoryDetailResult repoDetail = fixtureMonkey.giveMeBuilder(RepositoryDetailResult.class)
+                    .set("defaultBranch", "main")
+                    .sample();
+
+            given(repositoryPortOut.getRepository(any(RepoInfoCommand.class)))
+                    .willReturn(repoDetail);
             given(repositoryPortOut.getAllBranches(any(RepoInfoCommand.class)))
                     .willReturn(List.of("main", "develop", "feature"));
 
             ResponseBranches response = repositoryService.getBranches(USER_ID, OWNER, NAME);
+
+            assertThat(response.defaultBranch()).isEqualTo("main");
 
             assertThat(response.branches()).hasSize(3)
                     .containsExactlyInAnyOrder("main", "develop", "feature");
