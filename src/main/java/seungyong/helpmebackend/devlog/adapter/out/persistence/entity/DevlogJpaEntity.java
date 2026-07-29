@@ -1,6 +1,15 @@
-package seungyong.helpmebackend.section.adapter.out.persistence.entity;
+package seungyong.helpmebackend.devlog.adapter.out.persistence.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -11,13 +20,20 @@ import org.hibernate.annotations.OnDeleteAction;
 import org.hibernate.annotations.UpdateTimestamp;
 import seungyong.helpmebackend.project.adapter.out.persistence.entity.ProjectJpaEntity;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name = "sections")
-@Entity(name = "Section")
-public class SectionJpaEntity {
+@Table(
+        name = "devlogs",
+        uniqueConstraints = @UniqueConstraint(
+                name = "devlogs_project_date_uk",
+                columnNames = {"project_id", "log_date"}
+        )
+)
+@Entity(name = "Devlog")
+public class DevlogJpaEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id")
@@ -28,14 +44,11 @@ public class SectionJpaEntity {
     @JoinColumn(name = "project_id", nullable = false)
     private ProjectJpaEntity project;
 
-    @Column(name = "title", nullable = false, columnDefinition = "TEXT")
-    private String title;
+    @Column(name = "log_date", nullable = false)
+    private LocalDate logDate;
 
-    @Column(name = "content", nullable = false, columnDefinition = "TEXT")
-    private String content;
-
-    @Column(name = "order_idx", nullable = false)
-    private Integer orderIdx;
+    @Column(name = "content_md", nullable = false, columnDefinition = "TEXT")
+    private String contentMarkdown;
 
     @Column(name = "version", nullable = false)
     private Integer version;
@@ -49,21 +62,19 @@ public class SectionJpaEntity {
     private OffsetDateTime updatedAt;
 
     @Builder
-    public SectionJpaEntity(
+    public DevlogJpaEntity(
             Long id,
             ProjectJpaEntity project,
-            String title,
-            String content,
-            Integer orderIdx,
+            LocalDate logDate,
+            String contentMarkdown,
             Integer version,
             OffsetDateTime createdAt,
             OffsetDateTime updatedAt
     ) {
         this.id = id;
         this.project = project;
-        this.title = title;
-        this.content = content;
-        this.orderIdx = orderIdx;
+        this.logDate = logDate;
+        this.contentMarkdown = contentMarkdown == null ? "" : contentMarkdown;
         this.version = version == null ? 0 : version;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
