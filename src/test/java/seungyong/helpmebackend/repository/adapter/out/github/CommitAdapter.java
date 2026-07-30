@@ -1,7 +1,5 @@
 package seungyong.helpmebackend.repository.adapter.out.github;
 
-import com.navercorp.fixturemonkey.FixtureMonkey;
-import com.navercorp.fixturemonkey.api.introspector.ConstructorPropertiesArbitraryIntrospector;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -23,17 +21,14 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
+import static seungyong.helpmebackend.support.fixture.TestFixtures.contributor;
+import static seungyong.helpmebackend.support.fixture.TestFixtures.repoBranchCommand;
 
 @ExtendWith(MockitoExtension.class)
 class CommitAdapterTest {
     @Mock private GithubApiExecutor githubApiExecutor;
 
     @InjectMocks private CommitAdapter commitAdapter;
-
-    private final FixtureMonkey fixtureMonkey = FixtureMonkey.builder()
-            .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)
-            .defaultNotNull(true)
-            .build();
 
     private String createCommitJson(int count, String prefix) {
         List<String> commits = new ArrayList<>();
@@ -70,8 +65,8 @@ class CommitAdapterTest {
         @Test
         @DisplayName("성공 - 페이지가 1개인 경우")
         void getCommits_success_page_1() {
-            RepoBranchCommand command = fixtureMonkey.giveMeOne(RepoBranchCommand.class);
-            ContributorsResult.Contributor contributor = fixtureMonkey.giveMeOne(ContributorsResult.Contributor.class);
+            RepoBranchCommand command = repoBranchCommand();
+            ContributorsResult.Contributor contributor = contributor();
 
             mockApi(1, 40, "p1", createLinkHeader(null));
 
@@ -85,8 +80,8 @@ class CommitAdapterTest {
         @Test
         @DisplayName("성공 - 페이지가 2개인 경우 (middle이 1이므로 빈 리스트 반환)")
         void getCommits_success_page_2() {
-            RepoBranchCommand command = fixtureMonkey.giveMeOne(RepoBranchCommand.class);
-            ContributorsResult.Contributor contributor = fixtureMonkey.giveMeOne(ContributorsResult.Contributor.class);
+            RepoBranchCommand command = repoBranchCommand();
+            ContributorsResult.Contributor contributor = contributor();
 
             mockApi(1, 40, "p1", createLinkHeader(2));
             mockApi(2, 20, "p2", null);
@@ -101,8 +96,8 @@ class CommitAdapterTest {
         @Test
         @DisplayName("성공 - 페이지가 3개인 경우")
         void getCommits_success_page_3() {
-            RepoBranchCommand command = fixtureMonkey.giveMeOne(RepoBranchCommand.class);
-            ContributorsResult.Contributor contributor = fixtureMonkey.giveMeOne(ContributorsResult.Contributor.class);
+            RepoBranchCommand command = repoBranchCommand();
+            ContributorsResult.Contributor contributor = contributor();
 
             mockApi(1, 40, "p1", createLinkHeader(3));
             mockApi(2, 40, "p2", null);
@@ -120,8 +115,8 @@ class CommitAdapterTest {
         @Test
         @DisplayName("성공 - 페이지가 4개이고 마지막 페이지가 40개인 경우")
         void getCommits_success_page_4_last_full() {
-            RepoBranchCommand command = fixtureMonkey.giveMeOne(RepoBranchCommand.class);
-            ContributorsResult.Contributor contributor = fixtureMonkey.giveMeOne(ContributorsResult.Contributor.class);
+            RepoBranchCommand command = repoBranchCommand();
+            ContributorsResult.Contributor contributor = contributor();
 
             mockApi(1, 40, "p1", createLinkHeader(4));
             mockApi(2, 40, "p2", null);
@@ -138,8 +133,8 @@ class CommitAdapterTest {
         @Test
         @DisplayName("성공 - 페이지가 4개이고 마지막 페이지가 40개 미만인 경우 (이전 페이지 호출하여 개수 채움)")
         void getCommits_success_page_4_last_under_40() {
-            RepoBranchCommand command = fixtureMonkey.giveMeOne(RepoBranchCommand.class);
-            ContributorsResult.Contributor contributor = fixtureMonkey.giveMeOne(ContributorsResult.Contributor.class);
+            RepoBranchCommand command = repoBranchCommand();
+            ContributorsResult.Contributor contributor = contributor();
 
             mockApi(1, 40, "p1", createLinkHeader(4));
             mockApi(2, 40, "p2", null);
@@ -159,8 +154,8 @@ class CommitAdapterTest {
         @Test
         @DisplayName("성공 - 페이지가 5개이고 마지막 페이지가 40개 미만인 경우 (이전 페이지 호출하여 개수 채움)")
         void getCommits_success_page_5_last_under_40() {
-            RepoBranchCommand command = fixtureMonkey.giveMeOne(RepoBranchCommand.class);
-            ContributorsResult.Contributor contributor = fixtureMonkey.giveMeOne(ContributorsResult.Contributor.class);
+            RepoBranchCommand command = repoBranchCommand();
+            ContributorsResult.Contributor contributor = contributor();
 
             mockApi(1, 40, "p1", createLinkHeader(5));
             mockApi(3, 40, "p3", null);

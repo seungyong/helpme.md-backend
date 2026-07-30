@@ -1,9 +1,6 @@
 package seungyong.helpmebackend.section.adapter.in.web;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.navercorp.fixturemonkey.FixtureMonkey;
-import com.navercorp.fixturemonkey.api.introspector.ConstructorPropertiesArbitraryIntrospector;
-import com.navercorp.fixturemonkey.jakarta.validation.plugin.JakartaValidationPlugin;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -35,6 +32,7 @@ import static org.mockito.Mockito.doNothing;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static seungyong.helpmebackend.support.fixture.TestFixtures.responseSections;
 
 @WebMvcTest(
         value = SectionController.class,
@@ -54,12 +52,6 @@ public class SectionControllerTest {
     @MockitoBean private JWTProvider jwtProvider;
     @MockitoBean private CookieUtil cookieUtil;
 
-    private final FixtureMonkey fixtureMonkey = FixtureMonkey.builder()
-            .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)
-            .defaultNotNull(true)
-            .plugin(new JakartaValidationPlugin())
-            .build();
-
     private final CustomUserDetails userDetails = new CustomUserDetails(1L, "test-user");
 
     @Nested
@@ -68,12 +60,10 @@ public class SectionControllerTest {
         @Test
         @DisplayName("성공 - 섹션 목록을 정상적으로 불러올 때")
         void getSections_success() throws Exception {
-            ResponseSections response = fixtureMonkey.giveMeBuilder(ResponseSections.class)
-                    .set("sections", List.of(
-                            new ResponseSections.Section(1L, "Section 1", "Content 1", 1),
-                            new ResponseSections.Section(2L, "Section 2", "Content 2", 2)
-                    ))
-                    .sample();
+            ResponseSections response = new ResponseSections(List.of(
+                    new ResponseSections.Section(1L, "Section 1", "Content 1", 1),
+                    new ResponseSections.Section(2L, "Section 2", "Content 2", 2)
+            ));
             given(sectionPortIn.getSections(anyLong(), anyString(), anyString())).willReturn(response);
 
             mockMvc.perform(get("/api/v1/repos/{owner}/{name}/sections", "owner", "repo")
@@ -141,7 +131,7 @@ public class SectionControllerTest {
         @Test
         @DisplayName("성공")
         void initSections_success() throws Exception {
-            ResponseSections response = fixtureMonkey.giveMeOne(ResponseSections.class);
+            ResponseSections response = responseSections();
             given(sectionPortIn.initSections(anyLong(), anyString(), anyString(), anyString(), anyString()))
                     .willReturn(response);
 

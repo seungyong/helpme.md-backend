@@ -1,9 +1,6 @@
 package seungyong.helpmebackend.auth;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.navercorp.fixturemonkey.FixtureMonkey;
-import com.navercorp.fixturemonkey.api.introspector.ConstructorPropertiesArbitraryIntrospector;
-import com.navercorp.fixturemonkey.jakarta.validation.plugin.JakartaValidationPlugin;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -53,6 +50,9 @@ import static org.mockito.Mockito.mock;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static seungyong.helpmebackend.support.fixture.TestFixtures.installations;
+import static seungyong.helpmebackend.support.fixture.TestFixtures.oauthGithubUser;
+import static seungyong.helpmebackend.support.fixture.TestFixtures.oauthTokenResult;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -69,12 +69,6 @@ class AuthIntegrationTest {
     @Autowired private CipherPortOut cipherPortOut;
     @Autowired private UserPortOut userPortOut;
     @Autowired private JWTPortOut jwtPortOut;
-
-    private final FixtureMonkey fixtureMonkey = FixtureMonkey.builder()
-            .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)
-            .defaultNotNull(true)
-            .plugin(new JakartaValidationPlugin())
-            .build();
 
     @AfterEach
     void cleanup() {
@@ -137,8 +131,8 @@ class AuthIntegrationTest {
             String stateKey = RedisKey.OAUTH2_STATE_KEY.getValue() + state;
             redisPortOut.set(stateKey, "valid", Instant.now().plus(10, ChronoUnit.MINUTES));
 
-            OAuthTokenResult tokenResult = fixtureMonkey.giveMeOne(OAuthTokenResult.class);
-            OAuthGithubUser githubUser = fixtureMonkey.giveMeOne(OAuthGithubUser.class);
+            OAuthTokenResult tokenResult = oauthTokenResult();
+            OAuthGithubUser githubUser = oauthGithubUser();
 
             doReturn(tokenResult).when(oAuth2PortOut).getAccessToken(code);
             doReturn(githubUser).when(oAuth2PortOut).getGithubUser(tokenResult.accessToken());
@@ -243,7 +237,7 @@ class AuthIntegrationTest {
             CustomUserDetails mockUserDetails = mock(CustomUserDetails.class);
             given(mockUserDetails.getUserId()).willReturn(savedUser.getId());
 
-            List<Installation> expectedInstallations = fixtureMonkey.giveMeBuilder(Installation.class).sampleList(2);
+            List<Installation> expectedInstallations = installations();
             doReturn(expectedInstallations).when(oAuth2PortOut).getInstallations(rawAccessToken);
 
             mockMvc.perform(get("/api/v1/oauth2/installations")

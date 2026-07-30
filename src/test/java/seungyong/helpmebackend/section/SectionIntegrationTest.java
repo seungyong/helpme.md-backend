@@ -1,9 +1,6 @@
 package seungyong.helpmebackend.section;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.navercorp.fixturemonkey.FixtureMonkey;
-import com.navercorp.fixturemonkey.api.introspector.ConstructorPropertiesArbitraryIntrospector;
-import com.navercorp.fixturemonkey.jakarta.validation.plugin.JakartaValidationPlugin;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -67,12 +64,6 @@ public class SectionIntegrationTest {
     private final String NAME = "test-project";
     private User user;
     private JWT jwt;
-
-    private final FixtureMonkey fixtureMonkey = FixtureMonkey.builder()
-            .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)
-            .defaultNotNull(true)
-            .plugin(new JakartaValidationPlugin())
-            .build();
 
     @BeforeEach
     void setup() {
@@ -175,9 +166,7 @@ public class SectionIntegrationTest {
             createProject();
             clearInvocations(projectPortOut);
 
-            RequestSection request = fixtureMonkey.giveMeBuilder(RequestSection.class)
-                    .set("content", "section content")
-                    .sample();
+            RequestSection request = new RequestSection("section title", "section content");
 
             mockMvc.perform(post("/api/v1/repos/{owner}/{name}/sections", OWNER, NAME)
                             .cookie(
@@ -200,9 +189,7 @@ public class SectionIntegrationTest {
         @DisplayName("성공 - 프로젝트 없는 경우")
         void success_noProject() throws Exception {
             clearInvocations(projectPortOut);
-            RequestSection request = fixtureMonkey.giveMeBuilder(RequestSection.class)
-                    .set("content", "section content")
-                    .sample();
+            RequestSection request = new RequestSection("section title", "section content");
 
             mockMvc.perform(post("/api/v1/repos/{owner}/{name}/sections", OWNER, NAME)
                             .cookie(
@@ -311,7 +298,7 @@ public class SectionIntegrationTest {
         @DisplayName("성공 - 프로젝트가 없는 경우")
         void success_noProject() throws Exception {
             clearInvocations(projectPortOut);
-            RequestSection request = fixtureMonkey.giveMeOne(RequestSection.class);
+            RequestSection request = new RequestSection("section title", "section content");
 
             mockMvc.perform(put("/api/v1/repos/{owner}/{name}/sections/init?branch=main&splitMode=split", OWNER, NAME)
                             .cookie(

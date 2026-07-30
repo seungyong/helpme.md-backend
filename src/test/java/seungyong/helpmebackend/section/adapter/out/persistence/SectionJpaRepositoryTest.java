@@ -1,7 +1,5 @@
 package seungyong.helpmebackend.section.adapter.out.persistence;
 
-import com.navercorp.fixturemonkey.FixtureMonkey;
-import com.navercorp.fixturemonkey.api.introspector.ConstructorPropertiesArbitraryIntrospector;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import lombok.extern.slf4j.Slf4j;
@@ -16,12 +14,13 @@ import seungyong.helpmebackend.section.adapter.out.persistence.entity.SectionJpa
 import seungyong.helpmebackend.support.repository.JpaTest;
 import seungyong.helpmebackend.user.application.port.out.UserPortOut;
 import seungyong.helpmebackend.user.domain.entity.User;
-import seungyong.helpmebackend.user.domain.entity.UserPlan;
 
 import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
+import static seungyong.helpmebackend.support.fixture.TestFixtures.project;
+import static seungyong.helpmebackend.support.fixture.TestFixtures.user;
 
 @Slf4j
 @JpaTest
@@ -35,26 +34,11 @@ public class SectionJpaRepositoryTest {
     @Test
     @DisplayName("특정 프로젝트의 모든 섹션 조회 - 성공")
     void findAllByUserIdAndRepoFullName_Success() {
-        User user = FixtureMonkey.builder()
-                .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)
-                .defaultNotNull(true)
-                .build()
-                .giveMeBuilder(User.class)
-                .set("plan", UserPlan.free())
-                .setNull("id")
-                .set("githubUser.githubToken.value", "test-token")
-                .sample();
+        User user = user(null, "test-token");
 
         User savedUser = userPortOut.save(user);
 
-        Project project = FixtureMonkey.builder()
-                .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)
-                .defaultNotNull(true)
-                .build()
-                .giveMeBuilder(Project.class)
-                .setNull("id")
-                .set("userId", savedUser.getId())
-                .sample();
+        Project project = project(savedUser.getId());
 
         Project savedProject = projectPortOut.save(project);
         ProjectJpaEntity savedProjectEntity = ProjectPortOutMapper.INSTANCE.toJpaEntity(savedProject);
@@ -96,26 +80,11 @@ public class SectionJpaRepositoryTest {
     @Test
     @DisplayName("특정 프로젝트의 마지막 섹션 조회 - 성공")
     void findLastOrderIdxByUserIdAndRepoFullName_Success() {
-        User user = FixtureMonkey.builder()
-                .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)
-                .defaultNotNull(true)
-                .build()
-                .giveMeBuilder(User.class)
-                .set("plan", UserPlan.free())
-                .setNull("id")
-                .set("githubUser.githubToken.value", "test-token")
-                .sample();
+        User user = user(null, "test-token");
 
         User savedUser = userPortOut.save(user);
 
-        Project project = FixtureMonkey.builder()
-                .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)
-                .defaultNotNull(true)
-                .build()
-                .giveMeBuilder(Project.class)
-                .setNull("id")
-                .set("userId", savedUser.getId())
-                .sample();
+        Project project = project(savedUser.getId());
 
         Project savedProject = projectPortOut.save(project);
         ProjectJpaEntity savedProjectEntity = ProjectPortOutMapper.INSTANCE.toJpaEntity(savedProject);
@@ -156,26 +125,11 @@ public class SectionJpaRepositoryTest {
     @Test
     @DisplayName("특정 프로젝트의 섹션 조회 - 성공")
     void findByIdAndProject_User_Id_Success() {
-        User user = FixtureMonkey.builder()
-                .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)
-                .defaultNotNull(true)
-                .build()
-                .giveMeBuilder(User.class)
-                .set("plan", UserPlan.free())
-                .setNull("id")
-                .set("githubUser.githubToken.value", "test-token")
-                .sample();
+        User user = user(null, "test-token");
 
         User savedUser = userPortOut.save(user);
 
-        Project project = FixtureMonkey.builder()
-                .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)
-                .defaultNotNull(true)
-                .build()
-                .giveMeBuilder(Project.class)
-                .setNull("id")
-                .set("userId", savedUser.getId())
-                .sample();
+        Project project = project(savedUser.getId());
 
         Project savedProject = projectPortOut.save(project);
         ProjectJpaEntity savedProjectEntity = ProjectPortOutMapper.INSTANCE.toJpaEntity(savedProject);
@@ -207,26 +161,11 @@ public class SectionJpaRepositoryTest {
     @Test
     @DisplayName("모든 섹션 삭제 - 성공")
     void deleteAllByUserIdAndRepoFullName_Success() {
-        User user = FixtureMonkey.builder()
-                .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)
-                .defaultNotNull(true)
-                .build()
-                .giveMeBuilder(User.class)
-                .set("plan", UserPlan.free())
-                .setNull("id")
-                .set("githubUser.githubToken.value", "test-token")
-                .sample();
+        User user = user(null, "test-token");
 
         User savedUser = userPortOut.save(user);
 
-        Project project = FixtureMonkey.builder()
-                .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)
-                .defaultNotNull(true)
-                .build()
-                .giveMeBuilder(Project.class)
-                .setNull("id")
-                .set("userId", savedUser.getId())
-                .sample();
+        Project project = project(savedUser.getId());
 
         Project savedProject = projectPortOut.save(project);
         ProjectJpaEntity savedProjectEntity = ProjectPortOutMapper.INSTANCE.toJpaEntity(savedProject);
@@ -256,26 +195,11 @@ public class SectionJpaRepositoryTest {
     @Test
     @DisplayName("섹션 순서 감소 - 성공")
     void decreaseOrderIdxAfter_Success() {
-        User user = FixtureMonkey.builder()
-                .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)
-                .defaultNotNull(true)
-                .build()
-                .giveMeBuilder(User.class)
-                .set("plan", UserPlan.free())
-                .setNull("id")
-                .set("githubUser.githubToken.value", "test-token")
-                .sample();
+        User user = user(null, "test-token");
 
         User savedUser = userPortOut.save(user);
 
-        Project project = FixtureMonkey.builder()
-                .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)
-                .defaultNotNull(true)
-                .build()
-                .giveMeBuilder(Project.class)
-                .setNull("id")
-                .set("userId", savedUser.getId())
-                .sample();
+        Project project = project(savedUser.getId());
 
         Project savedProject = projectPortOut.save(project);
         ProjectJpaEntity savedProjectEntity = ProjectPortOutMapper.INSTANCE.toJpaEntity(savedProject);

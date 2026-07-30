@@ -1,8 +1,5 @@
 package seungyong.helpmebackend.project.adapter.out.persistence;
 
-import com.navercorp.fixturemonkey.FixtureMonkey;
-import com.navercorp.fixturemonkey.api.introspector.BuilderArbitraryIntrospector;
-import com.navercorp.fixturemonkey.api.introspector.ConstructorPropertiesArbitraryIntrospector;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -13,11 +10,12 @@ import seungyong.helpmebackend.user.adapter.out.persistence.entity.UserJpaEntity
 import seungyong.helpmebackend.user.adapter.out.persistence.mapper.UserPersistenceMapper;
 import seungyong.helpmebackend.user.application.port.out.UserPortOut;
 import seungyong.helpmebackend.user.domain.entity.User;
-import seungyong.helpmebackend.user.domain.entity.UserPlan;
 
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
+import static seungyong.helpmebackend.support.fixture.TestFixtures.projectJpaEntity;
+import static seungyong.helpmebackend.support.fixture.TestFixtures.user;
 
 @Slf4j
 @JpaTest
@@ -28,29 +26,12 @@ public class ProjectJpaRepositoryTest {
     @Test
     @DisplayName("유저 ID와 레포지토리 이름으로 조회 - 성공")
     void findByUserIdAndRepoFullName_success() {
-        User user = FixtureMonkey.builder()
-                .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)
-                .defaultNotNull(true)
-                .build()
-                .giveMeBuilder(User.class)
-                .set("plan", UserPlan.free())
-                .setNull("id")
-                .sample();
+        User user = user();
 
         User savedUser = userPortOut.save(user);
         UserJpaEntity userJpaEntity = UserPersistenceMapper.INSTANCE.toJpaEntity(savedUser);
 
-        ProjectJpaEntity project = FixtureMonkey.builder()
-                .objectIntrospector(BuilderArbitraryIntrospector.INSTANCE)
-                .defaultNotNull(true)
-                .build()
-                .giveMeBuilder(ProjectJpaEntity.class)
-                .setNull("id")
-                .set("user", userJpaEntity)
-                .sample();
-
-        assert user != null;
-        assert project != null;
+        ProjectJpaEntity project = projectJpaEntity(userJpaEntity);
 
         projectJpaRepository.save(project);
 

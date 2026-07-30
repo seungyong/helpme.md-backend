@@ -1,9 +1,6 @@
 package seungyong.helpmebackend.auth.adapter.in.web;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.navercorp.fixturemonkey.FixtureMonkey;
-import com.navercorp.fixturemonkey.api.introspector.ConstructorPropertiesArbitraryIntrospector;
-import com.navercorp.fixturemonkey.jakarta.validation.plugin.JakartaValidationPlugin;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -35,6 +32,8 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static seungyong.helpmebackend.support.fixture.TestFixtures.jwt;
+import static seungyong.helpmebackend.support.fixture.TestFixtures.responseInstallations;
 
 @WebMvcTest(
         value = AuthController.class,
@@ -51,12 +50,6 @@ class AuthControllerTest {
 
     @MockitoBean private AuthPortIn authPortIn;
     @MockitoBean private CookieUtil cookieUtil;
-
-    private final FixtureMonkey fixtureMonkey = FixtureMonkey.builder()
-            .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)
-            .defaultNotNull(true)
-            .plugin(new JakartaValidationPlugin())
-            .build();
 
     @Nested
     @DisplayName("login - OAuth2 로그인 URL 생성 및 리다이렉트")
@@ -103,7 +96,7 @@ class AuthControllerTest {
         void githubAppCallback_success_loginOrSignup() throws Exception {
             String code = "test-code";
             String state = "test-state";
-            JWT jwt = fixtureMonkey.giveMeOne(JWT.class);
+            JWT jwt = jwt();
 
             given(authPortIn.signupOrLogin(code, state)).willReturn(jwt);
 
@@ -162,7 +155,7 @@ class AuthControllerTest {
             CustomUserDetails mockUserDetails = mock(CustomUserDetails.class);
             given(mockUserDetails.getUserId()).willReturn(1L);
 
-            ResponseInstallations expectedResponse = fixtureMonkey.giveMeOne(ResponseInstallations.class);
+            ResponseInstallations expectedResponse = responseInstallations();
             given(authPortIn.getInstallations(1L)).willReturn(expectedResponse);
 
             mockMvc.perform(get("/api/v1/oauth2/installations")

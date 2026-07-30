@@ -1,7 +1,5 @@
 package seungyong.helpmebackend.repository.adapter.out.gpt;
 
-import com.navercorp.fixturemonkey.FixtureMonkey;
-import com.navercorp.fixturemonkey.api.introspector.ConstructorPropertiesArbitraryIntrospector;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -23,17 +21,15 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
+import static seungyong.helpmebackend.support.fixture.TestFixtures.evaluationCommand;
+import static seungyong.helpmebackend.support.fixture.TestFixtures.generateReadmeCommand;
+import static seungyong.helpmebackend.support.fixture.TestFixtures.repositoryInfoCommand;
 
 @ExtendWith(MockitoExtension.class)
 class GPTClientTest {
     @Mock private ChatModel chatModel;
 
     @InjectMocks private GPTClient gptClient;
-
-    private final FixtureMonkey fixtureMonkey = FixtureMonkey.builder()
-            .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)
-            .defaultNotNull(true)
-            .build();
 
     private void mockChatResponse(String jsonResponse) {
         ChatResponse response = mock(ChatResponse.class, RETURNS_DEEP_STUBS);
@@ -53,7 +49,7 @@ class GPTClientTest {
         @DisplayName("성공")
         void getRepositoryInfo_success() {
             String fullName = "owner/repo";
-            RepositoryInfoCommand command = fixtureMonkey.giveMeOne(RepositoryInfoCommand.class);
+            RepositoryInfoCommand command = repositoryInfoCommand();
 
             String jsonResponse = "{\"techStack\": [\"Java\", \"Spring\"], \"projectSize\": \"medium\", \"entryPoints\": [\"src/main/Main.java\"], \"importantFiles\": [\"pom.xml\"]}";
             mockChatResponse(jsonResponse);
@@ -73,7 +69,7 @@ class GPTClientTest {
         @Test
         @DisplayName("성공")
         void evaluateReadme_success() {
-            EvaluationCommand command = fixtureMonkey.giveMeOne(EvaluationCommand.class);
+            EvaluationCommand command = evaluationCommand();
 
             String jsonResponse = "{\"rating\": 85, \"contents\": [\"장점: 설명이 명확합니다.\", \"개선: 예제 코드가 추가되면 좋겠습니다.\"]}";
             mockChatResponse(jsonResponse);
@@ -91,7 +87,7 @@ class GPTClientTest {
         @Test
         @DisplayName("성공")
         void generateDraftReadme_success() {
-            GenerateReadmeCommand command = fixtureMonkey.giveMeOne(GenerateReadmeCommand.class);
+            GenerateReadmeCommand command = generateReadmeCommand();
 
             String jsonResponse = "{\"content\": \"# Generated README\\nThis is a test.\"}";
             mockChatResponse(jsonResponse);

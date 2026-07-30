@@ -1,7 +1,5 @@
 package seungyong.helpmebackend.section.adapter.out.persistence;
 
-import com.navercorp.fixturemonkey.FixtureMonkey;
-import com.navercorp.fixturemonkey.api.introspector.ConstructorPropertiesArbitraryIntrospector;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import lombok.extern.slf4j.Slf4j;
@@ -15,12 +13,14 @@ import seungyong.helpmebackend.section.domain.entity.Section;
 import seungyong.helpmebackend.support.repository.JpaTest;
 import seungyong.helpmebackend.user.application.port.out.UserPortOut;
 import seungyong.helpmebackend.user.domain.entity.User;
-import seungyong.helpmebackend.user.domain.entity.UserPlan;
 
 import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
+import static seungyong.helpmebackend.support.fixture.TestFixtures.project;
+import static seungyong.helpmebackend.support.fixture.TestFixtures.section;
+import static seungyong.helpmebackend.support.fixture.TestFixtures.user;
 
 @Slf4j
 @JpaTest
@@ -31,33 +31,12 @@ public class SectionAdapterTest {
     @Autowired private UserPortOut userPortOut;
     @Autowired private EntityManager entityManager;
 
-    private final FixtureMonkey fixtureMonkey = FixtureMonkey.builder()
-            .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)
-            .defaultNotNull(true)
-            .build();
-
     @Test
     @DisplayName("섹션 저장 - 성공")
     void save_section_success() {
-        User user = fixtureMonkey.giveMeBuilder(User.class)
-                .set("plan", UserPlan.free())
-                .setNull("id")
-                .set("githubUser.githubToken.value", "test-token")
-                .sample();
-
-        User savedUser = userPortOut.save(user);
-
-        Project project = fixtureMonkey.giveMeBuilder(Project.class)
-                .setNull("id")
-                .set("userId", savedUser.getId())
-                .sample();
-
-        Project savedProject = projectPortOut.save(project);
-
-        Section section = fixtureMonkey.giveMeBuilder(Section.class)
-                .setNull("id")
-                .set("projectId", savedProject.getId())
-                .sample();
+        User savedUser = saveUser();
+        Project savedProject = saveProject(savedUser.getId());
+        Section section = section(savedProject.getId());
 
         Section savedSection = sectionPortOut.save(section);
 
@@ -67,33 +46,10 @@ public class SectionAdapterTest {
     @Test
     @DisplayName("여러 섹션 저장 - 성공")
     void saveAll_sections_success() {
-        User user = fixtureMonkey.giveMeBuilder(User.class)
-                .set("plan", UserPlan.free())
-                .setNull("id")
-                .set("githubUser.githubToken.value", "test-token")
-                .sample();
-
-        User savedUser = userPortOut.save(user);
-
-        Project project = fixtureMonkey.giveMeBuilder(Project.class)
-                .setNull("id")
-                .set("userId", savedUser.getId())
-                .sample();
-
-        Project savedProject = projectPortOut.save(project);
-
-        Section section1 = fixtureMonkey.giveMeBuilder(Section.class)
-                .setNull("id")
-                .set("projectId", savedProject.getId())
-                .sample();
-
-        Section section2 = fixtureMonkey.giveMeBuilder(Section.class)
-                .setNull("id")
-                .set("projectId", savedProject.getId())
-                .sample();
-
-        assert section1 != null;
-        assert section2 != null;
+        User savedUser = saveUser();
+        Project savedProject = saveProject(savedUser.getId());
+        Section section1 = section(null, savedProject.getId(), 1);
+        Section section2 = section(null, savedProject.getId(), 2);
 
         var savedSections = sectionPortOut.saveAll(List.of(section1, section2));
 
@@ -105,25 +61,9 @@ public class SectionAdapterTest {
     @Test
     @DisplayName("섹션 삭제 - 성공")
     void delete_section_success() {
-        User user = fixtureMonkey.giveMeBuilder(User.class)
-                .set("plan", UserPlan.free())
-                .setNull("id")
-                .set("githubUser.githubToken.value", "test-token")
-                .sample();
-
-        User savedUser = userPortOut.save(user);
-
-        Project project = fixtureMonkey.giveMeBuilder(Project.class)
-                .setNull("id")
-                .set("userId", savedUser.getId())
-                .sample();
-
-        Project savedProject = projectPortOut.save(project);
-
-        Section section = fixtureMonkey.giveMeBuilder(Section.class)
-                .setNull("id")
-                .set("projectId", savedProject.getId())
-                .sample();
+        User savedUser = saveUser();
+        Project savedProject = saveProject(savedUser.getId());
+        Section section = section(savedProject.getId());
 
         Section savedSection = sectionPortOut.save(section);
         assertThat(savedSection.getId()).isNotNull();
@@ -137,33 +77,10 @@ public class SectionAdapterTest {
     @Test
     @DisplayName("모든 섹션 삭제 - 성공")
     void deleteAllByUserIdAndRepoFullName_success() {
-        User user = fixtureMonkey.giveMeBuilder(User.class)
-                .set("plan", UserPlan.free())
-                .setNull("id")
-                .set("githubUser.githubToken.value", "test-token")
-                .sample();
-
-        User savedUser = userPortOut.save(user);
-
-        Project project = fixtureMonkey.giveMeBuilder(Project.class)
-                .setNull("id")
-                .set("userId", savedUser.getId())
-                .sample();
-
-        Project savedProject = projectPortOut.save(project);
-
-        Section section1 = fixtureMonkey.giveMeBuilder(Section.class)
-                .setNull("id")
-                .set("projectId", savedProject.getId())
-                .sample();
-
-        Section section2 = fixtureMonkey.giveMeBuilder(Section.class)
-                .setNull("id")
-                .set("projectId", savedProject.getId())
-                .sample();
-
-        assert section1 != null;
-        assert section2 != null;
+        User savedUser = saveUser();
+        Project savedProject = saveProject(savedUser.getId());
+        Section section1 = section(null, savedProject.getId(), 1);
+        Section section2 = section(null, savedProject.getId(), 2);
 
         sectionPortOut.saveAll(List.of(section1, section2));
 
@@ -176,28 +93,9 @@ public class SectionAdapterTest {
     @Test
     @DisplayName("섹션 순서 감소 - 성공")
     void decreaseOrderIdxAfter_success() {
-        User user = fixtureMonkey.giveMeBuilder(User.class)
-                .set("plan", UserPlan.free())
-                .setNull("id")
-                .set("githubUser.githubToken.value", "test-token")
-                .sample();
-
-        User savedUser = userPortOut.save(user);
-
-        Project project = fixtureMonkey.giveMeBuilder(Project.class)
-                .setNull("id")
-                .set("userId", savedUser.getId())
-                .sample();
-
-        Project savedProject = projectPortOut.save(project);
-
-        Section section1 = fixtureMonkey.giveMeBuilder(Section.class)
-                .setNull("id")
-                .set("projectId", savedProject.getId())
-                .set("orderIdx", 2)
-                .sample();
-
-        assert section1 != null;
+        User savedUser = saveUser();
+        Project savedProject = saveProject(savedUser.getId());
+        Section section1 = section(null, savedProject.getId(), 2);
 
         sectionPortOut.save(section1);
         sectionPortOut.decreaseOrderIdxAfter(savedUser.getId(), savedProject.getRepoFullName(), 1);
@@ -213,25 +111,9 @@ public class SectionAdapterTest {
     @Test
     @DisplayName("섹션 ID 및 유저 ID로 섹션 조회 - 성공")
     void getByIdAndUserId_success() {
-        User user = fixtureMonkey.giveMeBuilder(User.class)
-                .set("plan", UserPlan.free())
-                .setNull("id")
-                .set("githubUser.githubToken.value", "test-token")
-                .sample();
-
-        User savedUser = userPortOut.save(user);
-
-        Project project = fixtureMonkey.giveMeBuilder(Project.class)
-                .setNull("id")
-                .set("userId", savedUser.getId())
-                .sample();
-
-        Project savedProject = projectPortOut.save(project);
-
-        Section section = fixtureMonkey.giveMeBuilder(Section.class)
-                .setNull("id")
-                .set("projectId", savedProject.getId())
-                .sample();
+        User savedUser = saveUser();
+        Project savedProject = saveProject(savedUser.getId());
+        Section section = section(savedProject.getId());
 
         Section savedSection = sectionPortOut.save(section);
 
@@ -250,33 +132,10 @@ public class SectionAdapterTest {
     @Test
     @DisplayName("유저 ID 및 레포 이름으로 모든 섹션 조회 - 성공")
     void getSectionsByUserIdAndRepoFullName_success() {
-        User user = fixtureMonkey.giveMeBuilder(User.class)
-                .set("plan", UserPlan.free())
-                .setNull("id")
-                .set("githubUser.githubToken.value", "test-token")
-                .sample();
-
-        User savedUser = userPortOut.save(user);
-
-        Project project = fixtureMonkey.giveMeBuilder(Project.class)
-                .setNull("id")
-                .set("userId", savedUser.getId())
-                .sample();
-
-        Project savedProject = projectPortOut.save(project);
-
-        Section section1 = fixtureMonkey.giveMeBuilder(Section.class)
-                .setNull("id")
-                .set("projectId", savedProject.getId())
-                .sample();
-
-        Section section2 = fixtureMonkey.giveMeBuilder(Section.class)
-                .setNull("id")
-                .set("projectId", savedProject.getId())
-                .sample();
-
-        assert section1 != null;
-        assert section2 != null;
+        User savedUser = saveUser();
+        Project savedProject = saveProject(savedUser.getId());
+        Section section1 = section(null, savedProject.getId(), 1);
+        Section section2 = section(null, savedProject.getId(), 2);
 
         sectionPortOut.saveAll(List.of(section1, section2));
 
@@ -287,20 +146,8 @@ public class SectionAdapterTest {
     @Test
     @DisplayName("유저 ID 및 레포 이름으로 모든 섹션 조회 - 성공 (섹션이 없는 경우)")
     void getSectionsByUserIdAndRepoFullName_empty() {
-        User user = fixtureMonkey.giveMeBuilder(User.class)
-                .set("plan", UserPlan.free())
-                .setNull("id")
-                .set("githubUser.githubToken.value", "test-token")
-                .sample();
-
-        User savedUser = userPortOut.save(user);
-
-        Project project = fixtureMonkey.giveMeBuilder(Project.class)
-                .setNull("id")
-                .set("userId", savedUser.getId())
-                .sample();
-
-        Project savedProject = projectPortOut.save(project);
+        User savedUser = saveUser();
+        Project savedProject = saveProject(savedUser.getId());
 
         List<Section> foundSections = sectionPortOut.getSectionsByUserIdAndRepoFullName(savedUser.getId(), savedProject.getRepoFullName());
         assertThat(foundSections).isEmpty();
@@ -309,20 +156,8 @@ public class SectionAdapterTest {
     @Test
     @DisplayName("유저 ID 및 레포 이름으로 마지막 섹션 순서 조회 - 성공 (섹션이 없는 경우)")
     void lastOrderIdxByUserIdAndRepoFullName_success() {
-        User user = fixtureMonkey.giveMeBuilder(User.class)
-                .set("plan", UserPlan.free())
-                .setNull("id")
-                .set("githubUser.githubToken.value", "test-token")
-                .sample();
-
-        User savedUser = userPortOut.save(user);
-
-        Project project = fixtureMonkey.giveMeBuilder(Project.class)
-                .setNull("id")
-                .set("userId", savedUser.getId())
-                .sample();
-
-        Project savedProject = projectPortOut.save(project);
+        User savedUser = saveUser();
+        Project savedProject = saveProject(savedUser.getId());
 
         Optional<Integer> lastOrderIdx = sectionPortOut.lastOrderIdxByUserIdAndRepoFullName(savedUser.getId(), savedProject.getRepoFullName());
         assertThat(lastOrderIdx).isEmpty();
@@ -331,40 +166,23 @@ public class SectionAdapterTest {
     @Test
     @DisplayName("유저 ID 및 레포 이름으로 마지막 섹션 순서 조회 - 성공 (섹션이 있는 경우)")
     void lastOrderIdxByUserIdAndRepoFullName_withSections() {
-        User user = fixtureMonkey.giveMeBuilder(User.class)
-                .set("plan", UserPlan.free())
-                .setNull("id")
-                .set("githubUser.githubToken.value", "test-token")
-                .sample();
-
-        User savedUser = userPortOut.save(user);
-
-        Project project = fixtureMonkey.giveMeBuilder(Project.class)
-                .setNull("id")
-                .set("userId", savedUser.getId())
-                .sample();
-
-        Project savedProject = projectPortOut.save(project);
-
-        Section section1 = fixtureMonkey.giveMeBuilder(Section.class)
-                .setNull("id")
-                .set("projectId", savedProject.getId())
-                .set("orderIdx", 1)
-                .sample();
-
-        Section section2 = fixtureMonkey.giveMeBuilder(Section.class)
-                .setNull("id")
-                .set("projectId", savedProject.getId())
-                .set("orderIdx", 2)
-                .sample();
-
-        assert section1 != null;
-        assert section2 != null;
+        User savedUser = saveUser();
+        Project savedProject = saveProject(savedUser.getId());
+        Section section1 = section(null, savedProject.getId(), 1);
+        Section section2 = section(null, savedProject.getId(), 2);
 
         sectionPortOut.saveAll(List.of(section1, section2));
 
         Optional<Integer> lastOrderIdx = sectionPortOut.lastOrderIdxByUserIdAndRepoFullName(savedUser.getId(), savedProject.getRepoFullName());
         assertThat(lastOrderIdx).isNotEmpty()
                 .hasValue(2);
+    }
+
+    private User saveUser() {
+        return userPortOut.save(user(null, "test-token"));
+    }
+
+    private Project saveProject(Long userId) {
+        return projectPortOut.save(project(userId));
     }
 }

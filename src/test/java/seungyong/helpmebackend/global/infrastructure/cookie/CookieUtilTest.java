@@ -1,7 +1,5 @@
 package seungyong.helpmebackend.global.infrastructure.cookie;
 
-import com.navercorp.fixturemonkey.FixtureMonkey;
-import com.navercorp.fixturemonkey.api.introspector.ConstructorPropertiesArbitraryIntrospector;
 import jakarta.servlet.http.Cookie;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.DisplayName;
@@ -18,6 +16,7 @@ import seungyong.helpmebackend.global.domain.entity.JWT;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.*;
+import static seungyong.helpmebackend.support.fixture.TestFixtures.jwt;
 
 @Slf4j
 @ExtendWith(MockitoExtension.class)
@@ -66,17 +65,8 @@ public class CookieUtilTest {
     @DisplayName("AT, RT 토큰 쿠키 설정 - 성공")
     void setTokenCookies_success() {
         MockHttpServletResponse response = new MockHttpServletResponse();
-        JWT jwt = FixtureMonkey.builder()
-                .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)
-                .defaultNotNull(true)
-                .build()
-                .giveMeBuilder(JWT.class)
-                .set("grantType", "Bearer")
-                .set("accessToken", "test-access-token")
-                .set("refreshToken", "test-refresh-token")
-                .sample();
+        JWT jwt = jwt("test-access-token", "test-refresh-token");
 
-        assert jwt != null;
         cookieUtil.setTokenCookie(response, jwt);
 
         List<String> setCookieHeaders = response.getHeaders(HttpHeaders.SET_COOKIE);

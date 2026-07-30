@@ -59,7 +59,6 @@ dependencies {
     testAnnotationProcessor 'org.projectlombok:lombok'
 
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-    testImplementation 'com.navercorp.fixturemonkey:fixture-monkey-starter:1.1.16'
 }
 
 dependencyManagement {

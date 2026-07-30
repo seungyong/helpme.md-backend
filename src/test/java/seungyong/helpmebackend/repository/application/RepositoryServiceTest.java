@@ -1,9 +1,6 @@
 package seungyong.helpmebackend.repository.application;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.navercorp.fixturemonkey.FixtureMonkey;
-import com.navercorp.fixturemonkey.api.introspector.ConstructorPropertiesArbitraryIntrospector;
-import net.jqwik.api.Arbitraries;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -65,11 +62,6 @@ class RepositoryServiceTest {
 
     @InjectMocks private RepositoryService repositoryService;
 
-    private final FixtureMonkey fixtureMonkey = FixtureMonkey.builder()
-            .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)
-            .defaultNotNull(true)
-            .build();
-
     private final Long USER_ID = 1L;
     private final String OWNER = "owner";
     private final String NAME = "repo";
@@ -90,10 +82,20 @@ class RepositoryServiceTest {
         @Test
         @DisplayName("성공")
         void getRepositories_success() {
-            RepositoryResult repos = fixtureMonkey.giveMeBuilder(RepositoryResult.class)
-                    .set("totalCount", Arbitraries.integers().greaterOrEqual(1))
-                    .size("repositories", 3)
-                    .sample();
+            RepositoryResult repos = new RepositoryResult(
+                    List.of(
+                            new seungyong.helpmebackend.repository.domain.entity.Repository(
+                                    "https://example.com/avatar-1.png", "repo-1", OWNER
+                            ),
+                            new seungyong.helpmebackend.repository.domain.entity.Repository(
+                                    "https://example.com/avatar-2.png", "repo-2", OWNER
+                            ),
+                            new seungyong.helpmebackend.repository.domain.entity.Repository(
+                                    "https://example.com/avatar-3.png", "repo-3", OWNER
+                            )
+                    ),
+                    3
+            );
 
             given(repositoryPortOut.getRepositoriesByInstallationId(anyString(), anyLong(), anyInt(), anyInt()))
                     .willReturn(repos);
@@ -124,10 +126,8 @@ class RepositoryServiceTest {
         @Test
         @DisplayName("성공")
         void getRepository_success() {
-            RepositoryDetailResult repoDetail = fixtureMonkey.giveMeBuilder(RepositoryDetailResult.class)
-                    .set("owner", OWNER)
-                    .set("name", NAME)
-                    .sample();
+            RepositoryDetailResult repoDetail =
+                    new RepositoryDetailResult("https://example.com/avatar.png", OWNER, NAME, "main");
 
             given(repositoryPortOut.getRepository(any(RepoInfoCommand.class)))
                     .willReturn(repoDetail);
@@ -148,9 +148,8 @@ class RepositoryServiceTest {
         @Test
         @DisplayName("성공")
         void getBranches_success() {
-            RepositoryDetailResult repoDetail = fixtureMonkey.giveMeBuilder(RepositoryDetailResult.class)
-                    .set("defaultBranch", "main")
-                    .sample();
+            RepositoryDetailResult repoDetail =
+                    new RepositoryDetailResult("https://example.com/avatar.png", OWNER, NAME, "main");
 
             given(repositoryPortOut.getRepository(any(RepoInfoCommand.class)))
                     .willReturn(repoDetail);
@@ -204,7 +203,7 @@ class RepositoryServiceTest {
         @DisplayName("성공 - README 생성")
         void createReadme_success() {
             ResponseSections response = new ResponseSections(
-                    List.of(fixtureMonkey.giveMeOne(ResponseSections.Section.class))
+                    List.of(new ResponseSections.Section(1L, "프로젝트 소개", "Helpme.md 프로젝트입니다.", 1))
             );
 
             given(redisPortOut.getObject(anyString(), any(TypeReference.class)))

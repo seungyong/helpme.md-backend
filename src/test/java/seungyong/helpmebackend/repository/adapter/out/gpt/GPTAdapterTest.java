@@ -1,7 +1,5 @@
 package seungyong.helpmebackend.repository.adapter.out.gpt;
 
-import com.navercorp.fixturemonkey.FixtureMonkey;
-import com.navercorp.fixturemonkey.api.introspector.ConstructorPropertiesArbitraryIntrospector;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -22,17 +20,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static seungyong.helpmebackend.support.fixture.TestFixtures.*;
 
 @ExtendWith(MockitoExtension.class)
 class GPTAdapterTest {
     @Mock private GPTClient gptClient;
 
     @InjectMocks private GPTAdapter gptAdapter;
-
-    private final FixtureMonkey fixtureMonkey = FixtureMonkey.builder()
-            .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)
-            .defaultNotNull(true)
-            .build();
 
     @Nested
     @DisplayName("getRepositoryInfo - 리포지토리 정보 분석")
@@ -41,8 +35,8 @@ class GPTAdapterTest {
         @DisplayName("성공")
         void getRepositoryInfo_success() {
             String fullName = "owner/repo";
-            RepositoryInfoCommand command = fixtureMonkey.giveMeOne(RepositoryInfoCommand.class);
-            GPTRepositoryInfoResult expectedResult = fixtureMonkey.giveMeOne(GPTRepositoryInfoResult.class);
+            RepositoryInfoCommand command = repositoryInfoCommand();
+            GPTRepositoryInfoResult expectedResult = gptRepositoryInfoResult();
 
             given(gptClient.getRepositoryInfo(fullName, command)).willReturn(expectedResult);
 
@@ -55,7 +49,7 @@ class GPTAdapterTest {
         @DisplayName("실패 - GPT 오류")
         void getRepositoryInfo_failure() {
             String fullName = "owner/repo";
-            RepositoryInfoCommand command = fixtureMonkey.giveMeOne(RepositoryInfoCommand.class);
+            RepositoryInfoCommand command = repositoryInfoCommand();
 
             given(gptClient.getRepositoryInfo(anyString(), any(RepositoryInfoCommand.class)))
                     .willThrow(new RuntimeException("API 연동 오류"));
@@ -72,8 +66,8 @@ class GPTAdapterTest {
         @Test
         @DisplayName("성공")
         void evaluateReadme_success() {
-            EvaluationCommand command = fixtureMonkey.giveMeOne(EvaluationCommand.class);
-            EvaluationContentResult expectedResult = fixtureMonkey.giveMeOne(EvaluationContentResult.class);
+            EvaluationCommand command = evaluationCommand();
+            EvaluationContentResult expectedResult = evaluationContentResult();
 
             given(gptClient.evaluateReadme(command)).willReturn(expectedResult);
 
@@ -85,7 +79,7 @@ class GPTAdapterTest {
         @Test
         @DisplayName("실패 - GPT 오류")
         void evaluateReadme_failure() {
-            EvaluationCommand command = fixtureMonkey.giveMeOne(EvaluationCommand.class);
+            EvaluationCommand command = evaluationCommand();
 
             given(gptClient.evaluateReadme(any(EvaluationCommand.class)))
                     .willThrow(new RuntimeException("API Timeout"));
@@ -102,7 +96,7 @@ class GPTAdapterTest {
         @Test
         @DisplayName("성공")
         void generateDraftReadme_success() {
-            GenerateReadmeCommand command = fixtureMonkey.giveMeOne(GenerateReadmeCommand.class);
+            GenerateReadmeCommand command = generateReadmeCommand();
             String expectedResult = "# Generated README";
 
             given(gptClient.generateDraftReadme(command)).willReturn(expectedResult);
@@ -115,7 +109,7 @@ class GPTAdapterTest {
         @Test
         @DisplayName("실패 - GPTClient에서 예외 발생 시 CustomException으로 변환")
         void generateDraftReadme_failure() {
-            GenerateReadmeCommand command = fixtureMonkey.giveMeOne(GenerateReadmeCommand.class);
+            GenerateReadmeCommand command = generateReadmeCommand();
 
             given(gptClient.generateDraftReadme(any(GenerateReadmeCommand.class)))
                     .willThrow(new RuntimeException("GPT 토큰 부족"));

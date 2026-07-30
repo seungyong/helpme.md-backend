@@ -1,9 +1,6 @@
 package seungyong.helpmebackend.repository.adapter.in.web;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.navercorp.fixturemonkey.FixtureMonkey;
-import com.navercorp.fixturemonkey.api.introspector.ConstructorPropertiesArbitraryIntrospector;
-import com.navercorp.fixturemonkey.jakarta.validation.plugin.JakartaValidationPlugin;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -31,6 +28,9 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static seungyong.helpmebackend.support.fixture.TestFixtures.requestDraftEvaluation;
+import static seungyong.helpmebackend.support.fixture.TestFixtures.requestGeneration;
+import static seungyong.helpmebackend.support.fixture.TestFixtures.requestPull;
 
 @WebMvcTest(
         value = RepoController.class,
@@ -46,12 +46,6 @@ public class RepositoryControllerTest {
 
     @MockitoBean private RepositoryPortIn repositoryPortIn;
     @MockitoBean private CookieUtil cookieUtil;
-
-    private final FixtureMonkey fixtureMonkey = FixtureMonkey.builder()
-            .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)
-            .defaultNotNull(true)
-            .plugin(new JakartaValidationPlugin())
-            .build();
 
     private final CustomUserDetails userDetails = new CustomUserDetails(1L, "test-user");
 
@@ -134,7 +128,7 @@ public class RepositoryControllerTest {
         @Test
         @DisplayName("성공")
         void createPullRequest_success() throws Exception {
-            RequestPull request = fixtureMonkey.giveMeOne(RequestPull.class);
+            RequestPull request = requestPull();
 
             mockMvc.perform(post("/api/v1/repos/{owner}/{name}", "owner", "repo")
                             .contentType(MediaType.APPLICATION_JSON)
@@ -152,7 +146,7 @@ public class RepositoryControllerTest {
         @Test
         @DisplayName("성공")
         void evaluateDraftReadme_success() throws Exception {
-            RequestDraftEvaluation request = fixtureMonkey.giveMeOne(RequestDraftEvaluation.class);
+            RequestDraftEvaluation request = requestDraftEvaluation();
 
             mockMvc.perform(post("/api/v1/repos/{owner}/{name}/evaluate/draft/sse", "owner", "repo")
                             .param("taskId", "task-123")
@@ -171,7 +165,7 @@ public class RepositoryControllerTest {
         @Test
         @DisplayName("성공")
         void generateDraftReadme_success() throws Exception {
-            RequestGeneration request = fixtureMonkey.giveMeOne(RequestGeneration.class);
+            RequestGeneration request = requestGeneration();
 
             mockMvc.perform(post("/api/v1/repos/{owner}/{name}/generate/sse", "owner", "repo")
                             .param("taskId", "task-123")

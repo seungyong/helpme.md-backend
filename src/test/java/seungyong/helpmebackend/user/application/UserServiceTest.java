@@ -1,7 +1,5 @@
 package seungyong.helpmebackend.user.application;
 
-import com.navercorp.fixturemonkey.FixtureMonkey;
-import com.navercorp.fixturemonkey.api.introspector.ConstructorPropertiesArbitraryIntrospector;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -20,11 +18,10 @@ import seungyong.helpmebackend.global.exception.GlobalErrorCode;
 import seungyong.helpmebackend.user.application.port.out.UserPortOut;
 import seungyong.helpmebackend.user.domain.entity.JWTUser;
 import seungyong.helpmebackend.user.domain.entity.User;
-import seungyong.helpmebackend.user.domain.entity.UserPlan;
-
-import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.*;
+import static seungyong.helpmebackend.support.fixture.TestFixtures.jwt;
+import static seungyong.helpmebackend.support.fixture.TestFixtures.user;
 
 @ExtendWith(MockitoExtension.class)
 public class UserServiceTest {
@@ -33,11 +30,6 @@ public class UserServiceTest {
     @Mock private UserPortOut userPortOut;
 
     @InjectMocks private UserService userService;
-
-    private final FixtureMonkey fixtureMonkey = FixtureMonkey.builder()
-            .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)
-            .defaultNotNull(true)
-            .build();
 
     @Nested
     @DisplayName("토큰 재발급 테스트")
@@ -48,14 +40,8 @@ public class UserServiceTest {
             String refreshToken = "valid-refresh-token";
             String refreshTokenKey = RedisKey.REFRESH_KEY.getValue() + refreshToken;
             Long userId = 1L;
-            User user = fixtureMonkey.giveMeBuilder(User.class)
-                    .set("plan", UserPlan.free())
-                    .set("id", userId)
-                    .sample();
-            JWT jwt = fixtureMonkey.giveMeBuilder(JWT.class)
-                    .set("refreshToken", "new-refresh-token")
-                    .set("refreshTokenExpireTime", Instant.now().plusSeconds(3600))
-                    .sample();
+            User user = user(userId);
+            JWT jwt = jwt("new-access-token", "new-refresh-token");
 
             Mockito
                     .when(jwtPortOut.isExpired(Mockito.eq(refreshToken), Mockito.any()))
@@ -74,8 +60,6 @@ public class UserServiceTest {
                     .thenReturn(jwt);
 
             JWT result = userService.reissue(refreshToken);
-            assert jwt != null;
-
             assertThat(result.getRefreshToken()).isEqualTo("new-refresh-token");
 
             Mockito
@@ -121,11 +105,7 @@ public class UserServiceTest {
     @DisplayName("회원 탈퇴 - 성공")
     void withdraw_success() {
         Long userId = 1L;
-        User user = fixtureMonkey.giveMeBuilder(User.class)
-                .set("plan", UserPlan.free())
-                .set("id", userId)
-                .set("githubUser.githubToken.value", "valid-github-token")
-                .sample();
+        User user = user(userId, "valid-github-token");
 
         Mockito
                 .when(userPortOut.getById(Mockito.eq(userId)))

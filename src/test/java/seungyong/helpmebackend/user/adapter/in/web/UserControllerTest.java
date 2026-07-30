@@ -1,7 +1,5 @@
 package seungyong.helpmebackend.user.adapter.in.web;
 
-import com.navercorp.fixturemonkey.FixtureMonkey;
-import com.navercorp.fixturemonkey.api.introspector.ConstructorPropertiesArbitraryIntrospector;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.DisplayName;
@@ -27,6 +25,8 @@ import seungyong.helpmebackend.global.filter.AuthenticationFilter;
 import seungyong.helpmebackend.global.infrastructure.cookie.CookieUtil;
 import seungyong.helpmebackend.support.config.TestSecurityConfig;
 import seungyong.helpmebackend.user.application.port.in.UserPortIn;
+
+import static seungyong.helpmebackend.support.fixture.TestFixtures.jwt;
 
 @WebMvcTest(
         value = UserController.class,
@@ -70,14 +70,7 @@ public class UserControllerTest {
 
             String oldRefreshToken = "old-refresh-token";
             String newRefreshToken = "new-refresh-token";
-            JWT jwt = FixtureMonkey.builder()
-                    .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)
-                    .defaultNotNull(true)
-                    .build()
-                    .giveMeBuilder(JWT.class)
-                    .set("accessToken", "new-access-token")
-                    .set("refreshToken", newRefreshToken)
-                    .sample();
+            JWT jwt = jwt("new-access-token", newRefreshToken);
 
             Mockito
                     .when(cookieUtil.getRefreshToken(Mockito.any(HttpServletRequest.class)))
@@ -95,7 +88,6 @@ public class UserControllerTest {
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(MockMvcResultMatchers.status().isNoContent());
 
-            assert jwt != null;
             Mockito
                         .verify(cookieUtil, Mockito.times(1))
                     .setTokenCookie(

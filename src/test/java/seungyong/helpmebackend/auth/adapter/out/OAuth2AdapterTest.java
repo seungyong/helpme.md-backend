@@ -2,8 +2,6 @@ package seungyong.helpmebackend.auth.adapter.out;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.navercorp.fixturemonkey.FixtureMonkey;
-import com.navercorp.fixturemonkey.api.introspector.ConstructorPropertiesArbitraryIntrospector;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -28,6 +26,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
+import static seungyong.helpmebackend.support.fixture.TestFixtures.*;
 
 @ExtendWith(MockitoExtension.class)
 class OAuth2AdapterTest {
@@ -40,12 +39,6 @@ class OAuth2AdapterTest {
     @Captor private ArgumentCaptor<GithubApiExecutor.JsonResponseParser<List<Installation>>> installationParserCaptor;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
-
-    // DTO나 Record 객체 생성을 위한 FixtureMonkey 기본 설정 (생성자 기반)
-    private final FixtureMonkey fixtureMonkey = FixtureMonkey.builder()
-            .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)
-            .defaultNotNull(true)
-            .build();
 
     @BeforeEach
     void setUp() {
@@ -60,7 +53,7 @@ class OAuth2AdapterTest {
         @Test
         @DisplayName("성공")
         void generateLoginUrl_success() {
-            String state = fixtureMonkey.giveMeOne(String.class);
+            String state = "oauth-state";
 
             String result = oAuth2Adapter.generateLoginUrl(state);
 
@@ -76,8 +69,8 @@ class OAuth2AdapterTest {
         @Test
         @DisplayName("성공")
         void getAccessToken_success() {
-            String code = fixtureMonkey.giveMeOne(String.class);
-            OAuthTokenResult expectedResult = fixtureMonkey.giveMeOne(OAuthTokenResult.class);
+            String code = "authorization-code";
+            OAuthTokenResult expectedResult = oauthTokenResult();
 
             given(githubApiExecutor.executePostNoAuth(anyString(), anyMap(), eq(OAuthTokenResult.class), anyString()))
                     .willReturn(expectedResult);
@@ -90,7 +83,7 @@ class OAuth2AdapterTest {
         @Test
         @DisplayName("실패 (API 통신 오류)")
         void getAccessToken_failure_apiError() {
-            String code = fixtureMonkey.giveMeOne(String.class);
+            String code = "authorization-code";
 
             given(githubApiExecutor.executePostNoAuth(anyString(), anyMap(), eq(OAuthTokenResult.class), anyString()))
                     .willThrow(new CustomException(GlobalErrorCode.GITHUB_ERROR));
@@ -106,8 +99,8 @@ class OAuth2AdapterTest {
         @Test
         @DisplayName("성공")
         void getGithubUser_success() {
-            String accessToken = fixtureMonkey.giveMeOne(String.class);
-            OAuthGithubUser expectedUser = fixtureMonkey.giveMeOne(OAuthGithubUser.class);
+            String accessToken = "github-access-token";
+            OAuthGithubUser expectedUser = oauthGithubUser();
 
             given(githubApiExecutor.executeGet(anyString(), eq(accessToken), any(), anyString()))
                     .willReturn(expectedUser);
@@ -120,14 +113,14 @@ class OAuth2AdapterTest {
         @Test
         @DisplayName("성공 (JSON 파싱 로직 검증)")
         void getGithubUser_success_parser() throws Exception {
-            String accessToken = fixtureMonkey.giveMeOne(String.class);
-            OAuthGithubUser expectedUser = fixtureMonkey.giveMeOne(OAuthGithubUser.class);
+            String accessToken = "github-access-token";
+            OAuthGithubUser expectedUser = oauthGithubUser();
 
             String jsonString = String.format("{\"login\":\"%s\", \"id\":%d}", expectedUser.name(), expectedUser.githubId());
             JsonNode mockJsonNode = objectMapper.readTree(jsonString);
 
             given(githubApiExecutor.executeGet(anyString(), eq(accessToken), userParserCaptor.capture(), anyString()))
-                    .willReturn(fixtureMonkey.giveMeOne(OAuthGithubUser.class));
+                    .willReturn(oauthGithubUser());
 
             oAuth2Adapter.getGithubUser(accessToken);
 
@@ -140,7 +133,7 @@ class OAuth2AdapterTest {
         @Test
         @DisplayName("실패 (API 통신 오류)")
         void getGithubUser_failure_apiError() {
-            String accessToken = fixtureMonkey.giveMeOne(String.class);
+            String accessToken = "github-access-token";
 
             given(githubApiExecutor.executeGet(anyString(), eq(accessToken), any(), anyString()))
                     .willThrow(new CustomException(GlobalErrorCode.GITHUB_ERROR));
@@ -156,9 +149,8 @@ class OAuth2AdapterTest {
         @Test
         @DisplayName("성공")
         void getInstallations_success() {
-            String accessToken = fixtureMonkey.giveMeOne(String.class);
-            List<Installation> expectedInstallations = fixtureMonkey.giveMeBuilder(Installation.class)
-                    .sampleList(3);
+            String accessToken = "github-access-token";
+            List<Installation> expectedInstallations = installations();
 
             given(githubApiExecutor.executeGet(anyString(), eq(accessToken), any(), anyString()))
                     .willReturn(expectedInstallations);
@@ -171,8 +163,8 @@ class OAuth2AdapterTest {
         @Test
         @DisplayName("성공 (JSON 파싱 로직 검증)")
         void getInstallations_success_parser() throws Exception {
-            String accessToken = fixtureMonkey.giveMeOne(String.class);
-            Installation expectedInstallation = fixtureMonkey.giveMeOne(Installation.class);
+            String accessToken = "github-access-token";
+            Installation expectedInstallation = installation();
 
             String jsonString = String.format("""
                     {
@@ -207,7 +199,7 @@ class OAuth2AdapterTest {
         @Test
         @DisplayName("실패 (API 통신 오류)")
         void getInstallations_failure_apiError() {
-            String accessToken = fixtureMonkey.giveMeOne(String.class);
+            String accessToken = "github-access-token";
 
             given(githubApiExecutor.executeGet(anyString(), eq(accessToken), any(), anyString()))
                     .willThrow(new CustomException(GlobalErrorCode.GITHUB_ERROR));

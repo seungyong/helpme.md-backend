@@ -2,9 +2,6 @@ package seungyong.helpmebackend.repository;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.navercorp.fixturemonkey.FixtureMonkey;
-import com.navercorp.fixturemonkey.api.introspector.ConstructorPropertiesArbitraryIntrospector;
-import com.navercorp.fixturemonkey.jakarta.validation.plugin.JakartaValidationPlugin;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.*;
 import org.mockito.ArgumentCaptor;
@@ -62,6 +59,7 @@ import seungyong.helpmebackend.user.domain.entity.User;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
@@ -75,6 +73,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static seungyong.helpmebackend.support.fixture.TestFixtures.evaluationContentResult;
+import static seungyong.helpmebackend.support.fixture.TestFixtures.gptRepositoryInfoResult;
+import static seungyong.helpmebackend.support.fixture.TestFixtures.responseEvaluation;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -99,12 +100,6 @@ public class RepositoryIntegrationTest {
 
     private User user;
     private JWT jwt;
-
-    private final FixtureMonkey fixtureMonkey = FixtureMonkey.builder()
-            .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)
-            .defaultNotNull(true)
-            .plugin(new JakartaValidationPlugin())
-            .build();
 
     private final HttpClientErrorException notFoundException = HttpClientErrorException.create(
             HttpStatus.NOT_FOUND, "Not Found", HttpHeaders.EMPTY, new byte[0], null
@@ -350,7 +345,7 @@ public class RepositoryIntegrationTest {
         void getFallbackDraftEvaluation_success() throws Exception {
             String taskId = "task-123";
             String redisKey = RedisKey.SSE_EMITTER_EVALUATION_DRAFT_KEY.getValue() + taskId;
-            ResponseEvaluation evaluation = fixtureMonkey.giveMeOne(ResponseEvaluation.class);
+            ResponseEvaluation evaluation = responseEvaluation();
             redisPortOut.setObject(redisKey, evaluation, Instant.now().plus(5, ChronoUnit.MINUTES));
 
             mockMvc.perform(get("/api/v1/repos/fallback/evaluate/draft/{taskId}", taskId)
@@ -393,9 +388,11 @@ public class RepositoryIntegrationTest {
             String taskId = "task-123";
             String redisKey = RedisKey.SSE_EMITTER_GENERATION_KEY.getValue() + taskId;
 
-            ResponseSections sections = fixtureMonkey.giveMeBuilder(ResponseSections.class)
-                    .size("sections", 3)
-                    .sample();
+            ResponseSections sections = new ResponseSections(List.of(
+                    new ResponseSections.Section(1L, "프로젝트 소개", "프로젝트 설명", 1),
+                    new ResponseSections.Section(2L, "설치 방법", "설치 설명", 2),
+                    new ResponseSections.Section(3L, "사용 방법", "사용 설명", 3)
+            ));
             redisPortOut.setObject(redisKey, sections, Instant.now().plus(5, ChronoUnit.MINUTES));
 
             mockMvc.perform(get("/api/v1/repos/fallback/generate/{taskId}", taskId)
@@ -728,8 +725,8 @@ public class RepositoryIntegrationTest {
                 mockGithubBaseFlow(request.branch());
 
                 // GPT 응답 설정
-                GPTRepositoryInfoResult repoInfo = fixtureMonkey.giveMeOne(GPTRepositoryInfoResult.class);
-                EvaluationContentResult evaluation = fixtureMonkey.giveMeOne(EvaluationContentResult.class);
+                GPTRepositoryInfoResult repoInfo = gptRepositoryInfoResult();
+                EvaluationContentResult evaluation = evaluationContentResult();
 
                 given(gptClient.getRepositoryInfo(anyString(), any(RepositoryInfoCommand.class)))
                         .willReturn(repoInfo);
@@ -867,8 +864,8 @@ public class RepositoryIntegrationTest {
                 mockGithubBaseFlow(request.branch());
 
                 // 5. GPT 분석 & 7. GPT 평가
-                GPTRepositoryInfoResult repoInfo = fixtureMonkey.giveMeOne(GPTRepositoryInfoResult.class);
-                EvaluationContentResult evaluation = fixtureMonkey.giveMeOne(EvaluationContentResult.class);
+                GPTRepositoryInfoResult repoInfo = gptRepositoryInfoResult();
+                EvaluationContentResult evaluation = evaluationContentResult();
 
                 given(gptClient.getRepositoryInfo(anyString(), any(RepositoryInfoCommand.class)))
                         .willReturn(repoInfo);
@@ -936,8 +933,8 @@ public class RepositoryIntegrationTest {
             void generation() throws Exception {
                 mockGithubBaseFlow(request.branch());
 
-                GPTRepositoryInfoResult repoInfo = fixtureMonkey.giveMeOne(GPTRepositoryInfoResult.class);
-                EvaluationContentResult evaluation = fixtureMonkey.giveMeOne(EvaluationContentResult.class);
+                GPTRepositoryInfoResult repoInfo = gptRepositoryInfoResult();
+                EvaluationContentResult evaluation = evaluationContentResult();
 
                 given(gptClient.getRepositoryInfo(anyString(), any(RepositoryInfoCommand.class)))
                         .willReturn(repoInfo);
@@ -1093,8 +1090,8 @@ public class RepositoryIntegrationTest {
             void generation_failure_sendCompletion() throws Exception {
                 mockGithubBaseFlow(request.branch());
 
-                GPTRepositoryInfoResult repoInfo = fixtureMonkey.giveMeOne(GPTRepositoryInfoResult.class);
-                EvaluationContentResult evaluation = fixtureMonkey.giveMeOne(EvaluationContentResult.class);
+                GPTRepositoryInfoResult repoInfo = gptRepositoryInfoResult();
+                EvaluationContentResult evaluation = evaluationContentResult();
 
                 given(gptClient.getRepositoryInfo(anyString(), any(RepositoryInfoCommand.class)))
                         .willReturn(repoInfo);

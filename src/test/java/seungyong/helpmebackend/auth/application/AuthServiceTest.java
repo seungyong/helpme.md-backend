@@ -1,7 +1,5 @@
 package seungyong.helpmebackend.auth.application;
 
-import com.navercorp.fixturemonkey.FixtureMonkey;
-import com.navercorp.fixturemonkey.api.introspector.ConstructorPropertiesArbitraryIntrospector;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -34,6 +32,7 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
+import static seungyong.helpmebackend.support.fixture.TestFixtures.*;
 
 @ExtendWith(MockitoExtension.class)
 class AuthServiceTest {
@@ -44,11 +43,6 @@ class AuthServiceTest {
     @Mock private UserPortOut userPortOut;
 
     @InjectMocks private AuthService authService;
-
-    private final FixtureMonkey fixtureMonkey = FixtureMonkey.builder()
-            .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)
-            .defaultNotNull(true)
-            .build();
 
     @Nested
     @DisplayName("generateLoginUrl - 로그인 URL 생성")
@@ -92,9 +86,9 @@ class AuthServiceTest {
             String state = "valid-state";
             String encryptedToken = "encrypted-token";
 
-            OAuthTokenResult tokenResult = fixtureMonkey.giveMeOne(OAuthTokenResult.class);
-            OAuthGithubUser githubUser = fixtureMonkey.giveMeOne(OAuthGithubUser.class);
-            JWT expectedJwt = fixtureMonkey.giveMeOne(JWT.class);
+            OAuthTokenResult tokenResult = oauthTokenResult();
+            OAuthGithubUser githubUser = oauthGithubUser();
+            JWT expectedJwt = jwt();
 
             User mockUser = mock(User.class);
             GithubUser mockGithubUser = mock(GithubUser.class);
@@ -128,9 +122,9 @@ class AuthServiceTest {
             String state = "valid-state";
             String encryptedToken = "new-encrypted-token";
 
-            OAuthTokenResult tokenResult = fixtureMonkey.giveMeOne(OAuthTokenResult.class);
-            OAuthGithubUser githubUser = fixtureMonkey.giveMeOne(OAuthGithubUser.class);
-            JWT expectedJwt = fixtureMonkey.giveMeOne(JWT.class);
+            OAuthTokenResult tokenResult = oauthTokenResult();
+            OAuthGithubUser githubUser = oauthGithubUser();
+            JWT expectedJwt = jwt();
 
             User mockUser = mock(User.class);
             GithubUser mockGithubUser = mock(GithubUser.class);
@@ -162,8 +156,8 @@ class AuthServiceTest {
             String code = "auth-code";
             String state = "valid-state";
 
-            OAuthTokenResult tokenResult = fixtureMonkey.giveMeOne(OAuthTokenResult.class);
-            OAuthGithubUser githubUser = fixtureMonkey.giveMeOne(OAuthGithubUser.class);
+            OAuthTokenResult tokenResult = oauthTokenResult();
+            OAuthGithubUser githubUser = oauthGithubUser();
 
             User mockUser = mock(User.class);
 
@@ -206,8 +200,7 @@ class AuthServiceTest {
             Long userId = 1L;
             String decryptedToken = "decrypted-token";
 
-            List<Installation> expectedInstallations = fixtureMonkey.giveMeBuilder(Installation.class)
-                    .sampleList(2);
+            List<Installation> expectedInstallations = installations();
 
             User mockUser = mock(User.class);
             GithubUser mockGithubUser = mock(GithubUser.class);

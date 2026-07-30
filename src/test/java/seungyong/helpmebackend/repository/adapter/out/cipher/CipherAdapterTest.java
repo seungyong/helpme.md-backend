@@ -1,7 +1,5 @@
 package seungyong.helpmebackend.repository.adapter.out.cipher;
 
-import com.navercorp.fixturemonkey.FixtureMonkey;
-import com.navercorp.fixturemonkey.api.introspector.ConstructorPropertiesArbitraryIntrospector;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -17,18 +15,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class CipherAdapterTest {
     @Autowired private CipherAdapter cipherAdapter;
 
-    private final FixtureMonkey fixtureMonkey = FixtureMonkey.builder()
-            .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)
-            .defaultNotNull(true)
-            .build();
-
     @Nested
     @DisplayName("encrypt - 암호화")
     class Encrypt {
         @Test
         @DisplayName("성공")
         void encrypt_success() {
-            String plainText = fixtureMonkey.giveMeOne(String.class);
+            String plainText = "plain-text";
 
             String encrypted = cipherAdapter.encrypt(plainText);
 

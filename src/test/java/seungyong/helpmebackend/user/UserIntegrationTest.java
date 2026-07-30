@@ -1,8 +1,5 @@
 package seungyong.helpmebackend.user;
 
-import com.navercorp.fixturemonkey.FixtureMonkey;
-import com.navercorp.fixturemonkey.api.introspector.ConstructorPropertiesArbitraryIntrospector;
-import com.navercorp.fixturemonkey.jakarta.validation.plugin.JakartaValidationPlugin;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -28,10 +25,10 @@ import seungyong.helpmebackend.global.infrastructure.jwt.JWTProvider;
 import seungyong.helpmebackend.user.application.port.out.UserPortOut;
 import seungyong.helpmebackend.user.domain.entity.JWTUser;
 import seungyong.helpmebackend.user.domain.entity.User;
-import seungyong.helpmebackend.user.domain.entity.UserPlan;
 import seungyong.helpmebackend.user.domain.exception.UserErrorCode;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static seungyong.helpmebackend.support.fixture.TestFixtures.user;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -44,12 +41,6 @@ public class UserIntegrationTest {
     @Autowired private JWTProvider jwtProvider;
     @Autowired private RedisAdapter redisAdapter;
     @Autowired private UserPortOut userPortOut;
-
-    private final FixtureMonkey fixtureMonkey = FixtureMonkey.builder()
-            .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)
-            .defaultNotNull(true)
-            .plugin(new JakartaValidationPlugin())
-            .build();
 
     @AfterEach
     void cleanup() {
@@ -82,11 +73,7 @@ public class UserIntegrationTest {
         @Test
         @DisplayName("성공")
         void reissue_success() throws Exception {
-            User user = fixtureMonkey.giveMeBuilder(User.class)
-                    .set("plan", UserPlan.free())
-                    .setNull("id")
-                    .set("githubUser.githubToken.value", "test")
-                    .sample();
+            User user = user(null, "test");
             User savedUser = userPortOut.save(user);
 
             JWT jwt = jwtProvider.generate(new JWTUser(savedUser.getId(), savedUser.getGithubUser().getName()));
@@ -110,11 +97,7 @@ public class UserIntegrationTest {
         @Test
         @DisplayName("실패 - 리프레시 토큰 만료")
         void reissue_fail_expiredRefreshToken() throws Exception {
-            User user = fixtureMonkey.giveMeBuilder(User.class)
-                    .set("plan", UserPlan.free())
-                    .setNull("id")
-                    .set("githubUser.githubToken.value", "test")
-                    .sample();
+            User user = user(null, "test");
             User savedUser = userPortOut.save(user);
 
             JWT jwt = jwtProvider.generate(new JWTUser(savedUser.getId(), savedUser.getGithubUser().getName()));
@@ -162,11 +145,7 @@ public class UserIntegrationTest {
     @Test
     @DisplayName("로그아웃 - 성공")
     void logout_success() throws Exception {
-        User user = fixtureMonkey.giveMeBuilder(User.class)
-                .set("plan", UserPlan.free())
-                .setNull("id")
-                .set("githubUser.githubToken.value", "test")
-                .sample();
+        User user = user(null, "test");
         User savedUser = userPortOut.save(user);
 
         JWT jwt = jwtProvider.generate(new JWTUser(savedUser.getId(), savedUser.getGithubUser().getName()));
@@ -191,11 +170,7 @@ public class UserIntegrationTest {
     @Test
     @DisplayName("회원 탈퇴 - 성공")
     void withdraw_success() throws Exception {
-        User user = fixtureMonkey.giveMeBuilder(User.class)
-                .set("plan", UserPlan.free())
-                .setNull("id")
-                .set("githubUser.githubToken.value", "test")
-                .sample();
+        User user = user(null, "test");
         User savedUser = userPortOut.save(user);
 
         JWT jwt = jwtProvider.generate(new JWTUser(savedUser.getId(), savedUser.getGithubUser().getName()));

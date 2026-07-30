@@ -1,7 +1,5 @@
 package seungyong.helpmebackend.global.adapter.out.jwt;
 
-import com.navercorp.fixturemonkey.FixtureMonkey;
-import com.navercorp.fixturemonkey.api.introspector.ConstructorPropertiesArbitraryIntrospector;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -17,6 +15,7 @@ import seungyong.helpmebackend.user.domain.entity.JWTUser;
 import java.util.Date;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static seungyong.helpmebackend.support.fixture.TestFixtures.jwt;
 
 @ExtendWith(MockitoExtension.class)
 public class JWTAdapterTest {
@@ -27,11 +26,7 @@ public class JWTAdapterTest {
     @DisplayName("JWT 생성 - 성공")
     void generateJWT_Success() {
         JWTUser user = new JWTUser(1L, "testuser");
-        JWT jwt = FixtureMonkey.builder()
-                .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)
-                .defaultNotNull(true)
-                .build()
-                .giveMeOne(JWT.class);
+        JWT jwt = jwt();
 
         Mockito
                 .when(jwtProvider.generate(user))

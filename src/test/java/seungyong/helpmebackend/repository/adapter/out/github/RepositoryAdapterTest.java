@@ -1,8 +1,6 @@
 package seungyong.helpmebackend.repository.adapter.out.github;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.navercorp.fixturemonkey.FixtureMonkey;
-import com.navercorp.fixturemonkey.api.introspector.ConstructorPropertiesArbitraryIntrospector;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -28,6 +26,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
+import static seungyong.helpmebackend.support.fixture.TestFixtures.*;
 
 @ExtendWith(MockitoExtension.class)
 class RepositoryAdapterTest {
@@ -39,11 +38,6 @@ class RepositoryAdapterTest {
 
     @Captor
     private ArgumentCaptor<Map<String, String>> mapCaptor;
-
-    private final FixtureMonkey fixtureMonkey = FixtureMonkey.builder()
-            .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)
-            .defaultNotNull(true)
-            .build();
 
     private final HttpClientErrorException notFoundException = HttpClientErrorException.create(
             HttpStatus.NOT_FOUND, "Not Found", HttpHeaders.EMPTY, new byte[0], null
@@ -91,7 +85,7 @@ class RepositoryAdapterTest {
         @Test
         @DisplayName("성공")
         void getRepository_success() {
-            RepoInfoCommand command = fixtureMonkey.giveMeOne(RepoInfoCommand.class);
+            RepoInfoCommand command = repoInfoCommand();
             String json = "{\"owner\": {\"avatar_url\": \"url\"}, \"default_branch\": \"main\"}";
 
             given(githubApiExecutor.executeGet(anyString(), anyString(), any(), anyString(), any()))
@@ -109,7 +103,7 @@ class RepositoryAdapterTest {
         @Test
         @DisplayName("실패 - 접근 불가능한 리포지토리인 경우")
         void getRepository_failure_not_found() {
-            RepoInfoCommand command = fixtureMonkey.giveMeOne(RepoInfoCommand.class);
+            RepoInfoCommand command = repoInfoCommand();
 
             given(githubApiExecutor.executeGet(anyString(), anyString(), any(), anyString(), any()))
                     .willAnswer(invocation -> {
@@ -129,7 +123,7 @@ class RepositoryAdapterTest {
         @Test
         @DisplayName("성공 - User 타입만 필터링되어 반환")
         void getContributors_success() {
-            RepoInfoCommand command = fixtureMonkey.giveMeOne(RepoInfoCommand.class);
+            RepoInfoCommand command = repoInfoCommand();
             String json = "[{\"type\": \"User\", \"login\": \"user1\", \"avatar_url\": \"url1\"}, {\"type\": \"Bot\", \"login\": \"bot1\", \"avatar_url\": \"url2\"}]";
 
             given(githubApiExecutor.executeGet(anyString(), anyString(), any(), anyString(), any()))
@@ -147,7 +141,7 @@ class RepositoryAdapterTest {
         @Test
         @DisplayName("실패 - 리포지토리를 찾을 수 없는 경우")
         void getContributors_failure_not_found() {
-            RepoInfoCommand command = fixtureMonkey.giveMeOne(RepoInfoCommand.class);
+            RepoInfoCommand command = repoInfoCommand();
 
             given(githubApiExecutor.executeGet(anyString(), anyString(), any(), anyString(), any()))
                     .willAnswer(invocation -> {
@@ -167,7 +161,7 @@ class RepositoryAdapterTest {
         @Test
         @DisplayName("성공")
         void getRecentSHA_success() {
-            RepoBranchCommand command = fixtureMonkey.giveMeOne(RepoBranchCommand.class);
+            RepoBranchCommand command = repoBranchCommand();
             String json = "{\"object\": {\"sha\": \"sha-value\"}}";
 
             given(githubApiExecutor.executeGet(anyString(), anyString(), any(), anyString(), any()))
@@ -184,7 +178,7 @@ class RepositoryAdapterTest {
         @Test
         @DisplayName("실패 - 리포지토리를 찾을 수 없는 경우")
         void getRecentSHA_failure_not_found() {
-            RepoBranchCommand command = fixtureMonkey.giveMeOne(RepoBranchCommand.class);
+            RepoBranchCommand command = repoBranchCommand();
 
             given(githubApiExecutor.executeGet(anyString(), anyString(), any(), anyString(), any()))
                     .willAnswer(invocation -> {
@@ -204,7 +198,7 @@ class RepositoryAdapterTest {
         @Test
         @DisplayName("성공")
         void createBranch_success() {
-            CreateBranchCommand command = fixtureMonkey.giveMeOne(CreateBranchCommand.class);
+            CreateBranchCommand command = createBranchCommand();
 
             repositoryAdapter.createBranch(command);
 
@@ -218,7 +212,7 @@ class RepositoryAdapterTest {
         @Test
         @DisplayName("성공")
         void deleteBranch_success() {
-            RepoBranchCommand command = fixtureMonkey.giveMeOne(RepoBranchCommand.class);
+            RepoBranchCommand command = repoBranchCommand();
 
             repositoryAdapter.deleteBranch(command);
 
@@ -232,7 +226,7 @@ class RepositoryAdapterTest {
         @Test
         @DisplayName("성공")
         void getReadmeSHA_success() {
-            RepoBranchCommand command = fixtureMonkey.giveMeOne(RepoBranchCommand.class);
+            RepoBranchCommand command = repoBranchCommand();
             String json = "{\"sha\": \"readme-sha\"}";
 
             given(githubApiExecutor.executeGet(anyString(), anyString(), any(), anyString(), any()))
@@ -249,7 +243,7 @@ class RepositoryAdapterTest {
         @Test
         @DisplayName("성공 - README가 없는 경우 null 반환")
         void getReadmeSHA_success_not_found() {
-            RepoBranchCommand command = fixtureMonkey.giveMeOne(RepoBranchCommand.class);
+            RepoBranchCommand command = repoBranchCommand();
 
             given(githubApiExecutor.executeGet(anyString(), anyString(), any(), anyString(), any()))
                     .willAnswer(invocation -> {
@@ -269,9 +263,7 @@ class RepositoryAdapterTest {
         @Test
         @DisplayName("성공 - 기존 README가 있는 경우 sha 포함")
         void push_success_with_sha() {
-            ReadmePushCommand command = fixtureMonkey.giveMeBuilder(ReadmePushCommand.class)
-                    .set("readmeSha", "existing-sha")
-                    .sample();
+            ReadmePushCommand command = readmePushCommand("existing-sha");
 
             repositoryAdapter.push(command);
 
@@ -282,9 +274,7 @@ class RepositoryAdapterTest {
         @Test
         @DisplayName("성공 - 기존 README가 없는 경우 sha 미포함")
         void push_success_without_sha() {
-            ReadmePushCommand command = fixtureMonkey.giveMeBuilder(ReadmePushCommand.class)
-                    .set("readmeSha", null)
-                    .sample();
+            ReadmePushCommand command = readmePushCommand(null);
 
             repositoryAdapter.push(command);
 
@@ -299,7 +289,7 @@ class RepositoryAdapterTest {
         @Test
         @DisplayName("성공")
         void createPullRequest_success() {
-            CreatePullRequestCommand command = fixtureMonkey.giveMeOne(CreatePullRequestCommand.class);
+            CreatePullRequestCommand command = createPullRequestCommand();
             String json = "{\"html_url\": \"pr-url\"}";
 
             given(githubApiExecutor.executePost(anyString(), anyString(), anyMap(), any(), anyString()))
@@ -320,7 +310,7 @@ class RepositoryAdapterTest {
         @Test
         @DisplayName("성공")
         void getRepositoryLanguages_success() {
-            RepoInfoCommand command = fixtureMonkey.giveMeOne(RepoInfoCommand.class);
+            RepoInfoCommand command = repoInfoCommand();
             String json = "{\"Java\": 100, \"Python\": 200}";
 
             given(githubApiExecutor.executeGet(anyString(), anyString(), any(), anyString()))
@@ -342,7 +332,7 @@ class RepositoryAdapterTest {
         @Test
         @DisplayName("성공")
         void getReadmeContent_success() {
-            RepoBranchCommand command = fixtureMonkey.giveMeOne(RepoBranchCommand.class);
+            RepoBranchCommand command = repoBranchCommand();
 
             given(githubApiExecutor.executeGetRaw(anyString(), anyString(), anyString(), any()))
                     .willReturn("content");
@@ -355,7 +345,7 @@ class RepositoryAdapterTest {
         @Test
         @DisplayName("성공 - README가 없는 경우 빈 문자열 반환")
         void getReadmeContent_success_not_found() {
-            RepoBranchCommand command = fixtureMonkey.giveMeOne(RepoBranchCommand.class);
+            RepoBranchCommand command = repoBranchCommand();
 
             given(githubApiExecutor.executeGetRaw(anyString(), anyString(), anyString(), any()))
                     .willAnswer(invocation -> {
@@ -375,7 +365,7 @@ class RepositoryAdapterTest {
         @Test
         @DisplayName("성공 - 단일 페이지")
         void getAllBranches_success_single_page() {
-            RepoInfoCommand command = fixtureMonkey.giveMeOne(RepoInfoCommand.class);
+            RepoInfoCommand command = repoInfoCommand();
             ResponseEntity<String> response = ResponseEntity.ok("[{\"name\": \"main\"}]");
 
             given(githubApiExecutor.executeGetJson(anyString(), anyString(), any(), any(), anyString(), any()))
@@ -392,7 +382,7 @@ class RepositoryAdapterTest {
         @Test
         @DisplayName("성공 - 다중 페이지")
         void getAllBranches_success_multi_page() {
-            RepoInfoCommand command = fixtureMonkey.giveMeOne(RepoInfoCommand.class);
+            RepoInfoCommand command = repoInfoCommand();
 
             given(githubApiExecutor.executeGetJson(anyString(), anyString(), any(), any(), anyString(), any()))
                     .willAnswer(invocation -> {
@@ -416,7 +406,7 @@ class RepositoryAdapterTest {
         @Test
         @DisplayName("실패 - 최대 요청 횟수 초과 (무한 루프 방지)")
         void getAllBranches_failure_exceed_max_requests() {
-            RepoInfoCommand command = fixtureMonkey.giveMeOne(RepoInfoCommand.class);
+            RepoInfoCommand command = repoInfoCommand();
 
             given(githubApiExecutor.executeGetJson(anyString(), anyString(), any(), any(), anyString(), any()))
                     .willAnswer(invocation -> {
@@ -434,7 +424,7 @@ class RepositoryAdapterTest {
         @Test
         @DisplayName("실패 - 리포지토리를 찾을 수 없는 경우")
         void getAllBranches_failure_not_found() {
-            RepoInfoCommand command = fixtureMonkey.giveMeOne(RepoInfoCommand.class);
+            RepoInfoCommand command = repoInfoCommand();
 
             given(githubApiExecutor.executeGetJson(anyString(), anyString(), any(), any(), anyString(), any()))
                     .willAnswer(invocation -> {
@@ -450,7 +440,7 @@ class RepositoryAdapterTest {
         @Test
         @DisplayName("실패 - JSON 파싱 오류")
         void getAllBranches_failure_json_parsing() {
-            RepoInfoCommand command = fixtureMonkey.giveMeOne(RepoInfoCommand.class);
+            RepoInfoCommand command = repoInfoCommand();
             String invalidJson = "invalid-json";
 
             given(githubApiExecutor.executeGetJson(anyString(), anyString(), any(), any(), anyString(), any()))
@@ -471,7 +461,7 @@ class RepositoryAdapterTest {
         @Test
         @DisplayName("성공")
         void getRepositoryTree_success() {
-            RepoBranchCommand command = fixtureMonkey.giveMeOne(RepoBranchCommand.class);
+            RepoBranchCommand command = repoBranchCommand();
             String json = "{\"tree\": [{\"path\": \"file.txt\", \"type\": \"blob\"}]}";
 
             given(githubApiExecutor.executeGet(anyString(), anyString(), any(), anyString()))
@@ -494,7 +484,7 @@ class RepositoryAdapterTest {
         @Test
         @DisplayName("성공")
         void getFileContent_success() {
-            RepoBranchCommand command = fixtureMonkey.giveMeOne(RepoBranchCommand.class);
+            RepoBranchCommand command = repoBranchCommand();
             RepositoryTreeResult file = new RepositoryTreeResult("file.txt", "blob");
 
             given(githubApiExecutor.executeGetRaw(anyString(), anyString(), anyString(), any()))
@@ -509,7 +499,7 @@ class RepositoryAdapterTest {
         @Test
         @DisplayName("실패 - 파일을 찾을 수 없는 경우 빈 문자열 반환")
         void getFileContent_failure_not_found() {
-            RepoBranchCommand command = fixtureMonkey.giveMeOne(RepoBranchCommand.class);
+            RepoBranchCommand command = repoBranchCommand();
             RepositoryTreeResult file = new RepositoryTreeResult("file.txt", "blob");
 
             given(githubApiExecutor.executeGetRaw(anyString(), anyString(), anyString(), any()))
@@ -531,7 +521,7 @@ class RepositoryAdapterTest {
         @Test
         @DisplayName("성공 - admin 권한")
         void checkPermission_success_admin() {
-            RepoPermissionCommand command = fixtureMonkey.giveMeOne(RepoPermissionCommand.class);
+            RepoPermissionCommand command = repoPermissionCommand();
             String json = "{\"permission\": \"admin\"}";
 
             given(githubApiExecutor.executeGet(anyString(), anyString(), any(), anyString(), any()))
@@ -548,7 +538,7 @@ class RepositoryAdapterTest {
         @Test
         @DisplayName("성공 - 권한 없음(read)")
         void checkPermission_success_read() {
-            RepoPermissionCommand command = fixtureMonkey.giveMeOne(RepoPermissionCommand.class);
+            RepoPermissionCommand command = repoPermissionCommand();
             String json = "{\"permission\": \"read\"}";
 
             given(githubApiExecutor.executeGet(anyString(), anyString(), any(), anyString(), any()))
@@ -565,7 +555,7 @@ class RepositoryAdapterTest {
         @Test
         @DisplayName("성공 - 404 발생 시 권한 없음으로 처리")
         void checkPermission_success_not_found() {
-            RepoPermissionCommand command = fixtureMonkey.giveMeOne(RepoPermissionCommand.class);
+            RepoPermissionCommand command = repoPermissionCommand();
 
             given(githubApiExecutor.executeGet(anyString(), anyString(), any(), anyString(), any()))
                     .willAnswer(invocation -> {
