@@ -10,9 +10,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import seungyong.helpmebackend.project.adapter.out.persistence.entity.ProjectJpaEntity;
 import seungyong.helpmebackend.support.repository.JpaTest;
 import seungyong.helpmebackend.user.adapter.out.persistence.entity.UserJpaEntity;
+import seungyong.helpmebackend.user.adapter.out.persistence.mapper.UserPersistenceMapper;
 import seungyong.helpmebackend.user.application.port.out.UserPortOut;
-import seungyong.helpmebackend.user.application.port.out.UserPortOutMapper;
 import seungyong.helpmebackend.user.domain.entity.User;
+import seungyong.helpmebackend.user.domain.entity.UserPlan;
 
 import java.util.Optional;
 
@@ -32,11 +33,12 @@ public class ProjectJpaRepositoryTest {
                 .defaultNotNull(true)
                 .build()
                 .giveMeBuilder(User.class)
+                .set("plan", UserPlan.free())
                 .setNull("id")
                 .sample();
 
         User savedUser = userPortOut.save(user);
-        UserJpaEntity userJpaEntity = UserPortOutMapper.INSTANCE.toJpaEntity(savedUser);
+        UserJpaEntity userJpaEntity = UserPersistenceMapper.INSTANCE.toJpaEntity(savedUser);
 
         ProjectJpaEntity project = FixtureMonkey.builder()
                 .objectIntrospector(BuilderArbitraryIntrospector.INSTANCE)

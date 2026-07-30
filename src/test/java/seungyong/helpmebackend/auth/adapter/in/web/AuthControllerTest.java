@@ -82,9 +82,20 @@ class AuthControllerTest {
             mockMvc.perform(get("/api/v1/oauth2/callback")
                             .param("code", "test-code")
                             .param("installation_id", "12345")
-                            .param("setup_action", "install"))
+                            .param("action_type", "install"))
                     .andExpect(status().is3xxRedirection())
-                    .andExpect(redirectedUrl("https://github.com/apps/helpme-md/installations/new"));
+                    .andExpect(redirectedUrl("https://test-frontend.com/readme/select"));
+        }
+
+        @Test
+        @DisplayName("성공 (GitHub setup_action 설치 콜백 호환)")
+        void githubAppCallback_success_installationWithSetupAction() throws Exception {
+            mockMvc.perform(get("/api/v1/oauth2/callback")
+                            .param("code", "test-code")
+                            .param("installation_id", "12345")
+                            .param("setup_action", "update"))
+                    .andExpect(status().is3xxRedirection())
+                    .andExpect(redirectedUrl("https://test-frontend.com/readme/select"));
         }
 
         @Test
@@ -118,6 +129,27 @@ class AuthControllerTest {
                             .param("state", state))
                     .andExpect(status().is3xxRedirection())
                     .andExpect(redirectedUrl("https://test-frontend.com/oauth2/callback?error=authentication_failed"));
+        }
+
+        @Test
+        @DisplayName("실패 (탈퇴 처리 중인 사용자는 쿠키 만료 후 자동 로그아웃 안내)")
+        void githubAppCallback_failure_userDeletionInProgress() throws Exception {
+            String code = "test-code";
+            String state = "test-state";
+
+            given(authPortIn.signupOrLogin(code, state))
+                    .willThrow(new CustomException(UserErrorCode.USER_DELETION_IN_PROGRESS));
+
+            mockMvc.perform(get("/api/v1/oauth2/callback")
+                            .param("code", code)
+                            .param("state", state))
+                    .andExpect(status().is3xxRedirection())
+                    .andExpect(redirectedUrl(
+                            "https://test-frontend.com/#/oauth2/callback"
+                                    + "?error=USER_40901&requiredAction=sign_out"
+                    ));
+
+            verify(cookieUtil).clearTokenCookie(any(HttpServletResponse.class));
         }
     }
 

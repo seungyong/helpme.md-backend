@@ -16,6 +16,7 @@ import seungyong.helpmebackend.section.adapter.out.persistence.entity.SectionJpa
 import seungyong.helpmebackend.support.repository.JpaTest;
 import seungyong.helpmebackend.user.application.port.out.UserPortOut;
 import seungyong.helpmebackend.user.domain.entity.User;
+import seungyong.helpmebackend.user.domain.entity.UserPlan;
 
 import java.util.List;
 import java.util.Optional;
@@ -39,6 +40,7 @@ public class SectionJpaRepositoryTest {
                 .defaultNotNull(true)
                 .build()
                 .giveMeBuilder(User.class)
+                .set("plan", UserPlan.free())
                 .setNull("id")
                 .set("githubUser.githubToken.value", "test-token")
                 .sample();
@@ -99,6 +101,7 @@ public class SectionJpaRepositoryTest {
                 .defaultNotNull(true)
                 .build()
                 .giveMeBuilder(User.class)
+                .set("plan", UserPlan.free())
                 .setNull("id")
                 .set("githubUser.githubToken.value", "test-token")
                 .sample();
@@ -158,6 +161,7 @@ public class SectionJpaRepositoryTest {
                 .defaultNotNull(true)
                 .build()
                 .giveMeBuilder(User.class)
+                .set("plan", UserPlan.free())
                 .setNull("id")
                 .set("githubUser.githubToken.value", "test-token")
                 .sample();
@@ -208,6 +212,7 @@ public class SectionJpaRepositoryTest {
                 .defaultNotNull(true)
                 .build()
                 .giveMeBuilder(User.class)
+                .set("plan", UserPlan.free())
                 .setNull("id")
                 .set("githubUser.githubToken.value", "test-token")
                 .sample();
@@ -256,6 +261,7 @@ public class SectionJpaRepositoryTest {
                 .defaultNotNull(true)
                 .build()
                 .giveMeBuilder(User.class)
+                .set("plan", UserPlan.free())
                 .setNull("id")
                 .set("githubUser.githubToken.value", "test-token")
                 .sample();

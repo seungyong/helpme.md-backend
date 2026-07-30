@@ -12,11 +12,13 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 import seungyong.helpmebackend.auth.adapter.in.web.dto.response.ResponseInstallations;
 import seungyong.helpmebackend.global.infrastructure.cookie.CookieUtil;
 import seungyong.helpmebackend.auth.application.port.in.AuthPortIn;
+import seungyong.helpmebackend.global.exception.CustomException;
 import seungyong.helpmebackend.global.exception.GlobalErrorCode;
 import seungyong.helpmebackend.user.domain.exception.UserErrorCode;
 import seungyong.helpmebackend.global.domain.entity.JWT;
@@ -81,14 +83,15 @@ class AuthController {
             @RequestParam("code") String code,
             @RequestParam(value = "state", required = false) String state,
             @RequestParam(value = "installation_id", required = false) String installationId,
+            @RequestParam(value = "action_type", required = false) String actionType,
             @RequestParam(value = "setup_action", required = false) String setupAction,
-            HttpServletResponse response
+        HttpServletResponse response
     ) throws IOException {
         String redirectUrl;
-        boolean isInstallation = installationId != null && !installationId.isEmpty() && setupAction != null && !setupAction.isEmpty();
+        boolean isInstallation = isInstallationCallback(installationId, actionType, setupAction);
 
         if (isInstallation) {
-            redirectUrl = UriComponentsBuilder.fromUriString("https://github.com/apps/helpme-md/installations/new")
+            redirectUrl = UriComponentsBuilder.fromUriString(frontendUrl + "/readme/select")
                     .build()
                     .toUriString();
         }
@@ -163,13 +166,33 @@ class AuthController {
             return UriComponentsBuilder.fromUriString(frontendUrl + "/oauth2/callback")
                     .build()
                     .toUriString();
+        } catch (CustomException e) {
+            if (e.getErrorCode() == UserErrorCode.USER_DELETION_IN_PROGRESS) {
+                cookieUtil.clearTokenCookie(response);
+                return frontendUrl
+                        + "/#/oauth2/callback?error="
+                        + UserErrorCode.USER_DELETION_IN_PROGRESS.getErrorCode()
+                        + "&requiredAction=sign_out";
+            }
+
+            log.error("OAuth2 login/signup failed", e);
+            return authenticationFailedRedirectUrl();
         } catch (Exception e) {
             log.error("OAuth2 login/signup failed", e);
-
-            return UriComponentsBuilder.fromUriString(frontendUrl + "/oauth2/callback")
-                    .queryParam("error", "authentication_failed")
-                    .build()
-                    .toUriString();
+            return authenticationFailedRedirectUrl();
         }
+    }
+
+    private String authenticationFailedRedirectUrl() {
+        return UriComponentsBuilder.fromUriString(frontendUrl + "/oauth2/callback")
+                .queryParam("error", "authentication_failed")
+                .build()
+                .toUriString();
+    }
+
+    private boolean isInstallationCallback(String installationId, String actionType, String setupAction) {
+        String action = StringUtils.hasText(actionType) ? actionType : setupAction;
+        return StringUtils.hasText(installationId)
+                && ("install".equals(action) || "update".equals(action));
     }
 }

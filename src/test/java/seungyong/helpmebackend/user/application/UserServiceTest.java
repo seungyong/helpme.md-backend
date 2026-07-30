@@ -20,6 +20,7 @@ import seungyong.helpmebackend.global.exception.GlobalErrorCode;
 import seungyong.helpmebackend.user.application.port.out.UserPortOut;
 import seungyong.helpmebackend.user.domain.entity.JWTUser;
 import seungyong.helpmebackend.user.domain.entity.User;
+import seungyong.helpmebackend.user.domain.entity.UserPlan;
 
 import java.time.Instant;
 
@@ -48,6 +49,7 @@ public class UserServiceTest {
             String refreshTokenKey = RedisKey.REFRESH_KEY.getValue() + refreshToken;
             Long userId = 1L;
             User user = fixtureMonkey.giveMeBuilder(User.class)
+                    .set("plan", UserPlan.free())
                     .set("id", userId)
                     .sample();
             JWT jwt = fixtureMonkey.giveMeBuilder(JWT.class)
@@ -120,6 +122,7 @@ public class UserServiceTest {
     void withdraw_success() {
         Long userId = 1L;
         User user = fixtureMonkey.giveMeBuilder(User.class)
+                .set("plan", UserPlan.free())
                 .set("id", userId)
                 .set("githubUser.githubToken.value", "valid-github-token")
                 .sample();

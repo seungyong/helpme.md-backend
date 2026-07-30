@@ -1,39 +1,35 @@
 package seungyong.helpmebackend.user.adapter.out.persistence;
 
-import com.navercorp.fixturemonkey.FixtureMonkey;
-import com.navercorp.fixturemonkey.api.introspector.ConstructorPropertiesArbitraryIntrospector;
-import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import seungyong.helpmebackend.repository.domain.entity.EncryptedToken;
 import seungyong.helpmebackend.global.exception.CustomException;
 import seungyong.helpmebackend.support.repository.JpaTest;
 import seungyong.helpmebackend.user.application.port.out.UserPortOut;
+import seungyong.helpmebackend.user.domain.entity.GithubUser;
 import seungyong.helpmebackend.user.domain.entity.User;
+import seungyong.helpmebackend.user.domain.entity.UserDeletion;
+import seungyong.helpmebackend.user.domain.entity.UserPlan;
 import seungyong.helpmebackend.user.domain.exception.UserErrorCode;
+import seungyong.helpmebackend.user.domain.type.GithubTokenStatus;
+import seungyong.helpmebackend.user.domain.type.PlanCode;
+import seungyong.helpmebackend.user.domain.type.UserStatus;
+
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 
 import static org.assertj.core.api.Assertions.*;
 
-@Slf4j
 @JpaTest
 public class UserAdapterTest {
     @Autowired private UserPortOut userPortOut;
     @Autowired private UserJpaRepository userJpaRepository;
 
-    private final FixtureMonkey fixtureMonkey = FixtureMonkey.builder()
-            .objectIntrospector(ConstructorPropertiesArbitraryIntrospector.INSTANCE)
-            .defaultNotNull(true)
-            .build();
-
     @Test
     @DisplayName("유저 저장 - 성공")
     void save_user_success() {
-        User user = fixtureMonkey.giveMeBuilder(User.class)
-                .setNull("id")
-                .set("githubUser.githubToken.value", "test-token")
-                .sample();
-
-        assert user != null;
+        User user = createUser();
 
         User savedUser = userPortOut.save(user);
 
@@ -47,12 +43,7 @@ public class UserAdapterTest {
     @Test
     @DisplayName("유저 삭제 - 성공")
     void delete_user_success() {
-        User user = fixtureMonkey.giveMeBuilder(User.class)
-                .setNull("id")
-                .set("githubUser.githubToken.value", "test-token")
-                .sample();
-
-        assert user != null;
+        User user = createUser();
 
         User savedUser = userPortOut.save(user);
         Long userId = savedUser.getId();
@@ -65,12 +56,7 @@ public class UserAdapterTest {
     @Test
     @DisplayName("유저 ID 조회 - 성공")
     void get_by_id_success() {
-        User user = fixtureMonkey.giveMeBuilder(User.class)
-                .setNull("id")
-                .set("githubUser.githubToken.value", "test-token")
-                .sample();
-
-        assert user != null;
+        User user = createUser();
 
         User savedUser = userPortOut.save(user);
         Long userId = savedUser.getId();
@@ -94,12 +80,7 @@ public class UserAdapterTest {
     @Test
     @DisplayName("깃허브 ID로 유저 조회 - 성공")
     void get_by_github_id_success() {
-         User user = fixtureMonkey.giveMeBuilder(User.class)
-                 .setNull("id")
-                 .set("githubUser.githubToken.value", "test-token")
-                 .sample();
-
-         assert user != null;
+         User user = createUser();
 
          User savedUser = userPortOut.save(user);
          Long githubId = savedUser.getGithubUser().getGithubId();
@@ -116,5 +97,47 @@ public class UserAdapterTest {
         Long nonExistentGithubId = 999L;
 
         assertThat(userPortOut.getByGithubId(nonExistentGithubId)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("유저 저장·조회 시 플랜, GitHub 검증, 삭제 상태를 보존한다")
+    void saveAndLoad_preservesExtendedUserState() {
+        OffsetDateTime now = OffsetDateTime.of(
+                2026, 7, 30, 12, 0, 0, 0, ZoneOffset.UTC
+        );
+        User user = User.builder()
+                .githubUser(GithubUser.builder()
+                        .name("octocat")
+                        .githubId(12345L)
+                        .githubToken(new EncryptedToken("encrypted-token"))
+                        .tokenStatus(GithubTokenStatus.VALID)
+                        .tokenVerifiedAt(now)
+                        .build())
+                .plan(new UserPlan(PlanCode.PRO, (short) 3, now.plusYears(1)))
+                .status(UserStatus.DELETE_FAILED)
+                .lastLoginAt(now)
+                .deletion(new UserDeletion(now.plusDays(1), "STORAGE_ERROR", "cleanup failed"))
+                .build();
+
+        User savedUser = userPortOut.save(user);
+        User foundUser = userPortOut.getById(savedUser.getId());
+
+        assertThat(foundUser.getPlan()).isEqualTo(user.getPlan());
+        assertThat(foundUser.getStatus()).isEqualTo(UserStatus.DELETE_FAILED);
+        assertThat(foundUser.getGithubUser().getTokenStatus()).isEqualTo(GithubTokenStatus.VALID);
+        assertThat(foundUser.getGithubUser().getTokenVerifiedAt()).isEqualTo(now);
+        assertThat(foundUser.getLastLoginAt()).isEqualTo(now);
+        assertThat(foundUser.getDeletion()).isEqualTo(user.getDeletion());
+    }
+
+    private User createUser() {
+        return new User(
+                null,
+                new GithubUser(
+                        "octocat",
+                        12345L,
+                        new EncryptedToken("encrypted-token")
+                )
+        );
     }
 }

@@ -175,7 +175,9 @@ public class SectionIntegrationTest {
             createProject();
             clearInvocations(projectPortOut);
 
-            RequestSection request = fixtureMonkey.giveMeOne(RequestSection.class);
+            RequestSection request = fixtureMonkey.giveMeBuilder(RequestSection.class)
+                    .set("content", "section content")
+                    .sample();
 
             mockMvc.perform(post("/api/v1/repos/{owner}/{name}/sections", OWNER, NAME)
                             .cookie(
@@ -198,7 +200,9 @@ public class SectionIntegrationTest {
         @DisplayName("성공 - 프로젝트 없는 경우")
         void success_noProject() throws Exception {
             clearInvocations(projectPortOut);
-            RequestSection request = fixtureMonkey.giveMeOne(RequestSection.class);
+            RequestSection request = fixtureMonkey.giveMeBuilder(RequestSection.class)
+                    .set("content", "section content")
+                    .sample();
 
             mockMvc.perform(post("/api/v1/repos/{owner}/{name}/sections", OWNER, NAME)
                             .cookie(

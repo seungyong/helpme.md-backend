@@ -15,6 +15,7 @@ import seungyong.helpmebackend.section.domain.entity.Section;
 import seungyong.helpmebackend.support.repository.JpaTest;
 import seungyong.helpmebackend.user.application.port.out.UserPortOut;
 import seungyong.helpmebackend.user.domain.entity.User;
+import seungyong.helpmebackend.user.domain.entity.UserPlan;
 
 import java.util.List;
 import java.util.Optional;
@@ -39,6 +40,7 @@ public class SectionAdapterTest {
     @DisplayName("섹션 저장 - 성공")
     void save_section_success() {
         User user = fixtureMonkey.giveMeBuilder(User.class)
+                .set("plan", UserPlan.free())
                 .setNull("id")
                 .set("githubUser.githubToken.value", "test-token")
                 .sample();
@@ -66,6 +68,7 @@ public class SectionAdapterTest {
     @DisplayName("여러 섹션 저장 - 성공")
     void saveAll_sections_success() {
         User user = fixtureMonkey.giveMeBuilder(User.class)
+                .set("plan", UserPlan.free())
                 .setNull("id")
                 .set("githubUser.githubToken.value", "test-token")
                 .sample();
@@ -103,6 +106,7 @@ public class SectionAdapterTest {
     @DisplayName("섹션 삭제 - 성공")
     void delete_section_success() {
         User user = fixtureMonkey.giveMeBuilder(User.class)
+                .set("plan", UserPlan.free())
                 .setNull("id")
                 .set("githubUser.githubToken.value", "test-token")
                 .sample();
@@ -134,6 +138,7 @@ public class SectionAdapterTest {
     @DisplayName("모든 섹션 삭제 - 성공")
     void deleteAllByUserIdAndRepoFullName_success() {
         User user = fixtureMonkey.giveMeBuilder(User.class)
+                .set("plan", UserPlan.free())
                 .setNull("id")
                 .set("githubUser.githubToken.value", "test-token")
                 .sample();
@@ -172,6 +177,7 @@ public class SectionAdapterTest {
     @DisplayName("섹션 순서 감소 - 성공")
     void decreaseOrderIdxAfter_success() {
         User user = fixtureMonkey.giveMeBuilder(User.class)
+                .set("plan", UserPlan.free())
                 .setNull("id")
                 .set("githubUser.githubToken.value", "test-token")
                 .sample();
@@ -208,6 +214,7 @@ public class SectionAdapterTest {
     @DisplayName("섹션 ID 및 유저 ID로 섹션 조회 - 성공")
     void getByIdAndUserId_success() {
         User user = fixtureMonkey.giveMeBuilder(User.class)
+                .set("plan", UserPlan.free())
                 .setNull("id")
                 .set("githubUser.githubToken.value", "test-token")
                 .sample();
@@ -244,6 +251,7 @@ public class SectionAdapterTest {
     @DisplayName("유저 ID 및 레포 이름으로 모든 섹션 조회 - 성공")
     void getSectionsByUserIdAndRepoFullName_success() {
         User user = fixtureMonkey.giveMeBuilder(User.class)
+                .set("plan", UserPlan.free())
                 .setNull("id")
                 .set("githubUser.githubToken.value", "test-token")
                 .sample();
@@ -280,6 +288,7 @@ public class SectionAdapterTest {
     @DisplayName("유저 ID 및 레포 이름으로 모든 섹션 조회 - 성공 (섹션이 없는 경우)")
     void getSectionsByUserIdAndRepoFullName_empty() {
         User user = fixtureMonkey.giveMeBuilder(User.class)
+                .set("plan", UserPlan.free())
                 .setNull("id")
                 .set("githubUser.githubToken.value", "test-token")
                 .sample();
@@ -301,6 +310,7 @@ public class SectionAdapterTest {
     @DisplayName("유저 ID 및 레포 이름으로 마지막 섹션 순서 조회 - 성공 (섹션이 없는 경우)")
     void lastOrderIdxByUserIdAndRepoFullName_success() {
         User user = fixtureMonkey.giveMeBuilder(User.class)
+                .set("plan", UserPlan.free())
                 .setNull("id")
                 .set("githubUser.githubToken.value", "test-token")
                 .sample();
@@ -322,6 +332,7 @@ public class SectionAdapterTest {
     @DisplayName("유저 ID 및 레포 이름으로 마지막 섹션 순서 조회 - 성공 (섹션이 있는 경우)")
     void lastOrderIdxByUserIdAndRepoFullName_withSections() {
         User user = fixtureMonkey.giveMeBuilder(User.class)
+                .set("plan", UserPlan.free())
                 .setNull("id")
                 .set("githubUser.githubToken.value", "test-token")
                 .sample();

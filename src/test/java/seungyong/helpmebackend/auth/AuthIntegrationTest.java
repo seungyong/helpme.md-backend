@@ -39,6 +39,8 @@ import seungyong.helpmebackend.user.domain.entity.GithubUser;
 import seungyong.helpmebackend.user.domain.entity.JWTUser;
 import seungyong.helpmebackend.user.domain.entity.User;
 import seungyong.helpmebackend.user.domain.exception.UserErrorCode;
+import seungyong.helpmebackend.user.domain.type.GithubTokenStatus;
+import seungyong.helpmebackend.user.domain.type.UserStatus;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -119,9 +121,9 @@ class AuthIntegrationTest {
             mockMvc.perform(get("/api/v1/oauth2/callback")
                             .param("code", "test-code")
                             .param("installation_id", "12345")
-                            .param("setup_action", "install"))
+                            .param("action_type", "install"))
                     .andExpect(status().is3xxRedirection())
-                    .andExpect(redirectedUrl("https://github.com/apps/helpme-md/installations/new"))
+                    .andExpect(redirectedUrl("http://localhost:3000/readme/select"))
                     .andDo(MockMvcResultHandlers.print());
         }
 
@@ -154,6 +156,12 @@ class AuthIntegrationTest {
             assertThat(redirectUrl).isNotNull().contains("/oauth2/callback");
 
             assertThat(redisPortOut.exists(stateKey)).isFalse();
+
+            User savedUser = userPortOut.getByGithubId(githubUser.githubId()).orElseThrow();
+            assertThat(savedUser.getStatus()).isEqualTo(UserStatus.ACTIVE);
+            assertThat(savedUser.getGithubUser().getTokenStatus()).isEqualTo(GithubTokenStatus.VALID);
+            assertThat(savedUser.getGithubUser().getTokenVerifiedAt()).isNotNull();
+            assertThat(savedUser.getLastLoginAt()).isNotNull();
         }
 
         @Test
@@ -172,6 +180,49 @@ class AuthIntegrationTest {
             String redirectUrl = result.getResponse().getRedirectedUrl();
             assertThat(redirectUrl).isNotNull().contains("?error=authentication_failed");
         }
+
+        @Test
+        @DisplayName("실패 (탈퇴 처리 중인 기존 사용자는 토큰 미발급 및 쿠키 만료)")
+        void githubAppCallback_failure_userDeletionInProgress() throws Exception {
+            String code = "test-code";
+            String state = "test-state";
+            long githubId = 987654L;
+
+            User deletingUser = userPortOut.save(new User(
+                    null,
+                    new GithubUser(
+                            "deleting-user",
+                            githubId,
+                            new EncryptedToken(cipherPortOut.encrypt("old-token"))
+                    ),
+                    UserStatus.DELETING
+            ));
+
+            String stateKey = RedisKey.OAUTH2_STATE_KEY.getValue() + state;
+            redisPortOut.set(stateKey, "valid", Instant.now().plus(10, ChronoUnit.MINUTES));
+
+            OAuthTokenResult tokenResult = new OAuthTokenResult("new-token", "bearer", "read:user");
+            OAuthGithubUser githubUser = new OAuthGithubUser("deleting-user", githubId);
+            doReturn(tokenResult).when(oAuth2PortOut).getAccessToken(code);
+            doReturn(githubUser).when(oAuth2PortOut).getGithubUser(tokenResult.accessToken());
+
+            mockMvc.perform(get("/api/v1/oauth2/callback")
+                            .param("code", code)
+                            .param("state", state))
+                    .andExpect(status().is3xxRedirection())
+                    .andExpect(redirectedUrl(
+                            "http://localhost:3000/#/oauth2/callback"
+                                    + "?error=USER_40901&requiredAction=sign_out"
+                    ))
+                    .andExpect(cookie().maxAge("accessToken", 0))
+                    .andExpect(cookie().maxAge("refreshToken", 0));
+
+            User persistedUser = userPortOut.getByGithubId(githubId).orElseThrow();
+            assertThat(persistedUser.getId()).isEqualTo(deletingUser.getId());
+            assertThat(persistedUser.getStatus()).isEqualTo(UserStatus.DELETING);
+            assertThat(persistedUser.getLastLoginAt()).isNull();
+            assertThat(redisPortOut.exists(stateKey)).isFalse();
+        }
     }
 
     @Nested
@@ -184,10 +235,7 @@ class AuthIntegrationTest {
             String realEncryptedToken = cipherPortOut.encrypt(rawAccessToken);
 
             GithubUser githubUser = new GithubUser("test-user", 12345L, new EncryptedToken(realEncryptedToken));
-            User user = fixtureMonkey.giveMeBuilder(User.class)
-                    .set("id", null)
-                    .set("githubUser", githubUser)
-                    .sample();
+            User user = new User(null, githubUser);
             User savedUser = userPortOut.save(user);
 
             JWT jwt = jwtPortOut.generate(new JWTUser(savedUser.getId(), savedUser.getGithubUser().getName()));

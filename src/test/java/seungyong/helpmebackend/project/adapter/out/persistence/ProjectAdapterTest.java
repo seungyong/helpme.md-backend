@@ -11,6 +11,7 @@ import seungyong.helpmebackend.project.domain.entity.Project;
 import seungyong.helpmebackend.support.repository.JpaTest;
 import seungyong.helpmebackend.user.application.port.out.UserPortOut;
 import seungyong.helpmebackend.user.domain.entity.User;
+import seungyong.helpmebackend.user.domain.entity.UserPlan;
 
 import static org.assertj.core.api.Assertions.*;
 
@@ -29,6 +30,7 @@ public class ProjectAdapterTest {
     @DisplayName("프로젝트 저장 - 성공")
     void save_project_success() {
         User user = fixtureMonkey.giveMeBuilder(User.class)
+                .set("plan", UserPlan.free())
                 .setNull("id")
                 .set("githubUser.githubToken.value", "test-token")
                 .sample();
@@ -51,6 +53,7 @@ public class ProjectAdapterTest {
     @DisplayName("유저 ID 및 이름으로 프로젝트 조회 - 성공")
     void getByUserIdAndRepoFullName_success() {
         User user = fixtureMonkey.giveMeBuilder(User.class)
+                .set("plan", UserPlan.free())
                 .setNull("id")
                 .set("githubUser.githubToken.value", "test-token")
                 .sample();
@@ -78,6 +81,7 @@ public class ProjectAdapterTest {
     @DisplayName("유저 ID 및 이름으로 프로젝트 조회 - 실패")
     void getByUserIdAndRepoFullName_failure() {
         User user = fixtureMonkey.giveMeBuilder(User.class)
+                .set("plan", UserPlan.free())
                 .setNull("id")
                 .set("githubUser.githubToken.value", "test-token")
                 .sample();

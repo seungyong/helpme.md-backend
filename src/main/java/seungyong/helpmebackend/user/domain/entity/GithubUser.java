@@ -1,15 +1,62 @@
 package seungyong.helpmebackend.user.domain.entity;
 
-import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import seungyong.helpmebackend.repository.domain.entity.EncryptedToken;
+import seungyong.helpmebackend.user.domain.type.GithubTokenStatus;
+
+import java.time.OffsetDateTime;
+import java.util.Objects;
 
 @Getter
-@AllArgsConstructor
 public class GithubUser {
     private String name;
-    private Long githubId;
+    private final Long githubId;
     private EncryptedToken githubToken;
+    private GithubTokenStatus tokenStatus;
+    private OffsetDateTime tokenVerifiedAt;
+
+    public GithubUser(String name, Long githubId, EncryptedToken githubToken) {
+        this(name, githubId, githubToken, GithubTokenStatus.UNKNOWN, null);
+    }
+
+    @Builder
+    private GithubUser(
+            String name,
+            Long githubId,
+            EncryptedToken githubToken,
+            GithubTokenStatus tokenStatus,
+            OffsetDateTime tokenVerifiedAt
+    ) {
+        this.name = Objects.requireNonNull(name, "GitHub 사용자 이름은 null일 수 없습니다.");
+        this.githubId = Objects.requireNonNull(githubId, "GitHub 사용자 ID는 null일 수 없습니다.");
+        this.githubToken = Objects.requireNonNull(githubToken, "GitHub 토큰은 null일 수 없습니다.");
+        this.tokenStatus = tokenStatus == null ? GithubTokenStatus.UNKNOWN : tokenStatus;
+        this.tokenVerifiedAt = tokenVerifiedAt;
+    }
+
+    /**
+     * GitHub 인증이 완료된 사용자를 생성하는 정적 팩토리 메서드입니다.
+     * @param name Github 사용자 이름
+     * @param githubId GitHub 사용자 ID
+     * @param githubToken 암호화된 GitHub 토큰
+     * @param authenticatedAt 인증 시각
+     * @return 인증이 완료된 GithubUser 객체
+     */
+    public static GithubUser authenticated(
+            String name,
+            Long githubId,
+            EncryptedToken githubToken,
+            OffsetDateTime authenticatedAt
+    ) {
+        return GithubUser.builder()
+                .name(name)
+                .githubId(githubId)
+                .githubToken(githubToken)
+                .tokenStatus(GithubTokenStatus.VALID)
+                .tokenVerifiedAt(Objects.requireNonNull(authenticatedAt, "GitHub 인증 시각은 null일 수 없습니다."))
+                .build();
+    }
 
     /**
      * 깃허브 토큰을 업데이트하는 메서드입니다.

@@ -24,6 +24,7 @@ import seungyong.helpmebackend.repository.domain.entity.EncryptedToken;
 import seungyong.helpmebackend.user.application.port.out.UserPortOut;
 import seungyong.helpmebackend.user.domain.entity.GithubUser;
 import seungyong.helpmebackend.user.domain.entity.User;
+import seungyong.helpmebackend.user.domain.exception.UserErrorCode;
 
 import java.time.Instant;
 import java.util.List;
@@ -106,7 +107,6 @@ class AuthServiceTest {
             given(userPortOut.getByGithubId(githubUser.githubId())).willReturn(Optional.empty());
             given(userPortOut.save(any(User.class))).willReturn(mockUser);
 
-            given(mockUser.isDiffToken(encryptedToken)).willReturn(false);
             given(mockUser.getId()).willReturn(1L);
             given(mockUser.getGithubUser()).willReturn(mockGithubUser);
             given(mockGithubUser.getName()).willReturn(githubUser.name());
@@ -122,8 +122,8 @@ class AuthServiceTest {
         }
 
         @Test
-        @DisplayName("성공 (기존 유저 - 토큰 변경됨)")
-        void signupOrLogin_success_existingUser_diffToken() {
+        @DisplayName("성공 (기존 활성 사용자의 로그인 정보 갱신)")
+        void signupOrLogin_success_existingActiveUser() {
             String code = "auth-code";
             String state = "valid-state";
             String encryptedToken = "new-encrypted-token";
@@ -142,7 +142,8 @@ class AuthServiceTest {
 
             given(userPortOut.getByGithubId(githubUser.githubId())).willReturn(Optional.of(mockUser));
 
-            given(mockUser.isDiffToken(encryptedToken)).willReturn(true);
+            given(mockUser.isAuthenticationAllowed()).willReturn(true);
+            given(userPortOut.save(mockUser)).willReturn(mockUser);
             given(mockUser.getId()).willReturn(1L);
             given(mockUser.getGithubUser()).willReturn(mockGithubUser);
             given(mockGithubUser.getName()).willReturn(githubUser.name());
@@ -151,42 +152,35 @@ class AuthServiceTest {
 
             authService.signupOrLogin(code, state);
 
-            verify(mockUser).updateGithubToken(any(EncryptedToken.class));
+            verify(mockUser).recordSuccessfulLogin(any(GithubUser.class), any());
             verify(userPortOut).save(mockUser);
         }
 
         @Test
-        @DisplayName("성공 (기존 유저 - 토큰 동일함)")
-        void signupOrLogin_success_existingUser_sameToken() {
+        @DisplayName("실패 (탈퇴 처리 중인 기존 사용자는 토큰을 발급하지 않음)")
+        void signupOrLogin_failure_existingDeletingUser() {
             String code = "auth-code";
             String state = "valid-state";
-            String encryptedToken = "same-encrypted-token";
 
             OAuthTokenResult tokenResult = fixtureMonkey.giveMeOne(OAuthTokenResult.class);
             OAuthGithubUser githubUser = fixtureMonkey.giveMeOne(OAuthGithubUser.class);
-            JWT expectedJwt = fixtureMonkey.giveMeOne(JWT.class);
 
             User mockUser = mock(User.class);
-            GithubUser mockGithubUser = mock(GithubUser.class);
 
             given(redisPortOut.exists(anyString())).willReturn(true);
             given(oAuth2PortOut.getAccessToken(code)).willReturn(tokenResult);
             given(oAuth2PortOut.getGithubUser(tokenResult.accessToken())).willReturn(githubUser);
-            given(cipherPortOut.encrypt(tokenResult.accessToken())).willReturn(encryptedToken);
 
             given(userPortOut.getByGithubId(githubUser.githubId())).willReturn(Optional.of(mockUser));
+            given(mockUser.isAuthenticationAllowed()).willReturn(false);
 
-            given(mockUser.isDiffToken(encryptedToken)).willReturn(false);
-            given(mockUser.getId()).willReturn(1L);
-            given(mockUser.getGithubUser()).willReturn(mockGithubUser);
-            given(mockGithubUser.getName()).willReturn(githubUser.name());
+            assertThatThrownBy(() -> authService.signupOrLogin(code, state))
+                    .isInstanceOf(CustomException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", UserErrorCode.USER_DELETION_IN_PROGRESS);
 
-            given(jwtPortOut.generate(any())).willReturn(expectedJwt);
-
-            authService.signupOrLogin(code, state);
-
-            verify(mockUser, never()).updateGithubToken(any());
+            verify(cipherPortOut, never()).encrypt(anyString());
             verify(userPortOut, never()).save(any());
+            verify(jwtPortOut, never()).generate(any());
         }
 
         @Test
