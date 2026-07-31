@@ -21,6 +21,7 @@ import seungyong.helpmebackend.section.domain.exception.SectionErrorCode;
 import seungyong.helpmebackend.user.domain.exception.UserErrorCode;
 import seungyong.helpmebackend.global.infrastructure.swagger.annotation.ApiErrorResponse;
 import seungyong.helpmebackend.global.infrastructure.swagger.annotation.ApiErrorResponses;
+import seungyong.helpmebackend.global.infrastructure.swagger.annotation.UserRoleApiErrors;
 import seungyong.helpmebackend.section.application.port.in.SectionPortIn;
 
 import java.net.URI;
@@ -30,6 +31,7 @@ import java.net.URI;
         description = "Section 관련 API"
 )
 @RestController
+@UserRoleApiErrors
 @RequestMapping("/api/v1/repos/{owner}/{name}/sections")
 @ResponseBody
 @RequiredArgsConstructor

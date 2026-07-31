@@ -19,6 +19,7 @@ import seungyong.helpmebackend.global.exception.GlobalErrorCode;
 import seungyong.helpmebackend.global.domain.entity.JWT;
 import seungyong.helpmebackend.global.infrastructure.swagger.annotation.ApiErrorResponse;
 import seungyong.helpmebackend.global.infrastructure.swagger.annotation.ApiErrorResponses;
+import seungyong.helpmebackend.global.infrastructure.swagger.annotation.UserRoleApiErrors;
 import seungyong.helpmebackend.user.application.port.in.UserPortIn;
 import seungyong.helpmebackend.user.domain.exception.UserErrorCode;
 
@@ -59,6 +60,7 @@ class UserController {
                     errorCodes = { "INTERNAL_SERVER_ERROR" }
             )
     })
+    @UserRoleApiErrors
     @GetMapping("/me")
     public ResponseEntity<ResponseUser> getUser(
             @AuthenticationPrincipal CustomUserDetails details
@@ -167,6 +169,7 @@ class UserController {
                     errorCodes = { "INTERNAL_SERVER_ERROR" }
             )
     })
+    @UserRoleApiErrors
     @DeleteMapping
     public ResponseEntity<Void> withdraw(
             HttpServletRequest request,

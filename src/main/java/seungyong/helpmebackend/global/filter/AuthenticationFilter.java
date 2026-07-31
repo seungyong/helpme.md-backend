@@ -15,8 +15,11 @@ import seungyong.helpmebackend.global.domain.entity.CustomUserDetails;
 import seungyong.helpmebackend.global.exception.CustomException;
 import seungyong.helpmebackend.global.exception.ErrorResponse;
 import seungyong.helpmebackend.global.exception.GlobalErrorCode;
+import seungyong.helpmebackend.global.infrastructure.cookie.CookieUtil;
 import seungyong.helpmebackend.global.infrastructure.jwt.JWTProvider;
+import seungyong.helpmebackend.user.application.port.in.UserPortIn;
 import seungyong.helpmebackend.user.domain.entity.JWTUser;
+import seungyong.helpmebackend.user.domain.exception.UserErrorCode;
 
 import java.io.IOException;
 
@@ -25,6 +28,8 @@ import java.io.IOException;
 @Component
 public class AuthenticationFilter extends OncePerRequestFilter {
     private final JWTProvider jwtProvider;
+    private final UserPortIn userPortIn;
+    private final CookieUtil cookieUtil;
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -72,6 +77,11 @@ public class AuthenticationFilter extends OncePerRequestFilter {
             Authentication authentication = getAuthentication(accessToken);
             SecurityContextHolder.getContext().setAuthentication(authentication);
         } catch (CustomException e) {
+            if (e.getErrorCode() == GlobalErrorCode.INVALID_TOKEN
+                    || e.getErrorCode() == UserErrorCode.USER_DELETION_IN_PROGRESS) {
+                cookieUtil.clearTokenCookie(response);
+            }
+
             response.setStatus(e.getErrorCode().getHttpStatus().value());
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             response.getWriter().write(
@@ -102,6 +112,7 @@ public class AuthenticationFilter extends OncePerRequestFilter {
 
     private Authentication getAuthentication(String accessToken) {
         JWTUser jwtUser = jwtProvider.getUserByToken(accessToken);
+        userPortIn.ensureActiveUser(jwtUser.getId());
 
         CustomUserDetails customUser = new CustomUserDetails(
                 jwtUser.getId(),

@@ -29,6 +29,7 @@ import seungyong.helpmebackend.global.config.SecurityConfig;
 import seungyong.helpmebackend.global.domain.entity.CustomUserDetails;
 import seungyong.helpmebackend.global.domain.entity.JWT;
 import seungyong.helpmebackend.global.domain.type.RedisKey;
+import seungyong.helpmebackend.global.exception.GlobalErrorCode;
 import seungyong.helpmebackend.repository.application.port.out.CipherPortOut;
 import seungyong.helpmebackend.repository.domain.entity.EncryptedToken;
 import seungyong.helpmebackend.user.application.port.out.UserPortOut;
@@ -53,6 +54,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static seungyong.helpmebackend.support.fixture.TestFixtures.installations;
 import static seungyong.helpmebackend.support.fixture.TestFixtures.oauthGithubUser;
 import static seungyong.helpmebackend.support.fixture.TestFixtures.oauthTokenResult;
+import static seungyong.helpmebackend.support.fixture.TestFixtures.user;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -252,7 +254,7 @@ class AuthIntegrationTest {
         }
 
         @Test
-        @DisplayName("실패 (유저를 찾을 수 없음)")
+        @DisplayName("실패 (삭제된 사용자의 Access Token)")
         void getInstallation_failure_userNotFound() throws Exception {
             Long nonExistentUserId = 9999L;
             JWT jwt = jwtPortOut.generate(new JWTUser(nonExistentUserId, "nonexistent-user"));
@@ -262,8 +264,10 @@ class AuthIntegrationTest {
                                     new Cookie("accessToken", jwt.getAccessToken()),
                                     new Cookie("refreshToken", jwt.getRefreshToken())
                             ))
-                    .andExpect(status().isNotFound())
-                    .andExpect(jsonPath("$.errorCode").value(UserErrorCode.USER_NOT_FOUND.getErrorCode()))
+                    .andExpect(status().isUnauthorized())
+                    .andExpect(jsonPath("$.errorCode").value(GlobalErrorCode.INVALID_TOKEN.getErrorCode()))
+                    .andExpect(cookie().maxAge("accessToken", 0))
+                    .andExpect(cookie().maxAge("refreshToken", 0))
                     .andDo(MockMvcResultHandlers.print());
         }
     }
@@ -274,7 +278,11 @@ class AuthIntegrationTest {
         @Test
         @DisplayName("성공")
         void checkAuth_success() throws Exception {
-            JWT jwt = jwtPortOut.generate(new JWTUser(1L, "test-user"));
+            User savedUser = userPortOut.save(user(null, "check-auth-token"));
+            JWT jwt = jwtPortOut.generate(new JWTUser(
+                    savedUser.getId(),
+                    savedUser.getGithubUser().getName()
+            ));
 
             mockMvc.perform(post("/api/v1/oauth2/check")
                             .cookie(

@@ -25,6 +25,25 @@ public class UserService implements UserPortIn {
     private final UserPortOut userPortOut;
 
     @Override
+    public void ensureActiveUser(Long userId) {
+        User user;
+
+        try {
+            user = userPortOut.getById(userId);
+        } catch (CustomException e) {
+            if (e.getErrorCode() == UserErrorCode.USER_NOT_FOUND) {
+                throw new CustomException(GlobalErrorCode.INVALID_TOKEN);
+            }
+
+            throw e;
+        }
+
+        if (!user.isAuthenticationAllowed()) {
+            throw new CustomException(UserErrorCode.USER_DELETION_IN_PROGRESS);
+        }
+    }
+
+    @Override
     public JWT reissue(String refreshToken) {
         Date now = new Date();
 

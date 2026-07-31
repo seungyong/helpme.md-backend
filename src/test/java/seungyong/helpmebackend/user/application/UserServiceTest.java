@@ -39,6 +39,45 @@ public class UserServiceTest {
     @InjectMocks private UserService userService;
 
     @Nested
+    @DisplayName("활성 사용자 검증")
+    class EnsureActiveUserTest {
+        @Test
+        @DisplayName("성공 - 활성 사용자")
+        void ensureActiveUser_success() {
+            Long userId = 1L;
+            Mockito.when(userPortOut.getById(userId)).thenReturn(user(userId));
+
+            assertThatCode(() -> userService.ensureActiveUser(userId))
+                    .doesNotThrowAnyException();
+        }
+
+        @ParameterizedTest
+        @EnumSource(value = UserStatus.class, names = { "DELETING", "DELETE_FAILED" })
+        @DisplayName("실패 - 탈퇴 처리 상태의 사용자")
+        void ensureActiveUser_fail_when_user_deletion_in_progress(UserStatus status) {
+            Long userId = 1L;
+            Mockito.when(userPortOut.getById(userId))
+                    .thenReturn(new User(userId, githubUser(), status));
+
+            assertThatThrownBy(() -> userService.ensureActiveUser(userId))
+                    .isInstanceOf(CustomException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", UserErrorCode.USER_DELETION_IN_PROGRESS);
+        }
+
+        @Test
+        @DisplayName("실패 - 이미 삭제된 사용자의 Access Token")
+        void ensureActiveUser_fail_when_user_already_deleted() {
+            Long userId = 99L;
+            Mockito.when(userPortOut.getById(userId))
+                    .thenThrow(new CustomException(UserErrorCode.USER_NOT_FOUND));
+
+            assertThatThrownBy(() -> userService.ensureActiveUser(userId))
+                    .isInstanceOf(CustomException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", GlobalErrorCode.INVALID_TOKEN);
+        }
+    }
+
+    @Nested
     @DisplayName("토큰 재발급 테스트")
     class ReissueTest {
         @Test

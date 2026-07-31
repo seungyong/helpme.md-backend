@@ -29,6 +29,7 @@ import seungyong.helpmebackend.global.config.SecurityConfig;
 import seungyong.helpmebackend.global.domain.entity.JWT;
 import seungyong.helpmebackend.global.domain.type.RedisKey;
 import seungyong.helpmebackend.global.domain.type.RedisKeyFactory;
+import seungyong.helpmebackend.global.exception.GlobalErrorCode;
 import seungyong.helpmebackend.global.infrastructure.github.GithubApiExecutor;
 import seungyong.helpmebackend.global.infrastructure.github.GithubClient;
 import seungyong.helpmebackend.global.infrastructure.jwt.JWTProvider;
@@ -71,6 +72,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static seungyong.helpmebackend.support.fixture.TestFixtures.evaluationContentResult;
@@ -761,12 +763,12 @@ public class RepositoryIntegrationTest {
             }
 
             @Test
-            @DisplayName("실패 - 유저가 없는 경우")
+            @DisplayName("실패 - 삭제된 사용자의 Access Token은 비동기 작업 전에 차단")
             void evaluateDraftReadme_failure_noUser() throws Exception {
                 // 유저 삭제
                 userPortOut.delete(user);
 
-                String taskId = subscribeAndGetTaskId();
+                String taskId = "deleted-user-evaluation-task";
 
                 mockMvc.perform(post("/api/v1/repos/{owner}/{name}/evaluate/draft/sse", owner, name)
                                 .param("taskId", taskId)
@@ -777,17 +779,17 @@ public class RepositoryIntegrationTest {
                                         new Cookie("refreshToken", jwt.getRefreshToken())
                                 ))
                         .andDo(MockMvcResultHandlers.print())
-                        .andExpect(status().isAccepted());
+                        .andExpect(status().isUnauthorized())
+                        .andExpect(jsonPath("$.errorCode")
+                                .value(GlobalErrorCode.INVALID_TOKEN.getErrorCode()))
+                        .andExpect(cookie().maxAge("accessToken", 0))
+                        .andExpect(cookie().maxAge("refreshToken", 0));
 
-                await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
-                    verify(ssePortOut, times(1)).sendCompletion(
-                            eq(taskId),
-                            eq(SSETaskName.COMPLETION_EVALUATE_DRAFT_ERROR.getTaskName()),
-                            any(ResponseEntity.class)
-                    );
-                });
-
-                // 단순 오류인 경우 폴백 저장을 하지 않음
+                verify(ssePortOut, never()).sendCompletion(
+                        eq(taskId),
+                        anyString(),
+                        any()
+                );
                 verify(redisPortOut, never()).setObjectIfAbsent(anyString(), any(), any(Instant.class));
             }
 
@@ -988,12 +990,12 @@ public class RepositoryIntegrationTest {
             }
 
             @Test
-            @DisplayName("실패 - 유저가 없는 경우")
+            @DisplayName("실패 - 삭제된 사용자의 Access Token은 비동기 작업 전에 차단")
             void generation_failure_noUser() throws Exception {
                 // 유저 삭제
                 userPortOut.delete(user);
 
-                String taskId = subscribeAndGetTaskId();
+                String taskId = "deleted-user-generation-task";
 
                 mockMvc.perform(post("/api/v1/repos/{owner}/{name}/generate/sse", owner, name)
                                 .param("taskId", taskId)
@@ -1004,17 +1006,17 @@ public class RepositoryIntegrationTest {
                                         new Cookie("refreshToken", jwt.getRefreshToken())
                                 ))
                         .andDo(MockMvcResultHandlers.print())
-                        .andExpect(status().isAccepted());
+                        .andExpect(status().isUnauthorized())
+                        .andExpect(jsonPath("$.errorCode")
+                                .value(GlobalErrorCode.INVALID_TOKEN.getErrorCode()))
+                        .andExpect(cookie().maxAge("accessToken", 0))
+                        .andExpect(cookie().maxAge("refreshToken", 0));
 
-                await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
-                    verify(ssePortOut, times(1)).sendCompletion(
-                            eq(taskId),
-                            eq(SSETaskName.COMPLETION_GENERATE_ERROR.getTaskName()),
-                            any(ResponseEntity.class)
-                    );
-                });
-
-                // 단순 오류인 경우 폴백 저장을 하지 않음
+                verify(ssePortOut, never()).sendCompletion(
+                        eq(taskId),
+                        anyString(),
+                        any()
+                );
                 verify(redisPortOut, never()).setObjectIfAbsent(anyString(), any(), any(Instant.class));
             }
 

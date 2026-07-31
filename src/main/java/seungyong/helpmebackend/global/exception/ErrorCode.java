@@ -7,4 +7,8 @@ public interface ErrorCode {
     HttpStatus getHttpStatus();
     String getMessage();
     String getErrorCode();
+
+    default String getRequiredAction() {
+        return null;
+    }
 }

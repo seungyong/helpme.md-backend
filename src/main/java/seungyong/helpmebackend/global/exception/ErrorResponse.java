@@ -1,6 +1,7 @@
 package seungyong.helpmebackend.global.exception;
 
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Builder;
@@ -18,6 +19,8 @@ public class ErrorResponse {
     private final String message;
     private final String code;
     private final String errorCode;
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private final String requiredAction;
 
     public static ResponseEntity<ErrorResponse> toResponseEntity(ErrorCode errorCode) {
         return ResponseEntity
@@ -28,6 +31,7 @@ public class ErrorResponse {
                         .error(errorCode.getHttpStatus().name())
                         .code(errorCode.getName())
                         .message(errorCode.getMessage())
+                        .requiredAction(errorCode.getRequiredAction())
                         .build()
                 );
     }

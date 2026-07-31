@@ -28,6 +28,7 @@ public class ErrorExampleGenerator {
                     .error(errorCode.getHttpStatus().name())
                     .code(errorCode.getName())
                     .message(errorCode.getMessage())
+                    .requiredAction(errorCode.getRequiredAction())
                     .build();
 
             // 들여쓰기된 JSON 생성

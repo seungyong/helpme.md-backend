@@ -53,9 +53,9 @@ public class UserIntegrationTest {
     @Test
     @DisplayName("내 정보 조회 - 성공")
     void getCurrentUser_success() throws Exception {
-        Long userId = 1L;
-        String username = "test-user";
-        JWT jwt = jwtProvider.generate(new JWTUser(userId, username));
+        User savedUser = userPortOut.save(user(null, "test"));
+        String username = savedUser.getGithubUser().getName();
+        JWT jwt = jwtProvider.generate(new JWTUser(savedUser.getId(), username));
 
         mockMvc
                 .perform(
@@ -68,6 +68,30 @@ public class UserIntegrationTest {
                 .andDo(MockMvcResultHandlers.print())
                 .andExpect(MockMvcResultMatchers.status().isOk())
                 .andExpect(MockMvcResultMatchers.jsonPath("$.username").value(username));
+    }
+
+    @Test
+    @DisplayName("User Role API - 탈퇴 처리 중이면 공통 guard가 차단하고 로그아웃을 지시")
+    void userRoleApi_fail_user_deletion_in_progress() throws Exception {
+        User deletingUser = userPortOut.save(new User(null, githubUser(), UserStatus.DELETING));
+        JWT jwt = jwtProvider.generate(new JWTUser(
+                deletingUser.getId(),
+                deletingUser.getGithubUser().getName()
+        ));
+
+        mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/repos")
+                        .param("installation_id", "101")
+                        .cookie(
+                                new Cookie("accessToken", jwt.getAccessToken()),
+                                new Cookie("refreshToken", jwt.getRefreshToken())
+                        ))
+                .andDo(MockMvcResultHandlers.print())
+                .andExpect(MockMvcResultMatchers.status().isConflict())
+                .andExpect(MockMvcResultMatchers.jsonPath("$.errorCode")
+                        .value(UserErrorCode.USER_DELETION_IN_PROGRESS.getErrorCode()))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.requiredAction").value("sign_out"))
+                .andExpect(MockMvcResultMatchers.cookie().maxAge("accessToken", 0))
+                .andExpect(MockMvcResultMatchers.cookie().maxAge("refreshToken", 0));
     }
 
     @Nested
@@ -161,6 +185,7 @@ public class UserIntegrationTest {
                     .andExpect(MockMvcResultMatchers.status().isConflict())
                     .andExpect(MockMvcResultMatchers.jsonPath("$.errorCode")
                             .value(UserErrorCode.USER_DELETION_IN_PROGRESS.getErrorCode()))
+                    .andExpect(MockMvcResultMatchers.jsonPath("$.requiredAction").value("sign_out"))
                     .andExpect(MockMvcResultMatchers.cookie().maxAge("accessToken", 0))
                     .andExpect(MockMvcResultMatchers.cookie().maxAge("refreshToken", 0));
 
