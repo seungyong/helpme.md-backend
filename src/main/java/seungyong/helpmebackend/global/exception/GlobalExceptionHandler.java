@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 import seungyong.helpmebackend.global.infrastructure.cookie.CookieUtil;
+import seungyong.helpmebackend.user.domain.exception.UserErrorCode;
 
 @Slf4j
 @RestControllerAdvice
@@ -29,12 +30,17 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     protected ResponseEntity<ErrorResponse> handleCustomException(CustomException e, HttpServletResponse response) {
         log.warn("handleCustomException throw CustomException : {}", e.getErrorCode());
 
-        if (e.getErrorCode().getErrorCode().equals(GlobalErrorCode.INVALID_TOKEN.getErrorCode())) {
-            log.warn("Invalid token detected. Detailed trace: {}", (Object) e.getStackTrace());
+        if (shouldClearAuthenticationCookies(e)) {
+            log.warn("Authentication cookies cleared due to errorCode={}", e.getErrorCode().getErrorCode());
             cookieUtil.clearTokenCookie(response);
         }
 
         return ErrorResponse.toResponseEntity(e.getErrorCode());
+    }
+
+    private boolean shouldClearAuthenticationCookies(CustomException e) {
+        return e.getErrorCode() == GlobalErrorCode.INVALID_TOKEN
+                || e.getErrorCode() == UserErrorCode.USER_DELETION_IN_PROGRESS;
     }
 
     @Override

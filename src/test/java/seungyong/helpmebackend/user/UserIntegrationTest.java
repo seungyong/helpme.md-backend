@@ -26,8 +26,11 @@ import seungyong.helpmebackend.user.application.port.out.UserPortOut;
 import seungyong.helpmebackend.user.domain.entity.JWTUser;
 import seungyong.helpmebackend.user.domain.entity.User;
 import seungyong.helpmebackend.user.domain.exception.UserErrorCode;
+import seungyong.helpmebackend.user.domain.type.UserStatus;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.assertThat;
+import static seungyong.helpmebackend.support.fixture.TestFixtures.githubUser;
 import static seungyong.helpmebackend.support.fixture.TestFixtures.user;
 
 @SpringBootTest
@@ -139,6 +142,29 @@ public class UserIntegrationTest {
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(MockMvcResultMatchers.status().isUnauthorized())
                     .andExpect(MockMvcResultMatchers.jsonPath("$.code").value(GlobalErrorCode.INVALID_TOKEN.name()));
+        }
+
+        @Test
+        @DisplayName("실패 - 탈퇴 처리 중인 사용자는 토큰 무효화 및 쿠키 제거")
+        void reissue_fail_user_deletion_in_progress() throws Exception {
+            User deletingUser = userPortOut.save(new User(null, githubUser(), UserStatus.DELETING));
+            JWT jwt = jwtProvider.generate(new JWTUser(
+                    deletingUser.getId(),
+                    deletingUser.getGithubUser().getName()
+            ));
+            String refreshKey = RedisKey.REFRESH_KEY.getValue() + jwt.getRefreshToken();
+            redisAdapter.set(refreshKey, String.valueOf(deletingUser.getId()), jwt.getRefreshTokenExpireTime());
+
+            mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/users/reissue")
+                            .cookie(new Cookie("refreshToken", jwt.getRefreshToken())))
+                    .andDo(MockMvcResultHandlers.print())
+                    .andExpect(MockMvcResultMatchers.status().isConflict())
+                    .andExpect(MockMvcResultMatchers.jsonPath("$.errorCode")
+                            .value(UserErrorCode.USER_DELETION_IN_PROGRESS.getErrorCode()))
+                    .andExpect(MockMvcResultMatchers.cookie().maxAge("accessToken", 0))
+                    .andExpect(MockMvcResultMatchers.cookie().maxAge("refreshToken", 0));
+
+            assertThat(redisAdapter.get(refreshKey)).isNull();
         }
     }
 

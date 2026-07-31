@@ -5,6 +5,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
@@ -18,9 +20,12 @@ import seungyong.helpmebackend.global.exception.GlobalErrorCode;
 import seungyong.helpmebackend.user.application.port.out.UserPortOut;
 import seungyong.helpmebackend.user.domain.entity.JWTUser;
 import seungyong.helpmebackend.user.domain.entity.User;
+import seungyong.helpmebackend.user.domain.exception.UserErrorCode;
+import seungyong.helpmebackend.user.domain.type.UserStatus;
 
 import static org.assertj.core.api.Assertions.*;
 import static seungyong.helpmebackend.support.fixture.TestFixtures.jwt;
+import static seungyong.helpmebackend.support.fixture.TestFixtures.githubUser;
 import static seungyong.helpmebackend.support.fixture.TestFixtures.user;
 
 @ExtendWith(MockitoExtension.class)
@@ -83,6 +88,54 @@ public class UserServiceTest {
             assertThatThrownBy(() -> userService.reissue(token))
                     .isInstanceOf(CustomException.class)
                     .hasFieldOrPropertyWithValue("errorCode", GlobalErrorCode.INVALID_TOKEN);
+        }
+
+        @ParameterizedTest
+        @EnumSource(value = UserStatus.class, names = { "DELETING", "DELETE_FAILED" })
+        @DisplayName("실패 - 탈퇴 처리 상태의 사용자는 토큰을 재발급하지 않음")
+        void reissue_fail_when_user_deletion_in_progress(UserStatus status) {
+            String refreshToken = "deleting-user-refresh-token";
+            String refreshTokenKey = RedisKey.REFRESH_KEY.getValue() + refreshToken;
+            Long userId = 1L;
+            User user = new User(userId, githubUser(), status);
+
+            Mockito.when(jwtPortOut.isExpired(Mockito.eq(refreshToken), Mockito.any()))
+                    .thenReturn(false);
+            Mockito.when(redisPortOut.get(refreshTokenKey))
+                    .thenReturn(String.valueOf(userId));
+            Mockito.when(userPortOut.getById(userId))
+                    .thenReturn(user);
+
+            assertThatThrownBy(() -> userService.reissue(refreshToken))
+                    .isInstanceOf(CustomException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", UserErrorCode.USER_DELETION_IN_PROGRESS);
+
+            Mockito.verify(redisPortOut).delete(refreshTokenKey);
+            Mockito.verify(jwtPortOut, Mockito.never()).generate(Mockito.any());
+            Mockito.verify(redisPortOut, Mockito.never())
+                    .set(Mockito.anyString(), Mockito.anyString(), Mockito.any());
+        }
+
+        @Test
+        @DisplayName("실패 - 이미 삭제된 사용자의 남은 Refresh Token은 무효화")
+        void reissue_fail_when_user_already_deleted() {
+            String refreshToken = "deleted-user-refresh-token";
+            String refreshTokenKey = RedisKey.REFRESH_KEY.getValue() + refreshToken;
+            Long deletedUserId = 99L;
+
+            Mockito.when(jwtPortOut.isExpired(Mockito.eq(refreshToken), Mockito.any()))
+                    .thenReturn(false);
+            Mockito.when(redisPortOut.get(refreshTokenKey))
+                    .thenReturn(String.valueOf(deletedUserId));
+            Mockito.when(userPortOut.getById(deletedUserId))
+                    .thenThrow(new CustomException(UserErrorCode.USER_NOT_FOUND));
+
+            assertThatThrownBy(() -> userService.reissue(refreshToken))
+                    .isInstanceOf(CustomException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", GlobalErrorCode.INVALID_TOKEN);
+
+            Mockito.verify(redisPortOut).delete(refreshTokenKey);
+            Mockito.verify(jwtPortOut, Mockito.never()).generate(Mockito.any());
         }
     }
 

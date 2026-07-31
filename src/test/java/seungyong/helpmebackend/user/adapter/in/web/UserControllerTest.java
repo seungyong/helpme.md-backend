@@ -21,10 +21,12 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 import seungyong.helpmebackend.global.domain.entity.CustomUserDetails;
 import seungyong.helpmebackend.global.domain.entity.JWT;
 import seungyong.helpmebackend.global.exception.GlobalErrorCode;
+import seungyong.helpmebackend.global.exception.CustomException;
 import seungyong.helpmebackend.global.filter.AuthenticationFilter;
 import seungyong.helpmebackend.global.infrastructure.cookie.CookieUtil;
 import seungyong.helpmebackend.support.config.TestSecurityConfig;
 import seungyong.helpmebackend.user.application.port.in.UserPortIn;
+import seungyong.helpmebackend.user.domain.exception.UserErrorCode;
 
 import static seungyong.helpmebackend.support.fixture.TestFixtures.jwt;
 
@@ -115,6 +117,27 @@ public class UserControllerTest {
                     .andDo(MockMvcResultHandlers.print())
                     .andExpect(MockMvcResultMatchers.status().isUnauthorized())
                     .andExpect(MockMvcResultMatchers.jsonPath("$.code").value(GlobalErrorCode.NOT_FOUND_TOKEN.name()));
+        }
+
+        @Test
+        @DisplayName("실패 - 탈퇴 처리 중인 사용자의 쿠키 제거")
+        void reissue_token_failure_user_deletion_in_progress() throws Exception {
+            String refreshToken = "deleting-user-refresh-token";
+
+            Mockito.when(cookieUtil.getRefreshToken(Mockito.any(HttpServletRequest.class)))
+                    .thenReturn(refreshToken);
+            Mockito.when(userPortIn.reissue(refreshToken))
+                    .thenThrow(new CustomException(UserErrorCode.USER_DELETION_IN_PROGRESS));
+
+            mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/users/reissue"))
+                    .andDo(MockMvcResultHandlers.print())
+                    .andExpect(MockMvcResultMatchers.status().isConflict())
+                    .andExpect(MockMvcResultMatchers.jsonPath("$.errorCode")
+                            .value(UserErrorCode.USER_DELETION_IN_PROGRESS.getErrorCode()));
+
+            Mockito.verify(cookieUtil).clearTokenCookie(Mockito.any(HttpServletResponse.class));
+            Mockito.verify(cookieUtil, Mockito.never())
+                    .setTokenCookie(Mockito.any(HttpServletResponse.class), Mockito.any(JWT.class));
         }
     }
 

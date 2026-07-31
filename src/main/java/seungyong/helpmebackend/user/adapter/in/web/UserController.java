@@ -20,6 +20,7 @@ import seungyong.helpmebackend.global.domain.entity.JWT;
 import seungyong.helpmebackend.global.infrastructure.swagger.annotation.ApiErrorResponse;
 import seungyong.helpmebackend.global.infrastructure.swagger.annotation.ApiErrorResponses;
 import seungyong.helpmebackend.user.application.port.in.UserPortIn;
+import seungyong.helpmebackend.user.domain.exception.UserErrorCode;
 
 @Tag(name = "User", description = "User 관련 API")
 @RestController
@@ -82,6 +83,12 @@ class UserController {
                     description = "인증되지 않은 사용자입니다.",
                     errorCodeClasses = GlobalErrorCode.class,
                     errorCodes = { "INVALID_TOKEN", "NOT_FOUND_TOKEN" }
+            ),
+            @ApiErrorResponse(
+                    responseCode = "409",
+                    description = "회원 탈퇴 처리 중인 사용자입니다.",
+                    errorCodeClasses = UserErrorCode.class,
+                    errorCodes = { "USER_DELETION_IN_PROGRESS" }
             ),
             @ApiErrorResponse(
                     responseCode = "500",

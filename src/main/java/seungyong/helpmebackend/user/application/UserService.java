@@ -12,6 +12,7 @@ import seungyong.helpmebackend.user.application.port.in.UserPortIn;
 import seungyong.helpmebackend.global.application.port.out.JWTPortOut;
 import seungyong.helpmebackend.global.application.port.out.RedisPortOut;
 import seungyong.helpmebackend.user.application.port.out.UserPortOut;
+import seungyong.helpmebackend.user.domain.exception.UserErrorCode;
 
 import java.util.Date;
 
@@ -38,12 +39,30 @@ public class UserService implements UserPortIn {
         }
 
         Long userIdLong = Long.valueOf(userId);
-        User user = userPortOut.getById(userIdLong);
+        User user = getReissueTargetUser(userIdLong, refreshTokenKey);
+
+        if (!user.isAuthenticationAllowed()) {
+            redisPortOut.delete(refreshTokenKey);
+            throw new CustomException(UserErrorCode.USER_DELETION_IN_PROGRESS);
+        }
 
         JWT jwt = jwtPortOut.generate(new JWTUser(userIdLong, user.getGithubUser().getName()));
         redisPortOut.set(refreshTokenKey, userId, jwt.getRefreshTokenExpireTime());
 
         return jwt;
+    }
+
+    private User getReissueTargetUser(Long userId, String refreshTokenKey) {
+        try {
+            return userPortOut.getById(userId);
+        } catch (CustomException e) {
+            if (e.getErrorCode() == UserErrorCode.USER_NOT_FOUND) {
+                redisPortOut.delete(refreshTokenKey);
+                throw new CustomException(GlobalErrorCode.INVALID_TOKEN);
+            }
+
+            throw e;
+        }
     }
 
     @Override
