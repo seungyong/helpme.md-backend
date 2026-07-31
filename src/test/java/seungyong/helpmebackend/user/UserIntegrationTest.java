@@ -169,7 +169,7 @@ public class UserIntegrationTest {
     }
 
     @Test
-    @DisplayName("로그아웃 - 성공")
+    @DisplayName("로그아웃 - 성공 및 반복 호출")
     void logout_success() throws Exception {
         User user = user(null, "test");
         User savedUser = userPortOut.save(user);
@@ -191,6 +191,42 @@ public class UserIntegrationTest {
                 .andExpect(MockMvcResultMatchers.status().isNoContent())
                 .andExpect(MockMvcResultMatchers.cookie().maxAge("accessToken", 0))
                 .andExpect(MockMvcResultMatchers.cookie().maxAge("refreshToken", 0));
+
+        assertThat(redisAdapter.get(refreshKey)).isNull();
+
+        mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/users/logout")
+                        .cookie(new Cookie("refreshToken", jwt.getRefreshToken())))
+                .andDo(MockMvcResultHandlers.print())
+                .andExpect(MockMvcResultMatchers.status().isNoContent())
+                .andExpect(MockMvcResultMatchers.cookie().maxAge("accessToken", 0))
+                .andExpect(MockMvcResultMatchers.cookie().maxAge("refreshToken", 0));
+
+        mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/users/logout"))
+                .andDo(MockMvcResultHandlers.print())
+                .andExpect(MockMvcResultMatchers.status().isNoContent())
+                .andExpect(MockMvcResultMatchers.cookie().maxAge("accessToken", 0))
+                .andExpect(MockMvcResultMatchers.cookie().maxAge("refreshToken", 0));
+    }
+
+    @Test
+    @DisplayName("로그아웃 - 탈퇴 처리 중인 사용자도 성공")
+    void logout_success_user_deletion_in_progress() throws Exception {
+        User deletingUser = userPortOut.save(new User(null, githubUser(), UserStatus.DELETING));
+        JWT jwt = jwtProvider.generate(new JWTUser(
+                deletingUser.getId(),
+                deletingUser.getGithubUser().getName()
+        ));
+        String refreshKey = RedisKey.REFRESH_KEY.getValue() + jwt.getRefreshToken();
+        redisAdapter.set(refreshKey, String.valueOf(deletingUser.getId()), jwt.getRefreshTokenExpireTime());
+
+        mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/users/logout")
+                        .cookie(new Cookie("refreshToken", jwt.getRefreshToken())))
+                .andDo(MockMvcResultHandlers.print())
+                .andExpect(MockMvcResultMatchers.status().isNoContent())
+                .andExpect(MockMvcResultMatchers.cookie().maxAge("accessToken", 0))
+                .andExpect(MockMvcResultMatchers.cookie().maxAge("refreshToken", 0));
+
+        assertThat(redisAdapter.get(refreshKey)).isNull();
     }
 
     @Test

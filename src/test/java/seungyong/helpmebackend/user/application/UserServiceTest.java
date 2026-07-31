@@ -7,6 +7,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
@@ -147,11 +149,21 @@ public class UserServiceTest {
                 .when(redisPortOut)
                 .delete(Mockito.anyString());
 
-        userService.logout(1L, "refresh-token");
+        userService.logout("refresh-token");
 
         Mockito
                 .verify(redisPortOut)
                 .delete(Mockito.eq(RedisKey.REFRESH_KEY.getValue() + "refresh-token"));
+    }
+
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(strings = { " ", "\t" })
+    @DisplayName("로그아웃 - Refresh Token이 없어도 성공")
+    void logout_success_without_refresh_token(String refreshToken) {
+        userService.logout(refreshToken);
+
+        Mockito.verifyNoInteractions(redisPortOut);
     }
 
     @Test

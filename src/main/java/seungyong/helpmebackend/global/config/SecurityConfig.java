@@ -46,7 +46,8 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/api/v1/oauth2/callback",
                                 "/api/v1/oauth2/login",
-                                "/api/v1/users/reissue"
+                                "/api/v1/users/reissue",
+                                "/api/v1/users/logout"
                         ).permitAll()
                         .requestMatchers(
                                 "/api/v1/sse/subscribe"

@@ -142,12 +142,8 @@ public class UserControllerTest {
     }
 
     @Test
-    @DisplayName("로그아웃 - 성공")
+    @DisplayName("로그아웃 - 인증 없이 성공")
     void logout_success() throws Exception {
-        Long userId = 1L;
-        String username = "test-user";
-        CustomUserDetails userDetails = new CustomUserDetails(userId, username);
-
         Mockito
                 .when(cookieUtil.getRefreshToken(Mockito.any(HttpServletRequest.class)))
                 .thenReturn("refresh-token");
@@ -155,14 +151,13 @@ public class UserControllerTest {
         mockMvc
                 .perform(
                         MockMvcRequestBuilders.post("/api/v1/users/logout")
-                                .with(SecurityMockMvcRequestPostProcessors.user(userDetails))
                 )
                 .andDo(MockMvcResultHandlers.print())
                 .andExpect(MockMvcResultMatchers.status().isNoContent());
 
         Mockito
                 .verify(userPortIn, Mockito.times(1))
-                .logout(ArgumentMatchers.eq(userId), Mockito.anyString());
+                .logout(ArgumentMatchers.eq("refresh-token"));
 
         Mockito
                 .verify(cookieUtil, Mockito.times(1))
@@ -170,6 +165,20 @@ public class UserControllerTest {
 
         Mockito
                 .verify(cookieUtil, Mockito.times(1))
+                .clearTokenCookie(Mockito.any(HttpServletResponse.class));
+    }
+
+    @Test
+    @DisplayName("로그아웃 - 토큰 없이 반복 호출해도 성공")
+    void logout_success_repeated_without_token() throws Exception {
+        mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/users/logout"))
+                .andExpect(MockMvcResultMatchers.status().isNoContent());
+
+        mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/users/logout"))
+                .andExpect(MockMvcResultMatchers.status().isNoContent());
+
+        Mockito.verify(userPortIn, Mockito.times(2)).logout(null);
+        Mockito.verify(cookieUtil, Mockito.times(2))
                 .clearTokenCookie(Mockito.any(HttpServletResponse.class));
     }
 

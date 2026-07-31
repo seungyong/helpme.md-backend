@@ -2,6 +2,7 @@ package seungyong.helpmebackend.user.application;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import seungyong.helpmebackend.global.exception.CustomException;
 import seungyong.helpmebackend.global.exception.GlobalErrorCode;
 import seungyong.helpmebackend.user.domain.entity.JWTUser;
@@ -66,7 +67,11 @@ public class UserService implements UserPortIn {
     }
 
     @Override
-    public void logout(Long userId, String refreshToken) {
+    public void logout(String refreshToken) {
+        if (!StringUtils.hasText(refreshToken)) {
+            return;
+        }
+
         String refreshTokenKey = RedisKey.REFRESH_KEY.getValue() + refreshToken;
         redisPortOut.delete(refreshTokenKey);
     }

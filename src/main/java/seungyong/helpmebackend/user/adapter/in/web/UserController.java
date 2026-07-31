@@ -116,7 +116,8 @@ class UserController {
 
     @Operation(
             summary = "로그아웃",
-            description = "현재 인증된 사용자의 로그아웃을 처리합니다. 이 작업은 클라이언트 측에서 저장된 토큰을 무효화합니다.",
+            description = "Refresh Token이 있으면 무효화하고 인증 쿠키를 제거합니다. "
+                    + "탈퇴 처리 중이거나 이미 로그아웃된 상태에서도 반복 호출할 수 있습니다.",
             responses = {
                     @ApiResponse(
                             responseCode = "204",
@@ -126,12 +127,6 @@ class UserController {
     )
     @ApiErrorResponses({
             @ApiErrorResponse(
-                    responseCode = "401",
-                    description = "인증되지 않은 사용자입니다.",
-                    errorCodeClasses = GlobalErrorCode.class,
-                    errorCodes = { "EXPIRED_ACCESS_TOKEN", "NOT_FOUND_TOKEN" }
-            ),
-            @ApiErrorResponse(
                     responseCode = "500",
                     description = "서버 에러입니다.",
                     errorCodeClasses = GlobalErrorCode.class,
@@ -140,11 +135,10 @@ class UserController {
     })
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(
-                HttpServletRequest request,
-            HttpServletResponse response,
-            @AuthenticationPrincipal CustomUserDetails details
+            HttpServletRequest request,
+            HttpServletResponse response
     ) {
-        userPortIn.logout(details.getUserId(), cookieUtil.getRefreshToken(request));
+        userPortIn.logout(cookieUtil.getRefreshToken(request));
         cookieUtil.clearTokenCookie(response);
         return ResponseEntity.noContent().build();
     }

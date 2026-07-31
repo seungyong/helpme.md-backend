@@ -34,6 +34,7 @@ public class AuthenticationFilter extends OncePerRequestFilter {
         return (path.equals("/api/v1/oauth2/login") && method.equals("GET"))
                 || (path.equals("/api/v1/oauth2/callback") && method.equals("GET"))
                 || (path.equals("/api/v1/users/reissue") && method.equals("POST"))
+                || (path.equals("/api/v1/users/logout") && method.equals("POST"))
                 || path.endsWith(".html")
                 || path.startsWith("/swagger-ui")
                 || path.startsWith("/v3/api-docs")
