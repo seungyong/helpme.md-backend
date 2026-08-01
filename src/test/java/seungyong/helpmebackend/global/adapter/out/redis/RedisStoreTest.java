@@ -15,6 +15,7 @@ import seungyong.helpmebackend.global.exception.CustomException;
 import seungyong.helpmebackend.global.exception.GlobalErrorCode;
 import seungyong.helpmebackend.user.domain.entity.JWTUser;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.TimeUnit;
 
@@ -45,6 +46,20 @@ public class RedisStoreTest {
 
             Mockito.verify(redisTemplate.opsForValue(), Mockito.times(1))
                     .set(Mockito.anyString(), Mockito.anyString(), Mockito.anyLong(), Mockito.any(TimeUnit.class));
+        }
+
+        @Test
+        @DisplayName("성공 - TTL 직접 지정")
+        void setWithTtl_success() {
+            Mockito.when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+
+            redisStore.setWithTtl("testKey", "testValue", Duration.ofSeconds(17));
+
+            Mockito.verify(valueOperations).set(
+                    "testKey",
+                    "testValue",
+                    Duration.ofSeconds(17)
+            );
         }
 
         @Test
@@ -139,6 +154,29 @@ public class RedisStoreTest {
 
             assertThat(result).isFalse();
             Mockito.verify(redisTemplate, Mockito.times(1)).hasKey("nonExistingKey");
+        }
+    }
+
+    @Nested
+    @DisplayName("TTL 조회")
+    class TimeToLiveTests {
+        @Test
+        @DisplayName("성공 - 남은 TTL 반환")
+        void getTimeToLive_existingKey() {
+            Mockito.when(redisTemplate.getExpire("existingKey", TimeUnit.MILLISECONDS))
+                    .thenReturn(1_500L);
+
+            assertThat(redisStore.getTimeToLive("existingKey"))
+                    .contains(Duration.ofMillis(1_500));
+        }
+
+        @Test
+        @DisplayName("성공 - key가 없으면 empty 반환")
+        void getTimeToLive_nonExistingKey() {
+            Mockito.when(redisTemplate.getExpire("missingKey", TimeUnit.MILLISECONDS))
+                    .thenReturn(-2L);
+
+            assertThat(redisStore.getTimeToLive("missingKey")).isEmpty();
         }
     }
 

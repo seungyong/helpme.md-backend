@@ -216,7 +216,7 @@ public final class TestFixtures {
     }
 
     public static RepoInfoCommand repoInfoCommand() {
-        return new RepoInfoCommand("github-access-token", "octocat", "helpme-md");
+        return new RepoInfoCommand(1L, "github-access-token", "octocat", "helpme-md");
     }
 
     public static RepoBranchCommand repoBranchCommand() {

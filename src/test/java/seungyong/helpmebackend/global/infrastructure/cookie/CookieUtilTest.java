@@ -78,13 +78,13 @@ public class CookieUtilTest {
                 .contains("accessToken=" + jwt.getAccessToken())
                 .contains("HttpOnly")
                 .contains("Secure")
-                .contains("SameSite=Lax");
+                .contains("SameSite=Strict");
 
         assertThat(setCookieHeaders.get(1))
                 .contains("refreshToken=" + jwt.getRefreshToken())
                 .contains("HttpOnly")
                 .contains("Secure")
-                .contains("SameSite=Lax");
+                .contains("SameSite=Strict");
     }
 
     @Test
@@ -104,13 +104,13 @@ public class CookieUtilTest {
                 .contains("Max-Age=0")
                 .contains("HttpOnly")
                 .contains("Secure")
-                .contains("SameSite=Lax");
+                .contains("SameSite=Strict");
 
         assertThat(setCookieHeaders.get(1))
                 .contains("refreshToken=")
                 .contains("Max-Age=0")
                 .contains("HttpOnly")
                 .contains("Secure")
-                .contains("SameSite=Lax");
+                .contains("SameSite=Strict");
     }
 }

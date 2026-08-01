@@ -17,7 +17,10 @@ public enum RedisKey {
     SSE_EMITTER_GENERATION_KEY("sse:emitter:generation:"),
 
     // github-auth:{userId}:{owner}/{name}
-    GITHUB_AUTH_KEY("github-auth:")
+    GITHUB_AUTH_KEY("github-auth:"),
+
+    // github:rate-limit:{userId}
+    GITHUB_RATE_LIMIT_KEY("github:rate-limit:")
     ;
 
     private final String value;

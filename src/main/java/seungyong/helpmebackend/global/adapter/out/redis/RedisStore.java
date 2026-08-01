@@ -11,6 +11,7 @@ import seungyong.helpmebackend.global.exception.GlobalErrorCode;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -113,6 +114,46 @@ class RedisStore {
      */
     public boolean exists(String key) {
         return Boolean.TRUE.equals(redisTemplate.hasKey(key));
+    }
+
+    /**
+     * Redis key의 남은 TTL을 조회합니다.
+     *
+     * @param key 확인할 key
+     * @return 만료 시간이 설정된 key의 남은 TTL, key가 없거나 만료 시간이 없으면 empty
+     */
+    public Optional<Duration> getTimeToLive(String key) {
+        try {
+            Long ttlMillis = redisTemplate.getExpire(key, TimeUnit.MILLISECONDS);
+            if (ttlMillis == null || ttlMillis <= 0) {
+                return Optional.empty();
+            }
+            return Optional.of(Duration.ofMillis(ttlMillis));
+        } catch (Exception e) {
+            log.error("Redis TTL lookup error. key = {}", key, e);
+            throw new CustomException(GlobalErrorCode.REDIS_ERROR);
+        }
+    }
+
+    /**
+     * Redis에 key, value를 지정한 TTL 동안 저장합니다.
+     *
+     * @param key 저장할 key
+     * @param value 저장할 value
+     * @param ttl 만료까지 남은 시간
+     */
+    public void setWithTtl(String key, String value, Duration ttl) {
+        if (ttl.isZero() || ttl.isNegative()) {
+            log.error("Don't set a non-positive TTL to Redis. key = {}, ttl = {}", key, ttl);
+            throw new CustomException(GlobalErrorCode.REDIS_ERROR);
+        }
+
+        try {
+            redisTemplate.opsForValue().set(key, value, ttl);
+        } catch (Exception e) {
+            log.error("Redis setWithTtl error. key = {}, ttl = {}", key, ttl, e);
+            throw new CustomException(GlobalErrorCode.REDIS_ERROR);
+        }
     }
 
     /**

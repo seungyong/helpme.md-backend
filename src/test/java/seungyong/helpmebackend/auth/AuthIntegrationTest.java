@@ -240,7 +240,8 @@ class AuthIntegrationTest {
             given(mockUserDetails.getUserId()).willReturn(savedUser.getId());
 
             List<Installation> expectedInstallations = installations();
-            doReturn(expectedInstallations).when(oAuth2PortOut).getInstallations(rawAccessToken);
+            doReturn(expectedInstallations).when(oAuth2PortOut)
+                    .getInstallations(savedUser.getId(), rawAccessToken);
 
             mockMvc.perform(get("/api/v1/oauth2/installations")
                             .cookie(

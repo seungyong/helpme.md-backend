@@ -1,571 +1,373 @@
 package seungyong.helpmebackend.repository.adapter.out.github;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.*;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.stubbing.Answer;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.client.HttpClientErrorException;
 import seungyong.helpmebackend.global.exception.CustomException;
+import seungyong.helpmebackend.global.exception.GithubRateLimitException;
+import seungyong.helpmebackend.global.infrastructure.github.GithubApiException;
 import seungyong.helpmebackend.global.infrastructure.github.GithubApiExecutor;
-import seungyong.helpmebackend.repository.application.port.out.command.*;
-import seungyong.helpmebackend.repository.application.port.out.result.*;
+import seungyong.helpmebackend.repository.application.port.out.command.CreatePullRequestCommand;
+import seungyong.helpmebackend.repository.application.port.out.command.ReadmePushCommand;
+import seungyong.helpmebackend.repository.application.port.out.command.RepoBranchCommand;
+import seungyong.helpmebackend.repository.application.port.out.command.RepoInfoCommand;
+import seungyong.helpmebackend.repository.application.port.out.result.ContributorsResult;
+import seungyong.helpmebackend.repository.application.port.out.result.RepositoryDetailResult;
+import seungyong.helpmebackend.repository.application.port.out.result.RepositoryFileContentResult;
+import seungyong.helpmebackend.repository.application.port.out.result.RepositoryLanguageResult;
+import seungyong.helpmebackend.repository.application.port.out.result.RepositoryResult;
+import seungyong.helpmebackend.repository.application.port.out.result.RepositoryTreeResult;
 import seungyong.helpmebackend.repository.domain.exception.RepositoryErrorCode;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
-import static seungyong.helpmebackend.support.fixture.TestFixtures.*;
+import static seungyong.helpmebackend.support.fixture.TestFixtures.createBranchCommand;
+import static seungyong.helpmebackend.support.fixture.TestFixtures.createPullRequestCommand;
+import static seungyong.helpmebackend.support.fixture.TestFixtures.readmePushCommand;
+import static seungyong.helpmebackend.support.fixture.TestFixtures.repoBranchCommand;
+import static seungyong.helpmebackend.support.fixture.TestFixtures.repoInfoCommand;
+import static seungyong.helpmebackend.support.fixture.TestFixtures.repoPermissionCommand;
 
 @ExtendWith(MockitoExtension.class)
 class RepositoryAdapterTest {
     @Mock private GithubApiExecutor githubApiExecutor;
 
-    @Spy private ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new ObjectMapper();
+    private RepositoryQueryAdapter repositoryQueryAdapter;
+    private RepositoryContentAdapter repositoryContentAdapter;
+    private RepositoryMutationAdapter repositoryMutationAdapter;
 
-    @InjectMocks private RepositoryAdapter repositoryAdapter;
-
-    @Captor
-    private ArgumentCaptor<Map<String, String>> mapCaptor;
-
-    private final HttpClientErrorException notFoundException = HttpClientErrorException.create(
-            HttpStatus.NOT_FOUND, "Not Found", HttpHeaders.EMPTY, new byte[0], null
-    );
-
-    @Nested
-    @DisplayName("getRepositoriesByInstallationId - 설치된 리포지토리 목록 조회")
-    class GetRepositoriesByInstallationId {
-        @Test
-        @DisplayName("성공")
-        void getRepositoriesByInstallationId_success() {
-            String json = "{\"repositories\": [{\"owner\": {\"avatar_url\": \"avatar\", \"login\": \"owner\"}, \"name\": \"repo\"}], \"total_count\": 1}";
-
-            given(githubApiExecutor.executeGet(anyString(), anyString(), any(), anyString(), any()))
-                    .willAnswer(invocation -> {
-                        GithubApiExecutor.JsonResponseParser<RepositoryResult> extractor = invocation.getArgument(2);
-                        return extractor.parse(objectMapper.readTree(json));
-                    });
-
-            RepositoryResult result = repositoryAdapter.getRepositoriesByInstallationId("token", 1L, 1, 10);
-
-            assertThat(result.totalCount()).isEqualTo(1);
-            assertThat(result.repositories()).hasSize(1);
-            assertThat(result.repositories().get(0).getName()).isEqualTo("repo");
-        }
-
-        @Test
-        @DisplayName("실패 - 리포지토리를 찾을 수 없는 경우")
-        void getRepositoriesByInstallationId_failure_not_found() {
-            given(githubApiExecutor.executeGet(anyString(), anyString(), any(), anyString(), any()))
-                    .willAnswer(invocation -> {
-                        GithubApiExecutor.ExceptionHandler<HttpClientErrorException> errorHandler = invocation.getArgument(4);
-                        return errorHandler.handle(notFoundException).orElse(null);
-                    });
-
-            assertThatThrownBy(() -> repositoryAdapter.getRepositoriesByInstallationId("token", 1L, 1, 10))
-                    .isInstanceOf(CustomException.class)
-                    .hasFieldOrPropertyWithValue("errorCode", RepositoryErrorCode.INSTALLED_REPOSITORY_NOT_FOUND);
-        }
+    @BeforeEach
+    void setUp() {
+        repositoryQueryAdapter = new RepositoryQueryAdapter(githubApiExecutor, objectMapper);
+        repositoryContentAdapter = new RepositoryContentAdapter(githubApiExecutor);
+        repositoryMutationAdapter = new RepositoryMutationAdapter(githubApiExecutor);
     }
 
-    @Nested
-    @DisplayName("getRepository - 단일 리포지토리 정보 조회")
-    class GetRepository {
-        @Test
-        @DisplayName("성공")
-        void getRepository_success() {
-            RepoInfoCommand command = repoInfoCommand();
-            String json = "{\"owner\": {\"avatar_url\": \"url\"}, \"default_branch\": \"main\"}";
+    @Test
+    @DisplayName("설치 저장소 목록 응답을 도메인 결과로 변환한다")
+    void getRepositoriesByInstallationId_success() {
+        given(githubApiExecutor.executeGet(anyLong(), anyString(), anyString(), any(), anyString()))
+                .willAnswer(parseJson("""
+                        {"repositories":[{"owner":{"avatar_url":"avatar","login":"owner"},"name":"repo"}],"total_count":1}
+                        """));
 
-            given(githubApiExecutor.executeGet(anyString(), anyString(), any(), anyString(), any()))
-                    .willAnswer(invocation -> {
-                        GithubApiExecutor.JsonResponseParser<RepositoryDetailResult> extractor = invocation.getArgument(2);
-                        return extractor.parse(objectMapper.readTree(json));
-                    });
+        RepositoryResult result = repositoryQueryAdapter.getRepositoriesByInstallationId(
+                1L, "token", 1L, 1, 10
+        );
 
-            RepositoryDetailResult result = repositoryAdapter.getRepository(command);
-
-            assertThat(result.defaultBranch()).isEqualTo("main");
-            assertThat(result.avatarUrl()).isEqualTo("url");
-        }
-
-        @Test
-        @DisplayName("실패 - 접근 불가능한 리포지토리인 경우")
-        void getRepository_failure_not_found() {
-            RepoInfoCommand command = repoInfoCommand();
-
-            given(githubApiExecutor.executeGet(anyString(), anyString(), any(), anyString(), any()))
-                    .willAnswer(invocation -> {
-                        GithubApiExecutor.ExceptionHandler<HttpClientErrorException> errorHandler = invocation.getArgument(4);
-                        return errorHandler.handle(notFoundException).orElse(null);
-                    });
-
-            assertThatThrownBy(() -> repositoryAdapter.getRepository(command))
-                    .isInstanceOf(CustomException.class)
-                    .hasFieldOrPropertyWithValue("errorCode", RepositoryErrorCode.REPOSITORY_CANNOT_PULL);
-        }
+        assertThat(result.totalCount()).isEqualTo(1);
+        assertThat(result.repositories()).singleElement()
+                .satisfies(repository -> assertThat(repository.getName()).isEqualTo("repo"));
     }
 
-    @Nested
-    @DisplayName("getContributors - 기여자 목록 조회")
-    class GetContributors {
-        @Test
-        @DisplayName("성공 - User 타입만 필터링되어 반환")
-        void getContributors_success() {
-            RepoInfoCommand command = repoInfoCommand();
-            String json = "[{\"type\": \"User\", \"login\": \"user1\", \"avatar_url\": \"url1\"}, {\"type\": \"Bot\", \"login\": \"bot1\", \"avatar_url\": \"url2\"}]";
+    @Test
+    @DisplayName("설치 저장소 목록 404는 기존 v1 오류로 변환한다")
+    void getRepositoriesByInstallationId_notFound() {
+        given(githubApiExecutor.executeGet(anyLong(), anyString(), anyString(), any(), anyString()))
+                .willThrow(githubError(HttpStatus.NOT_FOUND));
 
-            given(githubApiExecutor.executeGet(anyString(), anyString(), any(), anyString(), any()))
-                    .willAnswer(invocation -> {
-                        GithubApiExecutor.JsonResponseParser<List<ContributorsResult.Contributor>> extractor = invocation.getArgument(2);
-                        return extractor.parse(objectMapper.readTree(json));
-                    });
-
-            ContributorsResult result = repositoryAdapter.getContributors(command);
-
-            assertThat(result.contributors()).hasSize(1);
-            assertThat(result.contributors().get(0).username()).isEqualTo("user1");
-        }
-
-        @Test
-        @DisplayName("실패 - 리포지토리를 찾을 수 없는 경우")
-        void getContributors_failure_not_found() {
-            RepoInfoCommand command = repoInfoCommand();
-
-            given(githubApiExecutor.executeGet(anyString(), anyString(), any(), anyString(), any()))
-                    .willAnswer(invocation -> {
-                        GithubApiExecutor.ExceptionHandler<HttpClientErrorException> errorHandler = invocation.getArgument(4);
-                        return errorHandler.handle(notFoundException).orElse(null);
-                    });
-
-            assertThatThrownBy(() -> repositoryAdapter.getContributors(command))
-                    .isInstanceOf(CustomException.class)
-                    .hasFieldOrPropertyWithValue("errorCode", RepositoryErrorCode.REPOSITORY_OR_BRANCH_NOT_FOUND);
-        }
+        assertThatThrownBy(() -> repositoryQueryAdapter.getRepositoriesByInstallationId(
+                1L, "token", 1L, 1, 10
+        ))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue(
+                        "errorCode", RepositoryErrorCode.INSTALLED_REPOSITORY_NOT_FOUND
+                );
     }
 
-    @Nested
-    @DisplayName("getRecentSHA - 최신 SHA 조회")
-    class GetRecentSHA {
-        @Test
-        @DisplayName("성공")
-        void getRecentSHA_success() {
-            RepoBranchCommand command = repoBranchCommand();
-            String json = "{\"object\": {\"sha\": \"sha-value\"}}";
+    @Test
+    @DisplayName("저장소 상세 응답을 변환한다")
+    void getRepository_success() {
+        given(githubApiExecutor.executeGet(anyLong(), anyString(), anyString(), any(), anyString()))
+                .willAnswer(parseJson("{\"owner\":{\"avatar_url\":\"avatar\"},\"default_branch\":\"main\"}"));
 
-            given(githubApiExecutor.executeGet(anyString(), anyString(), any(), anyString(), any()))
-                    .willAnswer(invocation -> {
-                        GithubApiExecutor.JsonResponseParser<String> extractor = invocation.getArgument(2);
-                        return extractor.parse(objectMapper.readTree(json));
-                    });
+        RepositoryDetailResult result = repositoryQueryAdapter.getRepository(repoInfoCommand());
 
-            String result = repositoryAdapter.getRecentSHA(command);
-
-            assertThat(result).isEqualTo("sha-value");
-        }
-
-        @Test
-        @DisplayName("실패 - 리포지토리를 찾을 수 없는 경우")
-        void getRecentSHA_failure_not_found() {
-            RepoBranchCommand command = repoBranchCommand();
-
-            given(githubApiExecutor.executeGet(anyString(), anyString(), any(), anyString(), any()))
-                    .willAnswer(invocation -> {
-                        GithubApiExecutor.ExceptionHandler<HttpClientErrorException> errorHandler = invocation.getArgument(4);
-                        return errorHandler.handle(notFoundException).orElse(null);
-                    });
-
-            assertThatThrownBy(() -> repositoryAdapter.getRecentSHA(command))
-                    .isInstanceOf(CustomException.class)
-                    .hasFieldOrPropertyWithValue("errorCode", RepositoryErrorCode.BRANCH_NOT_FOUND);
-        }
+        assertThat(result.avatarUrl()).isEqualTo("avatar");
+        assertThat(result.defaultBranch()).isEqualTo("main");
     }
 
-    @Nested
-    @DisplayName("createBranch - 브랜치 생성")
-    class CreateBranch {
-        @Test
-        @DisplayName("성공")
-        void createBranch_success() {
-            CreateBranchCommand command = createBranchCommand();
+    @Test
+    @DisplayName("저장소 조회 404는 기존 v1 도메인 오류로 변환한다")
+    void getRepository_notFound() {
+        given(githubApiExecutor.executeGet(anyLong(), anyString(), anyString(), any(), anyString()))
+                .willThrow(githubError(HttpStatus.NOT_FOUND));
 
-            repositoryAdapter.createBranch(command);
-
-            verify(githubApiExecutor).executePost(anyString(), anyString(), anyMap(), any(), anyString());
-        }
+        assertThatThrownBy(() -> repositoryQueryAdapter.getRepository(repoInfoCommand()))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", RepositoryErrorCode.REPOSITORY_CANNOT_PULL);
     }
 
-    @Nested
-    @DisplayName("deleteBranch - 브랜치 삭제")
-    class DeleteBranch {
-        @Test
-        @DisplayName("성공")
-        void deleteBranch_success() {
-            RepoBranchCommand command = repoBranchCommand();
+    @Test
+    @DisplayName("기여자 조회에서 GitHub 사용자만 유지한다")
+    void getContributors_filtersBots() {
+        given(githubApiExecutor.executeGet(anyLong(), anyString(), anyString(), any(), anyString()))
+                .willAnswer(parseJson("""
+                        [
+                          {"type":"User","login":"user1","avatar_url":"url1"},
+                          {"type":"Bot","login":"bot1","avatar_url":"url2"}
+                        ]
+                        """));
 
-            repositoryAdapter.deleteBranch(command);
+        ContributorsResult result = repositoryQueryAdapter.getContributors(repoInfoCommand());
 
-            verify(githubApiExecutor).executeDelete(anyString(), anyString(), anyString());
-        }
+        assertThat(result.contributors()).singleElement()
+                .satisfies(contributor -> assertThat(contributor.username()).isEqualTo("user1"));
     }
 
-    @Nested
-    @DisplayName("getReadmeSHA - README SHA 조회")
-    class GetReadmeSHA {
-        @Test
-        @DisplayName("성공")
-        void getReadmeSHA_success() {
-            RepoBranchCommand command = repoBranchCommand();
-            String json = "{\"sha\": \"readme-sha\"}";
+    @Test
+    @DisplayName("저장소 언어 통계를 순서 있는 결과로 변환한다")
+    void getRepositoryLanguages_success() {
+        given(githubApiExecutor.executeGet(anyLong(), anyString(), anyString(), any(), anyString()))
+                .willAnswer(parseJson("{\"Java\":100,\"Kotlin\":50}"));
 
-            given(githubApiExecutor.executeGet(anyString(), anyString(), any(), anyString(), any()))
-                    .willAnswer(invocation -> {
-                        GithubApiExecutor.JsonResponseParser<String> extractor = invocation.getArgument(2);
-                        return extractor.parse(objectMapper.readTree(json));
-                    });
+        List<RepositoryLanguageResult> result =
+                repositoryQueryAdapter.getRepositoryLanguages(repoInfoCommand());
 
-            String result = repositoryAdapter.getReadmeSHA(command);
-
-            assertThat(result).isEqualTo("readme-sha");
-        }
-
-        @Test
-        @DisplayName("성공 - README가 없는 경우 null 반환")
-        void getReadmeSHA_success_not_found() {
-            RepoBranchCommand command = repoBranchCommand();
-
-            given(githubApiExecutor.executeGet(anyString(), anyString(), any(), anyString(), any()))
-                    .willAnswer(invocation -> {
-                        GithubApiExecutor.ExceptionHandler<HttpClientErrorException> errorHandler = invocation.getArgument(4);
-                        return errorHandler.handle(notFoundException).orElse(null);
-                    });
-
-            String result = repositoryAdapter.getReadmeSHA(command);
-
-            assertThat(result).isNull();
-        }
+        assertThat(result).extracting(RepositoryLanguageResult::name)
+                .containsExactly("Java", "Kotlin");
     }
 
-    @Nested
-    @DisplayName("push - README 푸시")
-    class Push {
-        @Test
-        @DisplayName("성공 - 기존 README가 있는 경우 sha 포함")
-        void push_success_with_sha() {
-            ReadmePushCommand command = readmePushCommand("existing-sha");
+    @Test
+    @DisplayName("브랜치 목록의 next 링크를 따라가며 중복 없이 합친다")
+    void getAllBranches_followsPagination() {
+        given(githubApiExecutor.executeGetJson(
+                anyLong(), anyString(), anyString(), anyString(), any(), anyString()
+        )).willAnswer(invocation -> {
+            String url = invocation.getArgument(1);
+            Function<ResponseEntity<String>, ?> handler = invocation.getArgument(4);
+            if (!url.contains("page=2")) {
+                HttpHeaders headers = new HttpHeaders();
+                headers.add(HttpHeaders.LINK, "<https://api.github.com/branches?page=2>; rel=\"next\"");
+                return handler.apply(ResponseEntity.ok().headers(headers).body("[{\"name\":\"main\"}]"));
+            }
+            return handler.apply(ResponseEntity.ok("[{\"name\":\"dev\"},{\"name\":\"main\"}]"));
+        });
 
-            repositoryAdapter.push(command);
-
-            verify(githubApiExecutor).executePut(anyString(), anyString(), mapCaptor.capture(), anyString());
-            assertThat(mapCaptor.getValue()).containsEntry("sha", "existing-sha");
-        }
-
-        @Test
-        @DisplayName("성공 - 기존 README가 없는 경우 sha 미포함")
-        void push_success_without_sha() {
-            ReadmePushCommand command = readmePushCommand(null);
-
-            repositoryAdapter.push(command);
-
-            verify(githubApiExecutor).executePut(anyString(), anyString(), mapCaptor.capture(), anyString());
-            assertThat(mapCaptor.getValue()).doesNotContainKey("sha");
-        }
+        assertThat(repositoryQueryAdapter.getAllBranches(repoInfoCommand()))
+                .containsExactly("main", "dev");
     }
 
-    @Nested
-    @DisplayName("createPullRequest - PR 생성")
-    class CreatePullRequest {
-        @Test
-        @DisplayName("성공")
-        void createPullRequest_success() {
-            CreatePullRequestCommand command = createPullRequestCommand();
-            String json = "{\"html_url\": \"pr-url\"}";
+    @Test
+    @DisplayName("비정상 next 링크가 계속되면 브랜치 요청 횟수를 제한한다")
+    void getAllBranches_limitsRequests() {
+        given(githubApiExecutor.executeGetJson(
+                anyLong(), anyString(), anyString(), anyString(), any(), anyString()
+        )).willAnswer(invocation -> {
+            Function<ResponseEntity<String>, ?> handler = invocation.getArgument(4);
+            HttpHeaders headers = new HttpHeaders();
+            headers.add(HttpHeaders.LINK, "<https://api.github.com/branches?page=next>; rel=\"next\"");
+            return handler.apply(ResponseEntity.ok().headers(headers).body("[]"));
+        });
 
-            given(githubApiExecutor.executePost(anyString(), anyString(), anyMap(), any(), anyString()))
-                    .willAnswer(invocation -> {
-                        GithubApiExecutor.JsonResponseParser<String> extractor = invocation.getArgument(3);
-                        return extractor.parse(objectMapper.readTree(json));
-                    });
-
-            String result = repositoryAdapter.createPullRequest(command);
-
-            assertThat(result).isEqualTo("pr-url");
-        }
+        assertThatThrownBy(() -> repositoryQueryAdapter.getAllBranches(repoInfoCommand()))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue(
+                        "errorCode", RepositoryErrorCode.GITHUB_BRANCHES_TOO_MANY_REQUESTS
+                );
     }
 
-    @Nested
-    @DisplayName("getRepositoryLanguages - 사용 언어 목록 조회")
-    class GetRepositoryLanguages {
-        @Test
-        @DisplayName("성공")
-        void getRepositoryLanguages_success() {
-            RepoInfoCommand command = repoInfoCommand();
-            String json = "{\"Java\": 100, \"Python\": 200}";
+    @Test
+    @DisplayName("브랜치 JSON 오류를 기존 파싱 오류로 변환한다")
+    void getAllBranches_invalidJson() {
+        given(githubApiExecutor.executeGetJson(
+                anyLong(), anyString(), anyString(), anyString(), any(), anyString()
+        )).willAnswer(invocation -> {
+            Function<ResponseEntity<String>, ?> handler = invocation.getArgument(4);
+            return handler.apply(ResponseEntity.ok("invalid-json"));
+        });
 
-            given(githubApiExecutor.executeGet(anyString(), anyString(), any(), anyString()))
-                    .willAnswer(invocation -> {
-                        GithubApiExecutor.JsonResponseParser<List<RepositoryLanguageResult>> extractor = invocation.getArgument(2);
-                        return extractor.parse(objectMapper.readTree(json));
-                    });
-
-            List<RepositoryLanguageResult> result = repositoryAdapter.getRepositoryLanguages(command);
-
-            assertThat(result).hasSize(2);
-            assertThat(result).extracting("name").containsExactlyInAnyOrder("Java", "Python");
-        }
+        assertThatThrownBy(() -> repositoryQueryAdapter.getAllBranches(repoInfoCommand()))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", RepositoryErrorCode.JSON_PROCESSING_ERROR);
     }
 
-    @Nested
-    @DisplayName("getReadmeContent - README 내용 조회")
-    class GetReadmeContent {
-        @Test
-        @DisplayName("성공")
-        void getReadmeContent_success() {
-            RepoBranchCommand command = repoBranchCommand();
+    @Test
+    @DisplayName("권한 조회 404는 권한 없음으로 처리한다")
+    void checkPermission_notFound() {
+        given(githubApiExecutor.executeGet(anyLong(), anyString(), anyString(), any(), anyString()))
+                .willThrow(githubError(HttpStatus.NOT_FOUND));
 
-            given(githubApiExecutor.executeGetRaw(anyString(), anyString(), anyString(), any()))
-                    .willReturn("content");
-
-            String result = repositoryAdapter.getReadmeContent(command);
-
-            assertThat(result).isEqualTo("content");
-        }
-
-        @Test
-        @DisplayName("성공 - README가 없는 경우 빈 문자열 반환")
-        void getReadmeContent_success_not_found() {
-            RepoBranchCommand command = repoBranchCommand();
-
-            given(githubApiExecutor.executeGetRaw(anyString(), anyString(), anyString(), any()))
-                    .willAnswer(invocation -> {
-                        GithubApiExecutor.ExceptionHandler<HttpClientErrorException> errorHandler = invocation.getArgument(3);
-                        return errorHandler.handle(notFoundException).orElse(null);
-                    });
-
-            String result = repositoryAdapter.getReadmeContent(command);
-
-            assertThat(result).isEmpty();
-        }
+        assertThat(repositoryQueryAdapter.checkPermission(repoPermissionCommand())).isFalse();
     }
 
-    @Nested
-    @DisplayName("getAllBranches - 모든 브랜치 조회")
-    class GetAllBranches {
-        @Test
-        @DisplayName("성공 - 단일 페이지")
-        void getAllBranches_success_single_page() {
-            RepoInfoCommand command = repoInfoCommand();
-            ResponseEntity<String> response = ResponseEntity.ok("[{\"name\": \"main\"}]");
+    @Test
+    @DisplayName("admin 저장소 권한을 쓰기 가능으로 판단한다")
+    void checkPermission_admin() {
+        given(githubApiExecutor.executeGet(anyLong(), anyString(), anyString(), any(), anyString()))
+                .willAnswer(parseJson("{\"permission\":\"admin\"}"));
 
-            given(githubApiExecutor.executeGetJson(anyString(), anyString(), any(), any(), anyString(), any()))
-                    .willAnswer(invocation -> {
-                        Function<ResponseEntity<String>, String> extractor = invocation.getArgument(3);
-                        return extractor.apply(response);
-                    });
-
-            List<String> result = repositoryAdapter.getAllBranches(command);
-
-            assertThat(result).containsExactly("main");
-        }
-
-        @Test
-        @DisplayName("성공 - 다중 페이지")
-        void getAllBranches_success_multi_page() {
-            RepoInfoCommand command = repoInfoCommand();
-
-            given(githubApiExecutor.executeGetJson(anyString(), anyString(), any(), any(), anyString(), any()))
-                    .willAnswer(invocation -> {
-                        String url = invocation.getArgument(0);
-                        Function<ResponseEntity<String>, String> extractor = invocation.getArgument(3);
-
-                        if (!url.contains("page=2")) {
-                            HttpHeaders headers = new HttpHeaders();
-                            headers.add(HttpHeaders.LINK, "<url?page=2>; rel=\"next\"");
-                            return extractor.apply(ResponseEntity.ok().headers(headers).body("[{\"name\": \"main\"}]"));
-                        } else {
-                            return extractor.apply(ResponseEntity.ok("[{\"name\": \"dev\"}]"));
-                        }
-                    });
-
-            List<String> result = repositoryAdapter.getAllBranches(command);
-
-            assertThat(result).containsExactly("main", "dev");
-        }
-
-        @Test
-        @DisplayName("실패 - 최대 요청 횟수 초과 (무한 루프 방지)")
-        void getAllBranches_failure_exceed_max_requests() {
-            RepoInfoCommand command = repoInfoCommand();
-
-            given(githubApiExecutor.executeGetJson(anyString(), anyString(), any(), any(), anyString(), any()))
-                    .willAnswer(invocation -> {
-                        Function<ResponseEntity<String>, String> extractor = invocation.getArgument(3);
-                        HttpHeaders headers = new HttpHeaders();
-                        headers.add(HttpHeaders.LINK, "<url?page=next>; rel=\"next\"");
-                        return extractor.apply(ResponseEntity.ok().headers(headers).body("[{\"name\": \"main\"}]"));
-                    });
-
-            assertThatThrownBy(() -> repositoryAdapter.getAllBranches(command))
-                    .isInstanceOf(CustomException.class)
-                    .hasFieldOrPropertyWithValue("errorCode", RepositoryErrorCode.GITHUB_BRANCHES_TOO_MANY_REQUESTS);
-        }
-
-        @Test
-        @DisplayName("실패 - 리포지토리를 찾을 수 없는 경우")
-        void getAllBranches_failure_not_found() {
-            RepoInfoCommand command = repoInfoCommand();
-
-            given(githubApiExecutor.executeGetJson(anyString(), anyString(), any(), any(), anyString(), any()))
-                    .willAnswer(invocation -> {
-                        GithubApiExecutor.ExceptionHandler<HttpClientErrorException> errorHandler = invocation.getArgument(5);
-                        return errorHandler.handle(notFoundException).orElse(null);
-                    });
-
-            assertThatThrownBy(() -> repositoryAdapter.getAllBranches(command))
-                    .isInstanceOf(CustomException.class)
-                    .hasFieldOrPropertyWithValue("errorCode", RepositoryErrorCode.REPOSITORY_OR_BRANCH_NOT_FOUND);
-        }
-
-        @Test
-        @DisplayName("실패 - JSON 파싱 오류")
-        void getAllBranches_failure_json_parsing() {
-            RepoInfoCommand command = repoInfoCommand();
-            String invalidJson = "invalid-json";
-
-            given(githubApiExecutor.executeGetJson(anyString(), anyString(), any(), any(), anyString(), any()))
-                    .willAnswer(invocation -> {
-                        Function<ResponseEntity<String>, String> extractor = invocation.getArgument(3);
-                        return extractor.apply(ResponseEntity.ok(invalidJson));
-                    });
-
-            assertThatThrownBy(() -> repositoryAdapter.getAllBranches(command))
-                    .isInstanceOf(CustomException.class)
-                    .hasFieldOrPropertyWithValue("errorCode", RepositoryErrorCode.JSON_PROCESSING_ERROR);
-        }
+        assertThat(repositoryQueryAdapter.checkPermission(repoPermissionCommand())).isTrue();
     }
 
-    @Nested
-    @DisplayName("getRepositoryTree - 트리 구조 조회")
-    class GetRepositoryTree {
-        @Test
-        @DisplayName("성공")
-        void getRepositoryTree_success() {
-            RepoBranchCommand command = repoBranchCommand();
-            String json = "{\"tree\": [{\"path\": \"file.txt\", \"type\": \"blob\"}]}";
+    @Test
+    @DisplayName("GitHub rate limit 정보를 기존 도메인 예외에 보존한다")
+    void query_translatesRateLimit() {
+        given(githubApiExecutor.executeGet(anyLong(), anyString(), anyString(), any(), anyString()))
+                .willThrow(new GithubApiException(HttpStatus.FORBIDDEN, true, 23, null));
 
-            given(githubApiExecutor.executeGet(anyString(), anyString(), any(), anyString()))
-                    .willAnswer(invocation -> {
-                        GithubApiExecutor.JsonResponseParser<List<RepositoryTreeResult>> extractor = invocation.getArgument(2);
-                        return extractor.parse(objectMapper.readTree(json));
-                    });
-
-            List<RepositoryTreeResult> result = repositoryAdapter.getRepositoryTree(command);
-
-            assertThat(result).hasSize(1);
-            assertThat(result.get(0).path()).isEqualTo("file.txt");
-            assertThat(result.get(0).type()).isEqualTo("blob");
-        }
+        assertThatThrownBy(() -> repositoryQueryAdapter.getRepository(repoInfoCommand()))
+                .isInstanceOfSatisfying(GithubRateLimitException.class,
+                        exception -> assertThat(exception.getRetryAfterSeconds()).isEqualTo(23));
     }
 
-    @Nested
-    @DisplayName("getFileContent - 파일 내용 조회")
-    class GetFileContent {
-        @Test
-        @DisplayName("성공")
-        void getFileContent_success() {
-            RepoBranchCommand command = repoBranchCommand();
-            RepositoryTreeResult file = new RepositoryTreeResult("file.txt", "blob");
+    @Test
+    @DisplayName("최신 커밋 SHA를 콘텐츠 포트에서 조회한다")
+    void getRecentSha_success() {
+        given(githubApiExecutor.executeGet(anyLong(), anyString(), anyString(), any(), anyString()))
+                .willAnswer(parseJson("{\"object\":{\"sha\":\"sha-value\"}}"));
 
-            given(githubApiExecutor.executeGetRaw(anyString(), anyString(), anyString(), any()))
-                    .willReturn("file-content");
-
-            RepositoryFileContentResult result = repositoryAdapter.getFileContent(command, file);
-
-            assertThat(result.path()).isEqualTo("file.txt");
-            assertThat(result.content()).isEqualTo("file-content");
-        }
-
-        @Test
-        @DisplayName("실패 - 파일을 찾을 수 없는 경우 빈 문자열 반환")
-        void getFileContent_failure_not_found() {
-            RepoBranchCommand command = repoBranchCommand();
-            RepositoryTreeResult file = new RepositoryTreeResult("file.txt", "blob");
-
-            given(githubApiExecutor.executeGetRaw(anyString(), anyString(), anyString(), any()))
-                    .willAnswer(invocation -> {
-                        GithubApiExecutor.ExceptionHandler<HttpClientErrorException> errorHandler = invocation.getArgument(3);
-                        return errorHandler.handle(notFoundException).orElse(null);
-                    });
-
-            RepositoryFileContentResult result = repositoryAdapter.getFileContent(command, file);
-
-            assertThat(result.path()).isEqualTo("file.txt");
-            assertThat(result.content()).isEmpty();
-        }
+        assertThat(repositoryContentAdapter.getRecentSHA(repoBranchCommand())).isEqualTo("sha-value");
     }
 
-    @Nested
-    @DisplayName("checkPermission - 권한 확인")
-    class CheckPermission {
-        @Test
-        @DisplayName("성공 - admin 권한")
-        void checkPermission_success_admin() {
-            RepoPermissionCommand command = repoPermissionCommand();
-            String json = "{\"permission\": \"admin\"}";
+    @Test
+    @DisplayName("최신 SHA 조회 404는 브랜치 없음으로 변환한다")
+    void getRecentSha_notFound() {
+        given(githubApiExecutor.executeGet(anyLong(), anyString(), anyString(), any(), anyString()))
+                .willThrow(githubError(HttpStatus.NOT_FOUND));
 
-            given(githubApiExecutor.executeGet(anyString(), anyString(), any(), anyString(), any()))
-                    .willAnswer(invocation -> {
-                        GithubApiExecutor.JsonResponseParser<Boolean> extractor = invocation.getArgument(2);
-                        return extractor.parse(objectMapper.readTree(json));
-                    });
+        assertThatThrownBy(() -> repositoryContentAdapter.getRecentSHA(repoBranchCommand()))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", RepositoryErrorCode.BRANCH_NOT_FOUND);
+    }
 
-            boolean result = repositoryAdapter.checkPermission(command);
+    @Test
+    @DisplayName("README가 없으면 SHA와 내용은 호환 가능한 빈 값으로 반환한다")
+    void readme_notFoundFallbacks() {
+        RepoBranchCommand command = repoBranchCommand();
+        given(githubApiExecutor.executeGet(anyLong(), anyString(), anyString(), any(), anyString()))
+                .willThrow(githubError(HttpStatus.NOT_FOUND));
+        given(githubApiExecutor.executeGetRaw(anyLong(), anyString(), anyString(), anyString()))
+                .willThrow(githubError(HttpStatus.NOT_FOUND));
 
-            assertThat(result).isTrue();
-        }
+        assertThat(repositoryContentAdapter.getReadmeSHA(command)).isNull();
+        assertThat(repositoryContentAdapter.getReadmeContent(command)).isEmpty();
+    }
 
-        @Test
-        @DisplayName("성공 - 권한 없음(read)")
-        void checkPermission_success_read() {
-            RepoPermissionCommand command = repoPermissionCommand();
-            String json = "{\"permission\": \"read\"}";
+    @Test
+    @DisplayName("저장소 트리와 파일 내용을 콘텐츠 포트에서 변환한다")
+    void getRepositoryTreeAndFileContent_success() {
+        RepoBranchCommand command = repoBranchCommand();
+        given(githubApiExecutor.executeGet(anyLong(), anyString(), anyString(), any(), anyString()))
+                .willAnswer(parseJson("{\"tree\":[{\"path\":\"src/App.java\",\"type\":\"blob\"}]}"));
+        given(githubApiExecutor.executeGetRaw(anyLong(), anyString(), anyString(), anyString()))
+                .willReturn("class App {}");
 
-            given(githubApiExecutor.executeGet(anyString(), anyString(), any(), anyString(), any()))
-                    .willAnswer(invocation -> {
-                        GithubApiExecutor.JsonResponseParser<Boolean> extractor = invocation.getArgument(2);
-                        return extractor.parse(objectMapper.readTree(json));
-                    });
+        List<RepositoryTreeResult> tree = repositoryContentAdapter.getRepositoryTree(command);
+        RepositoryFileContentResult file = repositoryContentAdapter.getFileContent(command, tree.get(0));
 
-            boolean result = repositoryAdapter.checkPermission(command);
+        assertThat(tree).containsExactly(new RepositoryTreeResult("src/App.java", "blob"));
+        assertThat(file).isEqualTo(new RepositoryFileContentResult("src/App.java", "class App {}"));
+    }
 
-            assertThat(result).isFalse();
-        }
+    @Test
+    @DisplayName("개별 파일 404는 경로를 보존한 빈 내용으로 반환한다")
+    void getFileContent_notFound() {
+        RepositoryTreeResult file = new RepositoryTreeResult("missing.txt", "blob");
+        given(githubApiExecutor.executeGetRaw(anyLong(), anyString(), anyString(), anyString()))
+                .willThrow(githubError(HttpStatus.NOT_FOUND));
 
-        @Test
-        @DisplayName("성공 - 404 발생 시 권한 없음으로 처리")
-        void checkPermission_success_not_found() {
-            RepoPermissionCommand command = repoPermissionCommand();
+        assertThat(repositoryContentAdapter.getFileContent(repoBranchCommand(), file))
+                .isEqualTo(new RepositoryFileContentResult("missing.txt", ""));
+    }
 
-            given(githubApiExecutor.executeGet(anyString(), anyString(), any(), anyString(), any()))
-                    .willAnswer(invocation -> {
-                        GithubApiExecutor.ExceptionHandler<HttpClientErrorException> errorHandler = invocation.getArgument(4);
-                        return errorHandler.handle(notFoundException).orElse(null);
-                    });
+    @Test
+    @DisplayName("브랜치 생성은 mutation 포트에서 GitHub 호출로 위임한다")
+    void createBranch_success() {
+        repositoryMutationAdapter.createBranch(createBranchCommand());
 
-            boolean result = repositoryAdapter.checkPermission(command);
+        verify(githubApiExecutor).executePost(
+                anyLong(), anyString(), anyString(), anyMap(), any(), anyString()
+        );
+    }
 
-            assertThat(result).isFalse();
-        }
+    @Test
+    @DisplayName("브랜치 삭제는 mutation 포트에서 GitHub 호출로 위임한다")
+    void deleteBranch_success() {
+        repositoryMutationAdapter.deleteBranch(repoBranchCommand());
+
+        verify(githubApiExecutor).executeDelete(anyLong(), anyString(), anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("README push는 UTF-8 Base64 본문과 기존 SHA를 전달한다")
+    void push_encodesUtf8Content() {
+        ReadmePushCommand command = new ReadmePushCommand(
+                repoInfoCommand(), "main", "한글 README", "existing-sha", "update README"
+        );
+        ArgumentCaptor<Map<String, String>> bodyCaptor = ArgumentCaptor.forClass(Map.class);
+
+        repositoryMutationAdapter.push(command);
+
+        verify(githubApiExecutor).executePut(
+                anyLong(), anyString(), anyString(), bodyCaptor.capture(), anyString()
+        );
+        Map<String, String> body = bodyCaptor.getValue();
+        assertThat(body).containsEntry("sha", "existing-sha");
+        assertThat(new String(Base64.getDecoder().decode(body.get("content")), StandardCharsets.UTF_8))
+                .isEqualTo("한글 README");
+    }
+
+    @Test
+    @DisplayName("새 README push에서는 SHA를 생략한다")
+    void push_withoutExistingSha() {
+        ReadmePushCommand command = readmePushCommand(null);
+        ArgumentCaptor<Map<String, String>> bodyCaptor = ArgumentCaptor.forClass(Map.class);
+
+        repositoryMutationAdapter.push(command);
+
+        verify(githubApiExecutor).executePut(
+                anyLong(), anyString(), anyString(), bodyCaptor.capture(), anyString()
+        );
+        assertThat(bodyCaptor.getValue()).doesNotContainKey("sha");
+    }
+
+    @Test
+    @DisplayName("PR 생성 응답에서 URL을 반환한다")
+    void createPullRequest_success() {
+        CreatePullRequestCommand command = createPullRequestCommand();
+        given(githubApiExecutor.executePost(
+                anyLong(), anyString(), anyString(), anyMap(), any(), anyString()
+        )).willAnswer(parseJsonAtArgument("{\"html_url\":\"https://github.com/pr/1\"}", 4));
+
+        assertThat(repositoryMutationAdapter.createPullRequest(command))
+                .isEqualTo("https://github.com/pr/1");
+    }
+
+    private Answer<Object> parseJson(String json) {
+        return parseJsonAtArgument(json, 3);
+    }
+
+    private Answer<Object> parseJsonAtArgument(String json, int parserArgument) {
+        return invocation -> {
+            GithubApiExecutor.JsonResponseParser<?> parser = invocation.getArgument(parserArgument);
+            return parser.parse(objectMapper.readTree(json));
+        };
+    }
+
+    private GithubApiException githubError(HttpStatus status) {
+        return new GithubApiException(status, false, 60, null);
     }
 }

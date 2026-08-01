@@ -2,11 +2,11 @@ package seungyong.helpmebackend.repository.adapter.out.github;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.HttpClientErrorException;
 import seungyong.helpmebackend.repository.application.port.out.command.RepoBranchCommand;
 import seungyong.helpmebackend.repository.application.port.out.result.CommitResult;
 import seungyong.helpmebackend.repository.application.port.out.result.ContributorsResult;
@@ -15,7 +15,6 @@ import seungyong.helpmebackend.repository.domain.exception.RepositoryErrorCode;
 import seungyong.helpmebackend.global.infrastructure.github.GithubApiExecutor;
 import seungyong.helpmebackend.global.infrastructure.github.GithubClient;
 import seungyong.helpmebackend.global.domain.entity.PageInfo;
-import seungyong.helpmebackend.global.config.GithubPortConfig;
 import seungyong.helpmebackend.repository.application.port.out.CommitPortOut;
 
 import java.time.Instant;
@@ -25,8 +24,9 @@ import java.util.concurrent.CompletableFuture;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class CommitAdapter extends GithubPortConfig implements CommitPortOut {
+public class CommitAdapter implements CommitPortOut {
     private final GithubApiExecutor githubApiExecutor;
+    private final ObjectMapper objectMapper;
 
     @Override
     public CommitResult getCommits(RepoBranchCommand command, ContributorsResult.Contributor contributor) {
@@ -121,19 +121,18 @@ public class CommitAdapter extends GithubPortConfig implements CommitPortOut {
             );
         }
 
-        return githubApiExecutor.executeGetJson(
-                url,
-                command.repoInfo().accessToken(),
-                GithubClient.Accept.APPLICATION_GITHUB_VND_GITHUB_JSON,
-                response -> response,
-                "Fetch commits for " + command.repoInfo().owner() + "/" + command.repoInfo().name() + " on branch " + command.branch() + " page " + page,
-                e -> {
-                    if (e instanceof HttpClientErrorException.NotFound) {
-                        throw new CustomException(RepositoryErrorCode.REPOSITORY_OR_BRANCH_NOT_FOUND);
-                    }
-
-                    return Optional.empty();
-                }
+        return GithubRepositoryExceptionTranslator.execute(
+                () -> githubApiExecutor.executeGetJson(
+                        command.repoInfo().userId(),
+                        url,
+                        command.repoInfo().accessToken(),
+                        GithubClient.Accept.APPLICATION_GITHUB_VND_GITHUB_JSON,
+                        response -> response,
+                        "fetch repository commits"
+                ),
+                GithubRepositoryExceptionTranslator.failWith(
+                        RepositoryErrorCode.REPOSITORY_OR_BRANCH_NOT_FOUND
+                )
         );
     }
 
@@ -143,7 +142,7 @@ public class CommitAdapter extends GithubPortConfig implements CommitPortOut {
         }
 
         try {
-            JsonNode jsonNode = super.getObjectMapper().readTree(body);
+            JsonNode jsonNode = objectMapper.readTree(body);
             List<CommitResult.Commit> commits = new ArrayList<>();
 
             for (JsonNode commitNode : jsonNode) {
@@ -160,7 +159,7 @@ public class CommitAdapter extends GithubPortConfig implements CommitPortOut {
 
             return commits;
         } catch (JsonProcessingException e) {
-            log.error("Error parsing Github commit JSON response = {}", body, e);
+            log.warn("GitHub returned an invalid commit response");
             throw new CustomException(RepositoryErrorCode.JSON_PROCESSING_ERROR);
         }
     }

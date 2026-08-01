@@ -30,6 +30,7 @@ import seungyong.helpmebackend.global.domain.entity.JWT;
 import seungyong.helpmebackend.global.domain.type.RedisKey;
 import seungyong.helpmebackend.global.domain.type.RedisKeyFactory;
 import seungyong.helpmebackend.global.exception.GlobalErrorCode;
+import seungyong.helpmebackend.global.exception.ErrorCode;
 import seungyong.helpmebackend.global.infrastructure.github.GithubApiExecutor;
 import seungyong.helpmebackend.global.infrastructure.github.GithubClient;
 import seungyong.helpmebackend.global.infrastructure.jwt.JWTProvider;
@@ -45,6 +46,8 @@ import seungyong.helpmebackend.repository.application.port.out.command.GenerateR
 import seungyong.helpmebackend.repository.application.port.out.command.RepositoryInfoCommand;
 import seungyong.helpmebackend.repository.application.port.out.result.EvaluationContentResult;
 import seungyong.helpmebackend.repository.application.port.out.result.GPTRepositoryInfoResult;
+import seungyong.helpmebackend.repository.application.port.in.result.GeneratedReadmeResult;
+import seungyong.helpmebackend.repository.application.port.in.result.ReadmeEvaluationResult;
 import seungyong.helpmebackend.repository.domain.entity.EncryptedToken;
 import seungyong.helpmebackend.repository.domain.exception.RepositoryErrorCode;
 import seungyong.helpmebackend.section.adapter.in.web.dto.response.ResponseSections;
@@ -67,6 +70,7 @@ import java.util.function.Function;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
@@ -264,10 +268,12 @@ public class RepositoryIntegrationTest {
             ResponseEntity<String> mockResponse = ResponseEntity.ok(mockResponseBody);
 
             doAnswer(invocation -> {
-                        Function<ResponseEntity<String>, String> extractor = invocation.getArgument(3);
+                        Function<ResponseEntity<String>, String> extractor = invocation.getArgument(4);
                         return extractor.apply(mockResponse);
                     })
-                    .when(githubApiExecutor).executeGetJson(anyString(), anyString(), anyString(), any(), anyString(), any());
+                    .when(githubApiExecutor).executeGetJson(
+                            anyLong(), anyString(), anyString(), anyString(), any(), anyString()
+                    );
 
             mockMvc.perform(get("/api/v1/repos/{owner}/{name}/branches", owner, name)
                             .cookie(
@@ -292,9 +298,11 @@ public class RepositoryIntegrationTest {
             ResponseEntity<String> mockResponse = new ResponseEntity<>("[{\"name\": \"branch\"}]", headers, org.springframework.http.HttpStatus.OK);
 
             doAnswer(invocation -> {
-                Function<ResponseEntity<String>, Object> extractor = invocation.getArgument(3);
+                Function<ResponseEntity<String>, Object> extractor = invocation.getArgument(4);
                 return extractor.apply(mockResponse);
-            }).when(githubApiExecutor).executeGetJson(anyString(), anyString(), any(), any(), anyString(), any());
+            }).when(githubApiExecutor).executeGetJson(
+                    anyLong(), anyString(), anyString(), anyString(), any(), anyString()
+            );
 
             mockMvc.perform(get("/api/v1/repos/{owner}/{name}/branches", owner, name)
                             .cookie(new Cookie("accessToken", jwt.getAccessToken()),
@@ -479,7 +487,7 @@ public class RepositoryIntegrationTest {
                     branch
             )), anyString())).willReturn("{\"sha\": \"%s\"}".formatted(sha));
 
-            doNothing().when(githubApiExecutor).executePut(eq(String.format(
+            doNothing().when(githubApiExecutor).executePut(anyLong(), eq(String.format(
                     "https://api.github.com/repos/%s/%s/contents/%s",
                     owner,
                     name,
@@ -530,7 +538,9 @@ public class RepositoryIntegrationTest {
                     .willThrow(notFoundException);
 
             // 4. Push 및 PR 생성
-            doNothing().when(githubApiExecutor).executePut(anyString(), anyString(), anyMap(), anyString());
+            doNothing().when(githubApiExecutor).executePut(
+                    anyLong(), anyString(), anyString(), anyMap(), anyString()
+            );
 
             String prUrlJson = "{ \"html_url\": \"%s\" }".formatted(prUrl);
             given(githubClient.postWithBearer(contains("/pulls"), anyString(), anyMap(), any()))
@@ -573,7 +583,9 @@ public class RepositoryIntegrationTest {
 
             // Push 시 에러 발생
             doThrow(new RuntimeException("Push failed"))
-                    .when(githubApiExecutor).executePut(anyString(), anyString(), anyMap(), anyString());
+                    .when(githubApiExecutor).executePut(
+                            anyLong(), anyString(), anyString(), anyMap(), anyString()
+                    );
 
             mockMvc.perform(post("/api/v1/repos/{owner}/{name}", owner, name)
                             .cookie(new Cookie("accessToken", jwt.getAccessToken()), new Cookie("refreshToken", jwt.getRefreshToken()))
@@ -583,7 +595,9 @@ public class RepositoryIntegrationTest {
                     .andExpect(jsonPath("$.errorCode").value(RepositoryErrorCode.PUSH_FAILED.getErrorCode()));
 
             // 브랜치 삭제(Cleanup) 호출 확인
-            verify(githubApiExecutor).executeDelete(anyString(), anyString(), anyString());
+            verify(githubApiExecutor).executeDelete(
+                    anyLong(), anyString(), anyString(), anyString()
+            );
         }
 
         @Test
@@ -595,7 +609,9 @@ public class RepositoryIntegrationTest {
             given(githubClient.fetchGetMethodForBody(contains("/git/refs/heads/"), anyString())).willReturn("{\"object\":{\"sha\":\""+sha+"\"}}");
             given(githubClient.postWithBearer(contains("/git/refs"), anyString(), anyMap(), any())).willReturn("{\"ref\":\""+branch+"\"}");
             given(githubClient.fetchGetMethodForBody(contains("/contents/README.md"), anyString())).willReturn("{\"sha\":\""+sha+"\"}");
-            doNothing().when(githubApiExecutor).executePut(anyString(), anyString(), anyMap(), anyString());
+            doNothing().when(githubApiExecutor).executePut(
+                    anyLong(), anyString(), anyString(), anyMap(), anyString()
+            );
 
             // PR 생성(Post) 시 에러 발생
             given(githubClient.postWithBearer(contains("/pulls"), anyString(), anyMap(), any()))
@@ -608,7 +624,9 @@ public class RepositoryIntegrationTest {
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.errorCode").value(RepositoryErrorCode.PR_CREATION_FAILED.getErrorCode()));
 
-            verify(githubApiExecutor).executeDelete(anyString(), anyString(), anyString());
+            verify(githubApiExecutor).executeDelete(
+                    anyLong(), anyString(), anyString(), anyString()
+            );
         }
     }
 
@@ -754,7 +772,7 @@ public class RepositoryIntegrationTest {
                     verify(ssePortOut, times(1)).sendCompletion(
                             eq(taskId),
                             eq(SSETaskName.COMPLETION_EVALUATE_DRAFT.getTaskName()),
-                            any(ResponseEvaluation.class)
+                            any(ReadmeEvaluationResult.class)
                     );
                 });
 
@@ -817,10 +835,10 @@ public class RepositoryIntegrationTest {
                         .andExpect(status().isAccepted());
 
                 await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
-                    verify(ssePortOut, times(1)).sendCompletion(
+                    verify(ssePortOut, times(1)).sendError(
                             eq(taskId),
                             eq(SSETaskName.COMPLETION_EVALUATE_DRAFT_ERROR.getTaskName()),
-                            any(ResponseEntity.class)
+                            any(ErrorCode.class)
                     );
                 });
 
@@ -850,10 +868,10 @@ public class RepositoryIntegrationTest {
                         .andExpect(status().isAccepted());
 
                 await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
-                    verify(ssePortOut, times(1)).sendCompletion(
+                    verify(ssePortOut, times(1)).sendError(
                             eq(taskId),
                             eq(SSETaskName.COMPLETION_EVALUATE_DRAFT_ERROR.getTaskName()),
-                            any(ResponseEntity.class)
+                            any(ErrorCode.class)
                     );
                 });
 
@@ -874,7 +892,7 @@ public class RepositoryIntegrationTest {
                 given(gptClient.evaluateReadme(any(EvaluationCommand.class)))
                         .willReturn(evaluation);
 
-                given(ssePortOut.sendCompletion(anyString(), eq(SSETaskName.COMPLETION_EVALUATE_DRAFT.getTaskName()), any(ResponseEvaluation.class)))
+                given(ssePortOut.sendCompletion(anyString(), eq(SSETaskName.COMPLETION_EVALUATE_DRAFT.getTaskName()), any(ReadmeEvaluationResult.class)))
                         .willReturn(false); // 전송 실패 시뮬레이션
 
                 String taskId = subscribeAndGetTaskId();
@@ -895,13 +913,13 @@ public class RepositoryIntegrationTest {
                     verify(ssePortOut, timeout(5000)).sendCompletion(
                             eq(taskId),
                             eq(SSETaskName.COMPLETION_EVALUATE_DRAFT.getTaskName()),
-                            any(ResponseEvaluation.class)
+                            any(ReadmeEvaluationResult.class)
                     );
                 });
 
                 verify(redisPortOut, times(1)).setObjectIfAbsent(
                         eq(RedisKey.SSE_EMITTER_EVALUATION_DRAFT_KEY.getValue() + taskId),
-                        any(ResponseEvaluation.class),
+                        any(ReadmeEvaluationResult.class),
                         any(Instant.class)
                 );
             }
@@ -928,7 +946,7 @@ public class RepositoryIntegrationTest {
             RequestGeneration request = new RequestGeneration("main");
 
             @Captor
-            ArgumentCaptor<ResponseSections> captor;
+            ArgumentCaptor<GeneratedReadmeResult> captor;
 
             @Test
             @DisplayName("성공")
@@ -969,12 +987,12 @@ public class RepositoryIntegrationTest {
                     );
                 });
 
-                ResponseSections responseSections = captor.getValue();
+                GeneratedReadmeResult responseSections = captor.getValue();
 
                 assertThat(responseSections.sections())
                         .isNotEmpty()
                         .hasSize(4)
-                        .extracting(ResponseSections.Section::title)
+                        .extracting(GeneratedReadmeResult.Section::title)
                         .containsExactly("Project Title", "Overview", "Installation", "Usage");
 
                 verifyCaches(owner, name, sha);
@@ -1044,10 +1062,10 @@ public class RepositoryIntegrationTest {
                         .andExpect(status().isAccepted());
 
                 await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
-                    verify(ssePortOut, times(1)).sendCompletion(
+                    verify(ssePortOut, times(1)).sendError(
                             eq(taskId),
                             eq(SSETaskName.COMPLETION_GENERATE_ERROR.getTaskName()),
-                            any(ResponseEntity.class)
+                            any(ErrorCode.class)
                     );
                 });
 
@@ -1077,10 +1095,10 @@ public class RepositoryIntegrationTest {
                         .andExpect(status().isAccepted());
 
                 await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
-                    verify(ssePortOut, times(1)).sendCompletion(
+                    verify(ssePortOut, times(1)).sendError(
                             eq(taskId),
                             eq(SSETaskName.COMPLETION_GENERATE_ERROR.getTaskName()),
-                            any(ResponseEntity.class)
+                            any(ErrorCode.class)
                     );
                 });
 
@@ -1103,7 +1121,7 @@ public class RepositoryIntegrationTest {
                 given(gptClient.generateDraftReadme(any(GenerateReadmeCommand.class)))
                         .willReturn(generatedContent);
 
-                given(ssePortOut.sendCompletion(anyString(), eq(SSETaskName.COMPLETION_GENERATE.getTaskName()), any(ResponseSections.class)))
+                given(ssePortOut.sendCompletion(anyString(), eq(SSETaskName.COMPLETION_GENERATE.getTaskName()), any(GeneratedReadmeResult.class)))
                         .willReturn(false); // 전송 실패 시뮬레이션
 
                 String taskId = subscribeAndGetTaskId();
@@ -1124,13 +1142,13 @@ public class RepositoryIntegrationTest {
                     verify(ssePortOut, timeout(5000)).sendCompletion(
                             eq(taskId),
                             eq(SSETaskName.COMPLETION_GENERATE.getTaskName()),
-                            any(ResponseSections.class)
+                            any(GeneratedReadmeResult.class)
                     );
                 });
 
                 verify(redisPortOut, times(1)).setObjectIfAbsent(
                         eq(RedisKey.SSE_EMITTER_GENERATION_KEY.getValue() + taskId),
-                        any(ResponseSections.class),
+                        any(GeneratedReadmeResult.class),
                         any(Instant.class)
                 );
             }

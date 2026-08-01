@@ -5,10 +5,10 @@ import seungyong.helpmebackend.repository.domain.exception.RepositoryErrorCode;
 
 @Getter
 public class GithubRateLimitException extends CustomException {
-    private final int resetTime;
+    private final int retryAfterSeconds;
 
-    public GithubRateLimitException(int resetTime) {
+    public GithubRateLimitException(int retryAfterSeconds) {
         super(RepositoryErrorCode.GITHUB_RATE_LIMIT_EXCEEDED);
-        this.resetTime = resetTime;
+        this.retryAfterSeconds = retryAfterSeconds;
     }
 }

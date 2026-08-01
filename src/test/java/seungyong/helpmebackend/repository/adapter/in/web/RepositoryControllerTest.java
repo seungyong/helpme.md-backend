@@ -13,20 +13,36 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import seungyong.helpmebackend.global.domain.entity.CustomUserDetails;
+import seungyong.helpmebackend.global.exception.GithubRateLimitException;
 import seungyong.helpmebackend.global.filter.AuthenticationFilter;
 import seungyong.helpmebackend.global.infrastructure.cookie.CookieUtil;
 import seungyong.helpmebackend.repository.adapter.in.web.dto.request.RequestDraftEvaluation;
 import seungyong.helpmebackend.repository.adapter.in.web.dto.request.RequestGeneration;
 import seungyong.helpmebackend.repository.adapter.in.web.dto.request.RequestPull;
 import seungyong.helpmebackend.repository.application.port.in.RepositoryPortIn;
+import seungyong.helpmebackend.repository.application.port.in.command.CreateReadmePullRequestCommand;
+import seungyong.helpmebackend.repository.application.port.in.command.EvaluateDraftReadmeCommand;
+import seungyong.helpmebackend.repository.application.port.in.command.GenerateDraftReadmeCommand;
+import seungyong.helpmebackend.repository.application.port.in.result.GeneratedReadmeResult;
+import seungyong.helpmebackend.repository.application.port.in.result.PullRequestResult;
+import seungyong.helpmebackend.repository.application.port.in.result.ReadmeEvaluationResult;
+import seungyong.helpmebackend.repository.application.port.in.result.RepositoryBranchesResult;
+import seungyong.helpmebackend.repository.application.port.in.result.RepositoryDetailsResult;
+import seungyong.helpmebackend.repository.application.port.in.result.RepositoryListResult;
+import seungyong.helpmebackend.repository.domain.entity.Repository;
 import seungyong.helpmebackend.support.config.TestSecurityConfig;
+
+import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static seungyong.helpmebackend.support.fixture.TestFixtures.requestDraftEvaluation;
 import static seungyong.helpmebackend.support.fixture.TestFixtures.requestGeneration;
@@ -55,6 +71,11 @@ public class RepositoryControllerTest {
         @Test
         @DisplayName("성공")
         void getRepositories_success() throws Exception {
+            given(repositoryPortIn.getRepositories(1L, 123L, 1, 30))
+                    .willReturn(new RepositoryListResult(
+                            List.of(new Repository("avatar", "repo", "owner")), 1
+                    ));
+
             mockMvc.perform(get("/api/v1/repos")
                             .param("installation_id", "123")
                             .param("page", "1")
@@ -64,6 +85,23 @@ public class RepositoryControllerTest {
 
             verify(repositoryPortIn).getRepositories(eq(1L), eq(123L), eq(1), eq(30));
         }
+
+        @Test
+        @DisplayName("GitHub rate limit은 429와 Retry-After 헤더로 반환한다")
+        void getRepositories_rateLimited() throws Exception {
+            given(repositoryPortIn.getRepositories(1L, 123L, 1, 30))
+                    .willThrow(new GithubRateLimitException(17));
+
+            mockMvc.perform(get("/api/v1/repos")
+                            .param("installation_id", "123")
+                            .param("page", "1")
+                            .param("per_page", "30")
+                            .with(user(userDetails)))
+                    .andExpect(status().isTooManyRequests())
+                    .andExpect(header().string("Retry-After", "17"))
+                    .andExpect(jsonPath("$.status").value(429))
+                    .andExpect(jsonPath("$.errorCode").value("REPO_42901"));
+        }
     }
 
     @Nested
@@ -72,6 +110,9 @@ public class RepositoryControllerTest {
         @Test
         @DisplayName("성공")
         void getRepository_success() throws Exception {
+            given(repositoryPortIn.getRepository(1L, "owner", "repo"))
+                    .willReturn(new RepositoryDetailsResult("owner", "repo", "avatar", "main"));
+
             mockMvc.perform(get("/api/v1/repos/{owner}/{name}", "owner", "repo")
                             .with(user(userDetails)))
                     .andExpect(status().isOk());
@@ -86,6 +127,9 @@ public class RepositoryControllerTest {
         @Test
         @DisplayName("성공")
         void getBranches_success() throws Exception {
+            given(repositoryPortIn.getBranches(1L, "owner", "repo"))
+                    .willReturn(new RepositoryBranchesResult("main", List.of("main", "dev")));
+
             mockMvc.perform(get("/api/v1/repos/{owner}/{name}/branches", "owner", "repo")
                             .with(user(userDetails)))
                     .andExpect(status().isOk());
@@ -100,6 +144,9 @@ public class RepositoryControllerTest {
         @Test
         @DisplayName("성공")
         void getFallbackDraftEvaluation_success() throws Exception {
+            given(repositoryPortIn.fallbackDraftEvaluation("task-123"))
+                    .willReturn(new ReadmeEvaluationResult(4.0F, List.of("좋아요")));
+
             mockMvc.perform(get("/api/v1/repos/fallback/evaluate/draft/{taskId}", "task-123")
                             .with(user(userDetails)))
                     .andExpect(status().isOk());
@@ -114,6 +161,11 @@ public class RepositoryControllerTest {
         @Test
         @DisplayName("성공")
         void getFallbackGenerate_success() throws Exception {
+            given(repositoryPortIn.fallbackGenerateReadme("task-123"))
+                    .willReturn(new GeneratedReadmeResult(List.of(
+                            new GeneratedReadmeResult.Section(1L, "Overview", "content", 1)
+                    )));
+
             mockMvc.perform(get("/api/v1/repos/fallback/generate/{taskId}", "task-123")
                             .with(user(userDetails)))
                     .andExpect(status().isOk());
@@ -129,6 +181,8 @@ public class RepositoryControllerTest {
         @DisplayName("성공")
         void createPullRequest_success() throws Exception {
             RequestPull request = requestPull();
+            given(repositoryPortIn.createPullRequest(any(CreateReadmePullRequestCommand.class)))
+                    .willReturn(new PullRequestResult("https://github.com/pull/1"));
 
             mockMvc.perform(post("/api/v1/repos/{owner}/{name}", "owner", "repo")
                             .contentType(MediaType.APPLICATION_JSON)
@@ -136,7 +190,7 @@ public class RepositoryControllerTest {
                             .with(user(userDetails)))
                     .andExpect(status().isOk());
 
-            verify(repositoryPortIn).createPullRequest(any(RequestPull.class), eq(1L), eq("owner"), eq("repo"));
+            verify(repositoryPortIn).createPullRequest(any(CreateReadmePullRequestCommand.class));
         }
     }
 
@@ -155,7 +209,7 @@ public class RepositoryControllerTest {
                             .with(user(userDetails)))
                     .andExpect(status().isAccepted());
 
-            verify(repositoryPortIn).evaluateDraftReadme(any(RequestDraftEvaluation.class), eq("task-123"), eq(1L), eq("owner"), eq("repo"));
+            verify(repositoryPortIn).evaluateDraftReadme(any(EvaluateDraftReadmeCommand.class));
         }
     }
 
@@ -174,7 +228,7 @@ public class RepositoryControllerTest {
                             .with(user(userDetails)))
                     .andExpect(status().isAccepted());
 
-            verify(repositoryPortIn).generateDraftReadme(any(RequestGeneration.class), eq("task-123"), eq(1L), eq("owner"), eq("repo"));
+            verify(repositoryPortIn).generateDraftReadme(any(GenerateDraftReadmeCommand.class));
         }
     }
 }

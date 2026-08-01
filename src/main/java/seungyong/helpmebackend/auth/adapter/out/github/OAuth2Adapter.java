@@ -2,30 +2,35 @@ package seungyong.helpmebackend.auth.adapter.out.github;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import seungyong.helpmebackend.auth.application.port.out.OAuth2PortOut;
 import seungyong.helpmebackend.auth.application.port.out.result.OAuthGithubUser;
 import seungyong.helpmebackend.auth.application.port.out.result.OAuthTokenResult;
 import seungyong.helpmebackend.auth.domain.entity.Installation;
 import seungyong.helpmebackend.global.config.GithubPortConfig;
+import seungyong.helpmebackend.global.exception.CustomException;
+import seungyong.helpmebackend.global.exception.GithubRateLimitException;
+import seungyong.helpmebackend.global.exception.GlobalErrorCode;
+import seungyong.helpmebackend.global.infrastructure.github.GithubApiException;
 import seungyong.helpmebackend.global.infrastructure.github.GithubApiExecutor;
+import seungyong.helpmebackend.global.infrastructure.github.GithubResponseParsingException;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 
-@Slf4j
 @Component
 @RequiredArgsConstructor
-public class OAuth2Adapter extends GithubPortConfig implements OAuth2PortOut {
+public class OAuth2Adapter implements OAuth2PortOut {
     private final GithubApiExecutor githubApiExecutor;
+    private final GithubPortConfig githubPortConfig;
 
     @Override
     public String generateLoginUrl(String state) {
-        return "https://github.com/login/oauth/authorize?client_id=" + super.getClientId()
+        return "https://github.com/login/oauth/authorize?client_id=" + githubPortConfig.getClientId()
                 + "&scope=read:user"
-                + "&redirect_uri=" + super.getRedirectUri()
+                + "&redirect_uri=" + githubPortConfig.getRedirectUri()
                 + "&state=" + state;
     }
 
@@ -33,55 +38,69 @@ public class OAuth2Adapter extends GithubPortConfig implements OAuth2PortOut {
     public OAuthTokenResult getAccessToken(String code) {
         String url = "https://github.com/login/oauth/access_token";
 
-        return githubApiExecutor.executePostNoAuth(
-                url,
-                Map.of(
-                        "client_id", super.getClientId(),
-                        "client_secret", super.getClientSecret(),
-                        "code", code,
-                        "redirect_uri", super.getRedirectUri()
-                ),
-                OAuthTokenResult.class,
-                "Get GitHub Access Token with code = " + code
-        );
+        return executeOAuthRequest(() -> githubApiExecutor.executePostNoAuth(
+                    url,
+                    Map.of(
+                            "client_id", githubPortConfig.getClientId(),
+                            "client_secret", githubPortConfig.getClientSecret(),
+                            "code", code,
+                            "redirect_uri", githubPortConfig.getRedirectUri()
+                    ),
+                    OAuthTokenResult.class,
+                    "exchange OAuth code"
+            ));
     }
 
     @Override
     public OAuthGithubUser getGithubUser(String accessToken) {
         String url = "https://api.github.com/user";
 
-        return githubApiExecutor.executeGet(
-                url,
-                accessToken,
-                jsonNode -> new OAuthGithubUser(
-                        jsonNode.get("login").asText(),
-                        jsonNode.get("id").asLong()
-                ),
-                "Get GitHub User with accessToken"
-        );
+        return executeOAuthRequest(() -> githubApiExecutor.executeGet(
+                    url,
+                    accessToken,
+                    jsonNode -> new OAuthGithubUser(
+                            jsonNode.get("login").asText(),
+                            jsonNode.get("id").asLong()
+                    ),
+                    "get authenticated GitHub user"
+            ));
     }
 
     @Override
-    public List<Installation> getInstallations(String accessToken) {
+    public List<Installation> getInstallations(Long userId, String accessToken) {
         String url = "https://api.github.com/user/installations?per_page=100";
 
-        return githubApiExecutor.executeGet(
-                url,
-                accessToken,
-                jsonNode -> {
-                    ArrayList<Installation> installations = new ArrayList<>();
+        return executeOAuthRequest(() -> githubApiExecutor.executeGet(
+                    userId,
+                    url,
+                    accessToken,
+                    jsonNode -> {
+                        List<Installation> installations = new ArrayList<>();
 
-                    for (JsonNode item : jsonNode.get("installations")) {
-                        installations.add(new Installation(
-                                item.get("id").asText(),
-                                item.get("account").get("avatar_url").asText(),
-                                item.get("account").get("login").asText()
-                        ));
-                    }
+                        for (JsonNode item : jsonNode.get("installations")) {
+                            installations.add(new Installation(
+                                    item.get("id").asText(),
+                                    item.get("account").get("avatar_url").asText(),
+                                    item.get("account").get("login").asText()
+                            ));
+                        }
 
-                    return installations;
-                },
-                "Get GitHub Installations with accessToken"
-        );
+                        return installations;
+                    },
+                    "list GitHub installations"
+            ));
+    }
+
+    private <T> T executeOAuthRequest(Supplier<T> request) {
+        try {
+            return request.get();
+        } catch (GithubApiException e) {
+            if (e.isRateLimited()) {
+                throw new GithubRateLimitException(e.getRetryAfterSeconds());
+            }
+            throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
+        } catch (GithubResponseParsingException e) {
+            throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
+        }
     }
 }

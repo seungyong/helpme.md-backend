@@ -13,7 +13,8 @@ import seungyong.helpmebackend.global.exception.CustomException;
 import seungyong.helpmebackend.project.application.port.out.ProjectPortOut;
 import seungyong.helpmebackend.project.domain.entity.Project;
 import seungyong.helpmebackend.repository.application.port.out.CipherPortOut;
-import seungyong.helpmebackend.repository.application.port.out.RepositoryPortOut;
+import seungyong.helpmebackend.repository.application.port.out.RepositoryContentPortOut;
+import seungyong.helpmebackend.repository.application.port.out.RepositoryQueryPortOut;
 import seungyong.helpmebackend.repository.domain.entity.EncryptedToken;
 import seungyong.helpmebackend.repository.domain.exception.RepositoryErrorCode;
 import seungyong.helpmebackend.section.adapter.in.web.dto.request.RequestReorder;
@@ -43,7 +44,8 @@ class SectionServiceTest {
     @Mock private UserPortOut userPortOut;
     @Mock private ProjectPortOut projectPortOut;
     @Mock private SectionPortOut sectionPortOut;
-    @Mock private RepositoryPortOut repositoryPortOut;
+    @Mock private RepositoryContentPortOut repositoryContentPortOut;
+    @Mock private RepositoryQueryPortOut repositoryQueryPortOut;
     @Mock private CipherPortOut cipherPortOut;
     @Mock private RedisPortOut redisPortOut;
 
@@ -105,7 +107,7 @@ class SectionServiceTest {
                     .willReturn(Optional.of(new Project(100L, USER_ID, FULL_NAME)));
 
             String readme = "# Header\nContent\n## Sub\nMore content";
-            given(repositoryPortOut.getReadmeContent(any())).willReturn(readme);
+            given(repositoryContentPortOut.getReadmeContent(any())).willReturn(readme);
 
             // 기존 섹션 존재 상황
             given(sectionPortOut.getSectionsByUserIdAndRepoFullName(USER_ID, FULL_NAME))
@@ -134,7 +136,7 @@ class SectionServiceTest {
             given(sectionPortOut.getSectionsByUserIdAndRepoFullName(USER_ID, FULL_NAME))
                     .willReturn(sections);
 
-            given(repositoryPortOut.getReadmeContent(any())).willReturn("");
+            given(repositoryContentPortOut.getReadmeContent(any())).willReturn("");
 
             given(sectionPortOut.save(any(Section.class)))
                     .willReturn(new Section(10L, 100L, "Untitled Section", "", 1));
@@ -160,7 +162,7 @@ class SectionServiceTest {
                     .willReturn(new Project(100L, USER_ID, FULL_NAME));
 
             String readme = "# Header\nContent";
-            given(repositoryPortOut.getReadmeContent(any())).willReturn(readme);
+            given(repositoryContentPortOut.getReadmeContent(any())).willReturn(readme);
             given(sectionPortOut.saveAll(anyList()))
                     .willReturn(List.of(new Section(10L, 100L, "Header", "Content", 1)));
 
@@ -292,6 +294,6 @@ class SectionServiceTest {
         given(redisPortOut.exists(anyString())).willReturn(false);
 
         given(cipherPortOut.decrypt(anyString())).willReturn("decrypted-token");
-        given(repositoryPortOut.checkPermission(any())).willReturn(isAuthorized);
+        given(repositoryQueryPortOut.checkPermission(any())).willReturn(isAuthorized);
     }
 }

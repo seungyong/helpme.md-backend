@@ -20,6 +20,15 @@ import seungyong.helpmebackend.repository.adapter.in.web.dto.request.RequestGene
 import seungyong.helpmebackend.repository.adapter.in.web.dto.request.RequestPull;
 import seungyong.helpmebackend.repository.adapter.in.web.dto.response.*;
 import seungyong.helpmebackend.repository.application.port.in.RepositoryPortIn;
+import seungyong.helpmebackend.repository.application.port.in.command.CreateReadmePullRequestCommand;
+import seungyong.helpmebackend.repository.application.port.in.command.EvaluateDraftReadmeCommand;
+import seungyong.helpmebackend.repository.application.port.in.command.GenerateDraftReadmeCommand;
+import seungyong.helpmebackend.repository.application.port.in.result.GeneratedReadmeResult;
+import seungyong.helpmebackend.repository.application.port.in.result.PullRequestResult;
+import seungyong.helpmebackend.repository.application.port.in.result.ReadmeEvaluationResult;
+import seungyong.helpmebackend.repository.application.port.in.result.RepositoryBranchesResult;
+import seungyong.helpmebackend.repository.application.port.in.result.RepositoryDetailsResult;
+import seungyong.helpmebackend.repository.application.port.in.result.RepositoryListResult;
 import seungyong.helpmebackend.repository.domain.exception.RepositoryErrorCode;
 import seungyong.helpmebackend.section.adapter.in.web.dto.response.ResponseSections;
 import seungyong.helpmebackend.user.domain.exception.UserErrorCode;
@@ -106,9 +115,16 @@ class RepoController {
             @RequestParam(value = "per_page", defaultValue = "30") Integer perPage,
             @AuthenticationPrincipal CustomUserDetails details
     ) {
-        return ResponseEntity.ok(
-                repositoryPortIn.getRepositories(details.getUserId(), installationId, page, perPage)
+        RepositoryListResult result = repositoryPortIn.getRepositories(
+                details.getUserId(),
+                installationId,
+                page,
+                perPage
         );
+        return ResponseEntity.ok(new ResponseRepositories(
+                result.repositories(),
+                result.totalCount()
+        ));
     }
 
     @Operation(
@@ -175,9 +191,17 @@ class RepoController {
             @PathVariable("name") String name,
             @AuthenticationPrincipal CustomUserDetails details
     ) {
-        return ResponseEntity.ok(
-                repositoryPortIn.getRepository(details.getUserId(), owner, name)
+        RepositoryDetailsResult result = repositoryPortIn.getRepository(
+                details.getUserId(),
+                owner,
+                name
         );
+        return ResponseEntity.ok(new ResponseRepository(
+                result.owner(),
+                result.name(),
+                result.avatarUrl(),
+                result.defaultBranch()
+        ));
     }
 
     @Operation(
@@ -241,9 +265,15 @@ class RepoController {
             @PathVariable("name") String name,
             @AuthenticationPrincipal CustomUserDetails details
     ) {
-        return ResponseEntity.ok(
-                repositoryPortIn.getBranches(details.getUserId(), owner, name)
+        RepositoryBranchesResult result = repositoryPortIn.getBranches(
+                details.getUserId(),
+                owner,
+                name
         );
+        return ResponseEntity.ok(new ResponseBranches(
+                result.defaultBranch(),
+                result.branches()
+        ));
     }
 
     @Operation(
@@ -286,9 +316,11 @@ class RepoController {
     public ResponseEntity<ResponseEvaluation> getFallbackDraftEvaluation(
             @PathVariable("taskId") String taskId
     ) {
-        return ResponseEntity.ok(
-                repositoryPortIn.fallbackDraftEvaluation(taskId)
-        );
+        ReadmeEvaluationResult result = repositoryPortIn.fallbackDraftEvaluation(taskId);
+        return ResponseEntity.ok(new ResponseEvaluation(
+                result.rating(),
+                result.contents()
+        ));
     }
 
     @Operation(
@@ -331,9 +363,8 @@ class RepoController {
     public ResponseEntity<ResponseSections> getFallbackGenerate(
             @PathVariable("taskId") String taskId
     ) {
-        return ResponseEntity.ok(
-                repositoryPortIn.fallbackGenerateReadme(taskId)
-        );
+        GeneratedReadmeResult result = repositoryPortIn.fallbackGenerateReadme(taskId);
+        return ResponseEntity.ok(toResponseSections(result));
     }
 
     @Operation(
@@ -408,9 +439,16 @@ class RepoController {
             @PathVariable("name") String name,
             @AuthenticationPrincipal CustomUserDetails details
     ) {
-        return ResponseEntity.ok(
-                repositoryPortIn.createPullRequest(request, details.getUserId(), owner, name)
+        PullRequestResult result = repositoryPortIn.createPullRequest(
+                new CreateReadmePullRequestCommand(
+                        details.getUserId(),
+                        owner,
+                        name,
+                        request.branch(),
+                        request.content()
+                )
         );
+        return ResponseEntity.ok(new ResponsePull(result.htmlUrl()));
     }
 
     @Operation(
@@ -478,7 +516,14 @@ class RepoController {
             @RequestParam("taskId") String taskId,
             @AuthenticationPrincipal CustomUserDetails details
     ) {
-        repositoryPortIn.evaluateDraftReadme(request, taskId, details.getUserId(), owner, name);
+        repositoryPortIn.evaluateDraftReadme(new EvaluateDraftReadmeCommand(
+                details.getUserId(),
+                owner,
+                name,
+                request.branch(),
+                request.content(),
+                taskId
+        ));
         return ResponseEntity.accepted().build();
     }
 
@@ -545,7 +590,26 @@ class RepoController {
             @RequestParam("taskId") String taskId,
             @AuthenticationPrincipal CustomUserDetails details
     ) {
-        repositoryPortIn.generateDraftReadme(request, taskId, details.getUserId(), owner, name);
+        repositoryPortIn.generateDraftReadme(new GenerateDraftReadmeCommand(
+                details.getUserId(),
+                owner,
+                name,
+                request.branch(),
+                taskId
+        ));
         return ResponseEntity.accepted().build();
+    }
+
+    private ResponseSections toResponseSections(GeneratedReadmeResult result) {
+        return new ResponseSections(
+                result.sections().stream()
+                        .map(section -> new ResponseSections.Section(
+                                section.id(),
+                                section.title(),
+                                section.content(),
+                                section.orderIdx()
+                        ))
+                        .toList()
+        );
     }
 }

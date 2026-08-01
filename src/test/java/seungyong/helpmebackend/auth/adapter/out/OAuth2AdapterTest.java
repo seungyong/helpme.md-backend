@@ -9,16 +9,18 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.http.HttpStatus;
 import seungyong.helpmebackend.auth.adapter.out.github.OAuth2Adapter;
 import seungyong.helpmebackend.auth.application.port.out.result.OAuthGithubUser;
 import seungyong.helpmebackend.auth.application.port.out.result.OAuthTokenResult;
 import seungyong.helpmebackend.auth.domain.entity.Installation;
 import seungyong.helpmebackend.global.exception.CustomException;
+import seungyong.helpmebackend.global.exception.GithubRateLimitException;
 import seungyong.helpmebackend.global.exception.GlobalErrorCode;
+import seungyong.helpmebackend.global.config.GithubPortConfig;
+import seungyong.helpmebackend.global.infrastructure.github.GithubApiException;
 import seungyong.helpmebackend.global.infrastructure.github.GithubApiExecutor;
 
 import java.util.List;
@@ -32,8 +34,7 @@ import static seungyong.helpmebackend.support.fixture.TestFixtures.*;
 class OAuth2AdapterTest {
 
     @Mock private GithubApiExecutor githubApiExecutor;
-
-    @InjectMocks private OAuth2Adapter oAuth2Adapter;
+    private OAuth2Adapter oAuth2Adapter;
 
     @Captor private ArgumentCaptor<GithubApiExecutor.JsonResponseParser<OAuthGithubUser>> userParserCaptor;
     @Captor private ArgumentCaptor<GithubApiExecutor.JsonResponseParser<List<Installation>>> installationParserCaptor;
@@ -42,9 +43,10 @@ class OAuth2AdapterTest {
 
     @BeforeEach
     void setUp() {
-        ReflectionTestUtils.setField(oAuth2Adapter, "clientId", "test-client-id");
-        ReflectionTestUtils.setField(oAuth2Adapter, "clientSecret", "test-client-secret");
-        ReflectionTestUtils.setField(oAuth2Adapter, "redirectUri", "test-redirect-uri");
+        oAuth2Adapter = new OAuth2Adapter(
+                githubApiExecutor,
+                new GithubPortConfig("test-client-id", "test-client-secret", "test-redirect-uri")
+        );
     }
 
     @Nested
@@ -152,10 +154,12 @@ class OAuth2AdapterTest {
             String accessToken = "github-access-token";
             List<Installation> expectedInstallations = installations();
 
-            given(githubApiExecutor.executeGet(anyString(), eq(accessToken), any(), anyString()))
+            given(githubApiExecutor.executeGet(
+                    anyLong(), anyString(), eq(accessToken), any(), anyString()
+            ))
                     .willReturn(expectedInstallations);
 
-            List<Installation> result = oAuth2Adapter.getInstallations(accessToken);
+            List<Installation> result = oAuth2Adapter.getInstallations(1L, accessToken);
 
             assertThat(result).isEqualTo(expectedInstallations);
         }
@@ -182,10 +186,13 @@ class OAuth2AdapterTest {
             JsonNode mockJsonNode = objectMapper.readTree(jsonString);
 
             // 실제 API 호출을 막기위해 모킹
-            given(githubApiExecutor.executeGet(anyString(), eq(accessToken), installationParserCaptor.capture(), anyString()))
+            given(githubApiExecutor.executeGet(
+                    anyLong(), anyString(), eq(accessToken),
+                    installationParserCaptor.capture(), anyString()
+            ))
                     .willReturn(List.of());
 
-            oAuth2Adapter.getInstallations(accessToken);
+            oAuth2Adapter.getInstallations(1L, accessToken);
 
             // 캡처된 인자값인 json 익명 함수를 가져와 파싱 후 결과 검증 (GithubApiExecutor.JsonResponseParser<List<Installation>>)
             List<Installation> parsedInstallations = installationParserCaptor.getValue().parse(mockJsonNode);
@@ -201,11 +208,25 @@ class OAuth2AdapterTest {
         void getInstallations_failure_apiError() {
             String accessToken = "github-access-token";
 
-            given(githubApiExecutor.executeGet(anyString(), eq(accessToken), any(), anyString()))
+            given(githubApiExecutor.executeGet(
+                    anyLong(), anyString(), eq(accessToken), any(), anyString()
+            ))
                     .willThrow(new CustomException(GlobalErrorCode.GITHUB_ERROR));
 
-            assertThatThrownBy(() -> oAuth2Adapter.getInstallations(accessToken))
+            assertThatThrownBy(() -> oAuth2Adapter.getInstallations(1L, accessToken))
                     .isInstanceOf(CustomException.class);
+        }
+
+        @Test
+        @DisplayName("rate limit은 429 도메인 예외로 변환한다")
+        void getInstallations_failure_rateLimited() {
+            given(githubApiExecutor.executeGet(
+                    anyLong(), anyString(), anyString(), any(), anyString()
+            )).willThrow(new GithubApiException(HttpStatus.TOO_MANY_REQUESTS, true, 17, null));
+
+            assertThatThrownBy(() -> oAuth2Adapter.getInstallations(1L, "token"))
+                    .isInstanceOfSatisfying(GithubRateLimitException.class,
+                            exception -> assertThat(exception.getRetryAfterSeconds()).isEqualTo(17));
         }
     }
 }

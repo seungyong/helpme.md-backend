@@ -141,7 +141,9 @@ class AuthController {
     public ResponseEntity<ResponseInstallations> getInstallation(
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        ResponseInstallations installation = authPortIn.getInstallations(userDetails.getUserId());
+        ResponseInstallations installation = new ResponseInstallations(
+                authPortIn.getInstallations(userDetails.getUserId())
+        );
         return ResponseEntity.ok(installation);
     }
 

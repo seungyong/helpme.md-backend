@@ -2,11 +2,10 @@ package seungyong.helpmebackend.auth.application;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import seungyong.helpmebackend.auth.adapter.in.web.dto.response.ResponseInstallations;
 import seungyong.helpmebackend.auth.application.port.in.AuthPortIn;
 import seungyong.helpmebackend.auth.application.port.out.OAuth2PortOut;
 import seungyong.helpmebackend.auth.application.port.out.result.OAuthGithubUser;
+import seungyong.helpmebackend.auth.domain.entity.Installation;
 import seungyong.helpmebackend.global.exception.CustomException;
 import seungyong.helpmebackend.global.exception.GlobalErrorCode;
 import seungyong.helpmebackend.global.domain.entity.JWT;
@@ -14,12 +13,9 @@ import seungyong.helpmebackend.global.domain.type.RedisKey;
 import seungyong.helpmebackend.repository.application.port.out.CipherPortOut;
 import seungyong.helpmebackend.global.application.port.out.JWTPortOut;
 import seungyong.helpmebackend.global.application.port.out.RedisPortOut;
-import seungyong.helpmebackend.repository.domain.entity.EncryptedToken;
 import seungyong.helpmebackend.user.application.port.out.UserPortOut;
-import seungyong.helpmebackend.user.domain.entity.GithubUser;
 import seungyong.helpmebackend.user.domain.entity.JWTUser;
 import seungyong.helpmebackend.user.domain.entity.User;
-import seungyong.helpmebackend.user.domain.exception.UserErrorCode;
 
 import java.security.SecureRandom;
 import java.time.Instant;
@@ -27,7 +23,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.Base64;
-import java.util.Optional;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -37,6 +33,7 @@ public class AuthService implements AuthPortIn {
     private final CipherPortOut cipherPortOut;
     private final JWTPortOut jwtPortOut;
     private final UserPortOut userPortOut;
+    private final AuthenticatedUserWriter authenticatedUserWriter;
 
     @Override
     public String generateLoginUrl() {
@@ -59,7 +56,6 @@ public class AuthService implements AuthPortIn {
     }
 
     @Override
-    @Transactional
     public JWT signupOrLogin(String code, String state) {
         String stateKey = RedisKey.OAUTH2_STATE_KEY.getValue() + state;
         if (!redisPortOut.exists(stateKey)) { throw new CustomException(GlobalErrorCode.INVALID_OAUTH2_STATE); }
@@ -68,26 +64,8 @@ public class AuthService implements AuthPortIn {
         String accessToken = oAuth2PortOut.getAccessToken(code).accessToken();
         OAuthGithubUser oauthInfo = oAuth2PortOut.getGithubUser(accessToken);
 
-        Optional<User> existingUser = userPortOut.getByGithubId(oauthInfo.githubId());
-        if (existingUser.isPresent() && !existingUser.get().isAuthenticationAllowed()) {
-            throw new CustomException(UserErrorCode.USER_DELETION_IN_PROGRESS);
-        }
-
         OffsetDateTime authenticatedAt = OffsetDateTime.now(ZoneOffset.UTC);
-        String encryptedAccessToken = cipherPortOut.encrypt(accessToken);
-        GithubUser authenticatedGithubUser = GithubUser.authenticated(
-                oauthInfo.name(),
-                oauthInfo.githubId(),
-                new EncryptedToken(encryptedAccessToken),
-                authenticatedAt
-        );
-
-        User user = existingUser
-                .map(existing -> {
-                    existing.recordSuccessfulLogin(authenticatedGithubUser, authenticatedAt);
-                    return userPortOut.save(existing);
-                })
-                .orElseGet(() -> userPortOut.save(User.register(authenticatedGithubUser, authenticatedAt)));
+        User user = authenticatedUserWriter.authenticate(oauthInfo, accessToken, authenticatedAt);
 
         JWT jwt = jwtPortOut.generate(new JWTUser(user.getId(), user.getGithubUser().getName()));
 
@@ -99,9 +77,9 @@ public class AuthService implements AuthPortIn {
     }
 
     @Override
-    public ResponseInstallations getInstallations(Long userId) {
+    public List<Installation> getInstallations(Long userId) {
         User user = userPortOut.getById(userId);
         String decryptedToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken().value());
-        return new ResponseInstallations(oAuth2PortOut.getInstallations(decryptedToken));
+        return oAuth2PortOut.getInstallations(userId, decryptedToken);
     }
 }

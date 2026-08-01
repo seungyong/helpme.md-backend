@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.*;
@@ -13,7 +14,6 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.RestTemplate;
 import seungyong.helpmebackend.global.domain.entity.PageInfo;
-import seungyong.helpmebackend.global.exception.CustomException;
 
 import java.util.Map;
 import java.util.Optional;
@@ -135,6 +135,16 @@ class GithubClientTest {
             String result = githubClient.postWithBearer(url, "token", body, String.class);
 
             assertThat(result).isEqualTo("success");
+            ArgumentCaptor<HttpEntity> requestCaptor = ArgumentCaptor.forClass(HttpEntity.class);
+            verify(restTemplate).exchange(
+                    eq(url), eq(HttpMethod.POST), requestCaptor.capture(), eq(String.class)
+            );
+            assertThat(requestCaptor.getValue().getHeaders().getFirst(HttpHeaders.AUTHORIZATION))
+                    .isEqualTo("Bearer token");
+            assertThat(requestCaptor.getValue().getHeaders().getFirst(HttpHeaders.ACCEPT))
+                    .isEqualTo(GithubClient.Accept.APPLICATION_GITHUB_VND_GITHUB_JSON);
+            assertThat(requestCaptor.getValue().getHeaders().getFirst("X-GitHub-Api-Version"))
+                    .isEqualTo("2022-11-28");
         }
 
         @Test
@@ -148,7 +158,7 @@ class GithubClientTest {
             )).willThrow(new RestClientResponseException("error", 500, "Internal Server Error", null, null, null));
 
             assertThatThrownBy(() -> githubClient.postWithBearer("url", "token", Map.of(), String.class))
-                    .isInstanceOf(CustomException.class);
+                    .isInstanceOf(RestClientResponseException.class);
         }
     }
 
@@ -170,7 +180,7 @@ class GithubClientTest {
                     .willThrow(new RestClientResponseException("error", 404, "Not Found", null, null, null));
 
             assertThatThrownBy(() -> githubClient.deleteWithBearer("url", "token"))
-                    .isInstanceOf(CustomException.class);
+                    .isInstanceOf(RestClientResponseException.class);
         }
     }
 }

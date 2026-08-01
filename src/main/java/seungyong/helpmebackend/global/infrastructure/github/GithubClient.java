@@ -1,12 +1,8 @@
 package seungyong.helpmebackend.global.infrastructure.github;
 
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.RestTemplate;
-import seungyong.helpmebackend.global.exception.CustomException;
-import seungyong.helpmebackend.global.exception.GlobalErrorCode;
 import seungyong.helpmebackend.global.domain.entity.PageInfo;
 
 import java.net.URI;
@@ -15,7 +11,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-@Slf4j
 @Component
 public class GithubClient {
     private final RestTemplate restTemplate = new RestTemplate();
@@ -137,6 +132,7 @@ public class GithubClient {
      *
      * @param url           요청을 보낼 GitHub API의 URL
      * @param token         인증에 사용할 Bearer 토큰
+     * @param accept        Accept 헤더에 설정할 값
      * @param responseType  응답 본문의 타입 클래스
      * @return              GitHub API의 응답 ResponseEntity
      * @param <T>           응답 본문의 타입
@@ -147,10 +143,7 @@ public class GithubClient {
             String accept,
             Class<T> responseType
     ) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setBearerAuth(token);
-        headers.set(HttpHeaders.ACCEPT, accept);
-        headers.set("X-GitHub-Api-Version", API_VERSION);
+        HttpHeaders headers = githubHeaders(token, accept);
 
         HttpEntity<Void> request = new HttpEntity<>(headers);
         return restTemplate.exchange(
@@ -185,6 +178,7 @@ public class GithubClient {
      *
      * @param url       요청을 보낼 GitHub API의 URL
      * @param token     인증에 사용할 Bearer 토큰
+     * @param accept    Accept 헤더에 설정할 값
      * @return          GitHub API의 응답 본문 Body 문자열
      */
     public String fetchGetMethodForBody(String url, String token, String accept) {
@@ -202,8 +196,10 @@ public class GithubClient {
      * @param <T>           응답 본문의 타입
      */
     public <T> T postWithBearer(String url, String token, Object body, Class<T> responseType) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setBearerAuth(token);
+        HttpHeaders headers = githubHeaders(
+                token,
+                Accept.APPLICATION_GITHUB_VND_GITHUB_JSON
+        );
         return post(url, headers, body, responseType);
     }
 
@@ -226,24 +222,14 @@ public class GithubClient {
     private <T> T post(String url, HttpHeaders headers, Object body, Class<T> responseType) {
         HttpEntity<Object> request = new HttpEntity<>(body, headers);
 
-        try {
-            ResponseEntity<T> response = restTemplate.exchange(
-                    url,
-                    HttpMethod.POST,
-                    request,
-                    responseType
-            );
+        ResponseEntity<T> response = restTemplate.exchange(
+                url,
+                HttpMethod.POST,
+                request,
+                responseType
+        );
 
-            return response.getBody();
-        } catch (RestClientResponseException e) {
-            log.error("Error during POST request to GitHub API. URL = {}, Status code = {}, Response body = {}",
-                    url,
-                    e.getStatusCode(),
-                    e.getResponseBodyAsString()
-            );
-
-            throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
-        }
+        return response.getBody();
     }
 
     /**
@@ -252,36 +238,24 @@ public class GithubClient {
      * @param url           요청을 보낼 GitHub API의 URL
      * @param token         인증에 사용할 Bearer 토큰
      * @param body          요청 본문
-     * @param <T>           응답 본문의 타입
      */
-    public <T> void putWithBearer(String url, String token, Object body) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setBearerAuth(token);
+    public void putWithBearer(String url, String token, Object body) {
+        HttpHeaders headers = githubHeaders(
+                token,
+                Accept.APPLICATION_GITHUB_VND_GITHUB_JSON
+        );
         put(url, headers, body);
     }
 
-    private <T> void put(String url, HttpHeaders headers, Object body) {
-        headers.set(HttpHeaders.ACCEPT, Accept.APPLICATION_GITHUB_VND_GITHUB_JSON);
-        headers.set("X-GitHub-Api-Version", API_VERSION);
-
+    private void put(String url, HttpHeaders headers, Object body) {
         HttpEntity<Object> request = new HttpEntity<>(body, headers);
 
-        try {
-            restTemplate.exchange(
-                    url,
-                    HttpMethod.PUT,
-                    request,
-                    Void.class
-            );
-        } catch (RestClientResponseException e) {
-            log.error("Error during PUT request to GitHub API. URL = {}, Status code = {}, Response body = {}",
-                    url,
-                    e.getStatusCode(),
-                    e.getResponseBodyAsString()
-            );
-
-            throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
-        }
+        restTemplate.exchange(
+                url,
+                HttpMethod.PUT,
+                request,
+                Void.class
+        );
     }
 
     /**
@@ -291,31 +265,29 @@ public class GithubClient {
      * @param token     인증에 사용할 Bearer 토큰
      */
     public void deleteWithBearer(String url, String token) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setBearerAuth(token);
+        HttpHeaders headers = githubHeaders(
+                token,
+                Accept.APPLICATION_GITHUB_VND_GITHUB_JSON
+        );
         delete(url, headers);
     }
 
     private void delete(String url, HttpHeaders headers) {
         HttpEntity<Void> request = new HttpEntity<>(headers);
-        headers.set(HttpHeaders.ACCEPT, Accept.APPLICATION_GITHUB_VND_GITHUB_JSON);
+
+        restTemplate.exchange(
+                url,
+                HttpMethod.DELETE,
+                request,
+                Void.class
+        );
+    }
+
+    private HttpHeaders githubHeaders(String token, String accept) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token);
+        headers.set(HttpHeaders.ACCEPT, accept);
         headers.set("X-GitHub-Api-Version", API_VERSION);
-
-        try {
-            restTemplate.exchange(
-                    url,
-                    HttpMethod.DELETE,
-                    request,
-                    Void.class
-            );
-        } catch (RestClientResponseException e) {
-            log.error("Error during DELETE request to GitHub API. URL = {}, Status code = {}, Response body = {}",
-                    url,
-                    e.getStatusCode(),
-                    e.getResponseBodyAsString()
-            );
-
-            throw new CustomException(GlobalErrorCode.GITHUB_ERROR);
-        }
+        return headers;
     }
 }

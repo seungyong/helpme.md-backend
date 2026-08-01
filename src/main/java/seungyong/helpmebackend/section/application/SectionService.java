@@ -9,7 +9,8 @@ import seungyong.helpmebackend.global.exception.CustomException;
 import seungyong.helpmebackend.project.application.port.out.ProjectPortOut;
 import seungyong.helpmebackend.project.domain.entity.Project;
 import seungyong.helpmebackend.repository.application.port.out.CipherPortOut;
-import seungyong.helpmebackend.repository.application.port.out.RepositoryPortOut;
+import seungyong.helpmebackend.repository.application.port.out.RepositoryContentPortOut;
+import seungyong.helpmebackend.repository.application.port.out.RepositoryQueryPortOut;
 import seungyong.helpmebackend.repository.application.port.out.command.RepoBranchCommand;
 import seungyong.helpmebackend.repository.application.port.out.command.RepoInfoCommand;
 import seungyong.helpmebackend.repository.application.port.out.command.RepoPermissionCommand;
@@ -36,7 +37,8 @@ public class SectionService implements SectionPortIn {
     private final UserPortOut userPortOut;
     private final ProjectPortOut projectPortOut;
     private final SectionPortOut sectionPortOut;
-    private final RepositoryPortOut repositoryPortOut;
+    private final RepositoryContentPortOut repositoryContentPortOut;
+    private final RepositoryQueryPortOut repositoryQueryPortOut;
     private final CipherPortOut cipherPortOut;
     private final RedisPortOut redisPortOut;
 
@@ -105,8 +107,9 @@ public class SectionService implements SectionPortIn {
             sectionPortOut.deleteAllByUserIdAndRepoFullName(userId, fullName);
         }
 
-        String readmeContent = repositoryPortOut.getReadmeContent(new RepoBranchCommand(
+        String readmeContent = repositoryContentPortOut.getReadmeContent(new RepoBranchCommand(
                 new RepoInfoCommand(
+                        userId,
                         accessToken,
                         owner,
                         name
@@ -201,6 +204,7 @@ public class SectionService implements SectionPortIn {
 
         RepoPermissionCommand command = new RepoPermissionCommand(
                 new RepoInfoCommand(
+                        user.getId(),
                         cipherPortOut.decrypt(user.getGithubUser().getGithubToken().value()),
                         owner,
                         name
@@ -208,7 +212,7 @@ public class SectionService implements SectionPortIn {
                 user.getGithubUser().getName()
         );
 
-        if (!repositoryPortOut.checkPermission(command)) {
+        if (!repositoryQueryPortOut.checkPermission(command)) {
             throw new CustomException(RepositoryErrorCode.REPOSITORY_FORBIDDEN);
         }
 

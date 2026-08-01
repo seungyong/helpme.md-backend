@@ -5,7 +5,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import seungyong.helpmebackend.global.application.port.out.RedisPortOut;
 
+import java.time.Duration;
 import java.time.Instant;
+import java.util.Optional;
 
 @Component
 @RequiredArgsConstructor
@@ -15,6 +17,11 @@ public class RedisAdapter implements RedisPortOut {
     @Override
     public void set(String key, String value, Instant expireAt) {
         redisStore.set(key, value, expireAt);
+    }
+
+    @Override
+    public void setWithTtl(String key, String value, Duration ttl) {
+        redisStore.setWithTtl(key, value, ttl);
     }
 
     @Override
@@ -30,6 +37,11 @@ public class RedisAdapter implements RedisPortOut {
     @Override
     public boolean exists(String key) {
         return redisStore.exists(key);
+    }
+
+    @Override
+    public Optional<Duration> getTimeToLive(String key) {
+        return redisStore.getTimeToLive(key);
     }
 
     @Override

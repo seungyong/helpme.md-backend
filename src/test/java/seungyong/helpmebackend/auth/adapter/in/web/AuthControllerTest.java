@@ -156,7 +156,7 @@ class AuthControllerTest {
             given(mockUserDetails.getUserId()).willReturn(1L);
 
             ResponseInstallations expectedResponse = responseInstallations();
-            given(authPortIn.getInstallations(1L)).willReturn(expectedResponse);
+            given(authPortIn.getInstallations(1L)).willReturn(expectedResponse.installations());
 
             mockMvc.perform(get("/api/v1/oauth2/installations")
                             .with(user(mockUserDetails)))

@@ -7,7 +7,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import seungyong.helpmebackend.auth.adapter.in.web.dto.response.ResponseInstallations;
 import seungyong.helpmebackend.auth.application.port.out.OAuth2PortOut;
 import seungyong.helpmebackend.auth.application.port.out.result.OAuthGithubUser;
 import seungyong.helpmebackend.auth.application.port.out.result.OAuthTokenResult;
@@ -26,7 +25,6 @@ import seungyong.helpmebackend.user.domain.exception.UserErrorCode;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -41,6 +39,7 @@ class AuthServiceTest {
     @Mock private CipherPortOut cipherPortOut;
     @Mock private JWTPortOut jwtPortOut;
     @Mock private UserPortOut userPortOut;
+    @Mock private AuthenticatedUserWriter authenticatedUserWriter;
 
     @InjectMocks private AuthService authService;
 
@@ -84,8 +83,6 @@ class AuthServiceTest {
         void signupOrLogin_success_newUser() {
             String code = "auth-code";
             String state = "valid-state";
-            String encryptedToken = "encrypted-token";
-
             OAuthTokenResult tokenResult = oauthTokenResult();
             OAuthGithubUser githubUser = oauthGithubUser();
             JWT expectedJwt = jwt();
@@ -96,10 +93,9 @@ class AuthServiceTest {
             given(redisPortOut.exists(anyString())).willReturn(true);
             given(oAuth2PortOut.getAccessToken(code)).willReturn(tokenResult);
             given(oAuth2PortOut.getGithubUser(tokenResult.accessToken())).willReturn(githubUser);
-            given(cipherPortOut.encrypt(tokenResult.accessToken())).willReturn(encryptedToken);
-
-            given(userPortOut.getByGithubId(githubUser.githubId())).willReturn(Optional.empty());
-            given(userPortOut.save(any(User.class))).willReturn(mockUser);
+            given(authenticatedUserWriter.authenticate(
+                    eq(githubUser), eq(tokenResult.accessToken()), any()
+            )).willReturn(mockUser);
 
             given(mockUser.getId()).willReturn(1L);
             given(mockUser.getGithubUser()).willReturn(mockGithubUser);
@@ -111,7 +107,9 @@ class AuthServiceTest {
 
             assertThat(result).isEqualTo(expectedJwt);
             verify(redisPortOut).delete(anyString());
-            verify(userPortOut).save(any(User.class));
+            verify(authenticatedUserWriter).authenticate(
+                    eq(githubUser), eq(tokenResult.accessToken()), any()
+            );
             verify(redisPortOut).set(anyString(), eq("1"), any(Instant.class));
         }
 
@@ -120,8 +118,6 @@ class AuthServiceTest {
         void signupOrLogin_success_existingActiveUser() {
             String code = "auth-code";
             String state = "valid-state";
-            String encryptedToken = "new-encrypted-token";
-
             OAuthTokenResult tokenResult = oauthTokenResult();
             OAuthGithubUser githubUser = oauthGithubUser();
             JWT expectedJwt = jwt();
@@ -132,12 +128,9 @@ class AuthServiceTest {
             given(redisPortOut.exists(anyString())).willReturn(true);
             given(oAuth2PortOut.getAccessToken(code)).willReturn(tokenResult);
             given(oAuth2PortOut.getGithubUser(tokenResult.accessToken())).willReturn(githubUser);
-            given(cipherPortOut.encrypt(tokenResult.accessToken())).willReturn(encryptedToken);
-
-            given(userPortOut.getByGithubId(githubUser.githubId())).willReturn(Optional.of(mockUser));
-
-            given(mockUser.isAuthenticationAllowed()).willReturn(true);
-            given(userPortOut.save(mockUser)).willReturn(mockUser);
+            given(authenticatedUserWriter.authenticate(
+                    eq(githubUser), eq(tokenResult.accessToken()), any()
+            )).willReturn(mockUser);
             given(mockUser.getId()).willReturn(1L);
             given(mockUser.getGithubUser()).willReturn(mockGithubUser);
             given(mockGithubUser.getName()).willReturn(githubUser.name());
@@ -146,8 +139,9 @@ class AuthServiceTest {
 
             authService.signupOrLogin(code, state);
 
-            verify(mockUser).recordSuccessfulLogin(any(GithubUser.class), any());
-            verify(userPortOut).save(mockUser);
+            verify(authenticatedUserWriter).authenticate(
+                    eq(githubUser), eq(tokenResult.accessToken()), any()
+            );
         }
 
         @Test
@@ -159,14 +153,13 @@ class AuthServiceTest {
             OAuthTokenResult tokenResult = oauthTokenResult();
             OAuthGithubUser githubUser = oauthGithubUser();
 
-            User mockUser = mock(User.class);
-
             given(redisPortOut.exists(anyString())).willReturn(true);
             given(oAuth2PortOut.getAccessToken(code)).willReturn(tokenResult);
             given(oAuth2PortOut.getGithubUser(tokenResult.accessToken())).willReturn(githubUser);
 
-            given(userPortOut.getByGithubId(githubUser.githubId())).willReturn(Optional.of(mockUser));
-            given(mockUser.isAuthenticationAllowed()).willReturn(false);
+            given(authenticatedUserWriter.authenticate(
+                    eq(githubUser), eq(tokenResult.accessToken()), any()
+            )).willThrow(new CustomException(UserErrorCode.USER_DELETION_IN_PROGRESS));
 
             assertThatThrownBy(() -> authService.signupOrLogin(code, state))
                     .isInstanceOf(CustomException.class)
@@ -212,12 +205,13 @@ class AuthServiceTest {
             given(mockToken.value()).willReturn("encrypted-value");
 
             given(cipherPortOut.decrypt("encrypted-value")).willReturn(decryptedToken);
-            given(oAuth2PortOut.getInstallations(decryptedToken)).willReturn(expectedInstallations);
+            given(oAuth2PortOut.getInstallations(userId, decryptedToken))
+                    .willReturn(expectedInstallations);
 
-            ResponseInstallations result = authService.getInstallations(userId);
+            List<Installation> result = authService.getInstallations(userId);
 
-            assertThat(result.installations()).isEqualTo(expectedInstallations);
-            assertThat(result.installations()).hasSize(2);
+            assertThat(result).isEqualTo(expectedInstallations);
+            assertThat(result).hasSize(2);
         }
     }
 }

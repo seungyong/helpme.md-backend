@@ -11,5 +11,5 @@ public interface OAuth2PortOut {
     String generateLoginUrl(String state);
     OAuthTokenResult getAccessToken(String code);
     OAuthGithubUser getGithubUser(String accessToken);
-    List<Installation> getInstallations(String accessToken);
+    List<Installation> getInstallations(Long userId, String accessToken);
 }

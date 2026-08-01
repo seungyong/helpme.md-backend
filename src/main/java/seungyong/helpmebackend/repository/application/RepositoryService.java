@@ -1,254 +1,178 @@
 package seungyong.helpmebackend.repository.application;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import seungyong.helpmebackend.global.application.port.out.RedisPortOut;
-import seungyong.helpmebackend.global.domain.type.RedisKey;
-import seungyong.helpmebackend.global.domain.type.RedisKeyFactory;
-import seungyong.helpmebackend.global.exception.CustomException;
-import seungyong.helpmebackend.global.exception.ErrorCode;
-import seungyong.helpmebackend.global.exception.ErrorResponse;
-import seungyong.helpmebackend.global.exception.GlobalErrorCode;
-import seungyong.helpmebackend.project.application.port.out.ProjectPortOut;
-import seungyong.helpmebackend.project.domain.entity.Project;
-import seungyong.helpmebackend.repository.adapter.in.web.dto.request.RequestDraftEvaluation;
-import seungyong.helpmebackend.repository.adapter.in.web.dto.request.RequestGeneration;
-import seungyong.helpmebackend.repository.adapter.in.web.dto.request.RequestPull;
-import seungyong.helpmebackend.repository.adapter.in.web.dto.response.*;
 import seungyong.helpmebackend.repository.application.dto.ReadmeContext;
 import seungyong.helpmebackend.repository.application.port.in.RepositoryPortIn;
-import seungyong.helpmebackend.repository.application.port.in.RepositoryPortInMapper;
-import seungyong.helpmebackend.repository.application.port.out.*;
-import seungyong.helpmebackend.repository.application.port.out.command.*;
-import seungyong.helpmebackend.repository.application.port.out.result.*;
+import seungyong.helpmebackend.repository.application.port.in.command.CreateReadmePullRequestCommand;
+import seungyong.helpmebackend.repository.application.port.in.command.EvaluateDraftReadmeCommand;
+import seungyong.helpmebackend.repository.application.port.in.command.GenerateDraftReadmeCommand;
+import seungyong.helpmebackend.repository.application.port.in.result.GeneratedReadmeResult;
+import seungyong.helpmebackend.repository.application.port.in.result.PullRequestResult;
+import seungyong.helpmebackend.repository.application.port.in.result.ReadmeEvaluationResult;
+import seungyong.helpmebackend.repository.application.port.in.result.RepositoryBranchesResult;
+import seungyong.helpmebackend.repository.application.port.in.result.RepositoryDetailsResult;
+import seungyong.helpmebackend.repository.application.port.in.result.RepositoryListResult;
+import seungyong.helpmebackend.repository.application.port.out.GPTPortOut;
+import seungyong.helpmebackend.repository.application.port.out.RepositoryContentPortOut;
+import seungyong.helpmebackend.repository.application.port.out.RepositoryMutationPortOut;
+import seungyong.helpmebackend.repository.application.port.out.RepositoryQueryPortOut;
+import seungyong.helpmebackend.repository.application.port.out.command.CreateBranchCommand;
+import seungyong.helpmebackend.repository.application.port.out.command.CreatePullRequestCommand;
+import seungyong.helpmebackend.repository.application.port.out.command.EvaluationCommand;
+import seungyong.helpmebackend.repository.application.port.out.command.GenerateReadmeCommand;
+import seungyong.helpmebackend.repository.application.port.out.command.ReadmePushCommand;
+import seungyong.helpmebackend.repository.application.port.out.command.RepoBranchCommand;
+import seungyong.helpmebackend.repository.application.port.out.command.RepoInfoCommand;
+import seungyong.helpmebackend.repository.application.port.out.command.RepositoryInfoCommand;
+import seungyong.helpmebackend.repository.application.port.out.result.EvaluationContentResult;
+import seungyong.helpmebackend.repository.application.port.out.result.RepositoryDetailResult;
+import seungyong.helpmebackend.repository.application.port.out.result.RepositoryResult;
 import seungyong.helpmebackend.repository.domain.exception.RepositoryErrorCode;
-import seungyong.helpmebackend.section.adapter.in.web.dto.response.ResponseSections;
-import seungyong.helpmebackend.section.application.port.in.SectionPortInMapper;
-import seungyong.helpmebackend.section.application.port.out.SectionPortOut;
-import seungyong.helpmebackend.section.domain.entity.Section;
-import seungyong.helpmebackend.sse.application.port.out.SSEPortOut;
+import seungyong.helpmebackend.global.exception.CustomException;
 import seungyong.helpmebackend.sse.domain.type.SSETaskName;
-import seungyong.helpmebackend.user.application.port.out.UserPortOut;
-import seungyong.helpmebackend.user.domain.entity.User;
 
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
-import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.function.BiConsumer;
-import java.util.function.Function;
-import java.util.function.Supplier;
+import java.util.List;
+import java.util.UUID;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class RepositoryService implements RepositoryPortIn {
-    private final UserPortOut userPortOut;
-    private final RepositoryPortOut repositoryPortOut;
-    private final CipherPortOut cipherPortOut;
-    private final ObjectCipherPortOut objectCipherPortOut;
+    private final GithubAccessTokenProvider githubAccessTokenProvider;
+    private final RepositoryQueryPortOut repositoryQueryPortOut;
+    private final RepositoryContentPortOut repositoryContentPortOut;
+    private final RepositoryMutationPortOut repositoryMutationPortOut;
+    private final ReadmeContextLoader readmeContextLoader;
+    private final ReadmeAsyncResultStore readmeAsyncResultStore;
+    private final ReadmeSectionWriter readmeSectionWriter;
     private final GPTPortOut gptPortOut;
-    private final RedisPortOut redisPortOut;
-    private final RepositoryTreeFilterPortOut repositoryTreeFilterPortOut;
-    private final SSEPortOut ssePortOut;
-    private final ProjectPortOut projectPortOut;
-    private final SectionPortOut sectionPortOut;
-    private final CommitPortOut commitPortOut;
 
     @Override
-    public ResponseRepositories getRepositories(Long userId, Long installationId, Integer page, Integer perPage) {
-        User user = userPortOut.getById(userId);
-        String accessToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken().value());
-        RepositoryResult result = repositoryPortOut.getRepositoriesByInstallationId(accessToken, installationId, page, perPage);
-        return new ResponseRepositories(result.repositories(), result.totalCount());
-    }
-
-    @Override
-    public ResponseRepository getRepository(Long userId, String owner, String name) {
-        User user = userPortOut.getById(userId);
-        String accessToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken().value());
-
-        RepoInfoCommand repoInfo = new RepoInfoCommand(
-                accessToken,
-                owner,
-                name
+    public RepositoryListResult getRepositories(
+            Long userId,
+            Long installationId,
+            Integer page,
+            Integer perPage
+    ) {
+        RepositoryResult result = repositoryQueryPortOut.getRepositoriesByInstallationId(
+                userId,
+                githubAccessTokenProvider.get(userId),
+                installationId,
+                page,
+                perPage
         );
-
-        // Repository 정보 조회
-        RepositoryDetailResult repository = repositoryPortOut.getRepository(repoInfo);
-        return RepositoryPortInMapper.INSTANCE.toResponseRepository(repository);
+        return new RepositoryListResult(result.repositories(), result.totalCount());
     }
 
     @Override
-    public ResponseBranches getBranches(Long userId, String owner, String name) {
-        User user = userPortOut.getById(userId);
-        String accessToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken().value());
-
-        RepoInfoCommand repoInfo = new RepoInfoCommand(
-                accessToken,
-                owner,
-                name
+    public RepositoryDetailsResult getRepository(Long userId, String owner, String name) {
+        RepositoryDetailResult repository = repositoryQueryPortOut.getRepository(
+                repositoryInfo(userId, owner, name)
         );
-
-        String defaultBranchName = repositoryPortOut.getRepository(repoInfo).defaultBranch();
-        List<String> branches = repositoryPortOut.getAllBranches(repoInfo);
-
-        return new ResponseBranches(defaultBranchName, branches);
-    }
-
-    @Override
-    public ResponseEvaluation fallbackDraftEvaluation(String taskId) {
-        return getFallbackResult(
-                RedisKey.SSE_EMITTER_EVALUATION_DRAFT_KEY.getValue() + taskId,
-                taskId,
-                new TypeReference<ResponseEvaluation>() {}
+        return new RepositoryDetailsResult(
+                repository.owner(),
+                repository.name(),
+                repository.avatarUrl(),
+                repository.defaultBranch()
         );
     }
 
     @Override
-    public ResponseSections fallbackGenerateReadme(String taskId) {
-        return getFallbackResult(
-                RedisKey.SSE_EMITTER_GENERATION_KEY.getValue() + taskId,
-                taskId,
-                new TypeReference<ResponseSections>() {}
-        );
+    public RepositoryBranchesResult getBranches(Long userId, String owner, String name) {
+        RepoInfoCommand repository = repositoryInfo(userId, owner, name);
+        String defaultBranch = repositoryQueryPortOut.getRepository(repository).defaultBranch();
+        List<String> branches = repositoryQueryPortOut.getAllBranches(repository);
+        return new RepositoryBranchesResult(defaultBranch, branches);
     }
 
     @Override
-    public ResponsePull createPullRequest(RequestPull request, Long userId, String owner, String name) {
-        User user = userPortOut.getById(userId);
-        String accessToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken().value());
+    public ReadmeEvaluationResult fallbackDraftEvaluation(String taskId) {
+        return readmeAsyncResultStore.getEvaluation(taskId);
+    }
 
-        RepoInfoCommand repoInfo = new RepoInfoCommand(
-                accessToken,
-                owner,
-                name
+    @Override
+    public GeneratedReadmeResult fallbackGenerateReadme(String taskId) {
+        return readmeAsyncResultStore.getGeneratedReadme(taskId);
+    }
+
+    @Override
+    public PullRequestResult createPullRequest(CreateReadmePullRequestCommand command) {
+        RepoInfoCommand repository = repositoryInfo(
+                command.userId(),
+                command.owner(),
+                command.name()
         );
+        RepoBranchCommand baseBranch = new RepoBranchCommand(repository, command.branch());
+        String recentSha = repositoryContentPortOut.getRecentSHA(baseBranch);
+        String proposalBranch = "readme-proposals/" + UUID.randomUUID();
 
-        RepoBranchCommand branchCommand = new RepoBranchCommand(
-                repoInfo,
-                request.branch()
-        );
-
-        // 1. 최신 커밋 SHA 조회
-        String recentSHA = repositoryPortOut.getRecentSHA(branchCommand);
-
-        // 2. 새로운 브랜치 생성 (Readme 수정 내용 반영용)
-        String newBranchName = "readme-proposals/" + UUID.randomUUID();
-        repositoryPortOut.createBranch(
-                new CreateBranchCommand(
-                        repoInfo,
-                        newBranchName,
-                        recentSHA
-                )
+        repositoryMutationPortOut.createBranch(
+                new CreateBranchCommand(repository, proposalBranch, recentSha)
         );
 
         try {
-            // 3. README.md 파일의 SHA 조회
-            String readmeSHA = repositoryPortOut.getReadmeSHA(branchCommand);
-
-            // 4. README.md 파일 수정 푸시
-            String commitMessage = "Update README.md via HelpMe";
-            repositoryPortOut.push(
-                    new ReadmePushCommand(
-                            repoInfo,
-                            newBranchName,
-                            request.content(),
-                            readmeSHA,
-                            commitMessage
-                    )
-            );
+            repositoryMutationPortOut.push(new ReadmePushCommand(
+                    repository,
+                    proposalBranch,
+                    command.content(),
+                    repositoryContentPortOut.getReadmeSHA(baseBranch),
+                    "Update README.md via HelpMe"
+            ));
         } catch (Exception e) {
-            log.error("Error during README push, deleting branch: {}", newBranchName, e);
-
-            // 에러 발생 시 생성한 브랜치 삭제
-            repositoryPortOut.deleteBranch(
-                    new RepoBranchCommand(
-                            repoInfo,
-                            newBranchName
-                    )
-            );
-
+            deleteProposalBranchQuietly(repository, proposalBranch);
             throw new CustomException(RepositoryErrorCode.PUSH_FAILED);
         }
 
         try {
-            // 5. Pull Request 생성
-            String prTitle = "[HelpMe] Improve README.md";
-            String prBody = "This pull request is created automatically by HelpMe to improve the README.md file.";
-            String prUrl = repositoryPortOut.createPullRequest(
+            String pullRequestUrl = repositoryMutationPortOut.createPullRequest(
                     new CreatePullRequestCommand(
-                            repoInfo,
-                            newBranchName,
-                            request.branch(),
-                            prTitle,
-                            prBody
+                            repository,
+                            proposalBranch,
+                            command.branch(),
+                            "[HelpMe] Improve README.md",
+                            "This pull request is created automatically by HelpMe to improve the README.md file."
                     )
             );
-
-            return new ResponsePull(prUrl);
+            return new PullRequestResult(pullRequestUrl);
         } catch (Exception e) {
-            log.error("Error during Pull Request creation, deleting branch: {}", newBranchName, e);
-
-            // 에러 발생 시 생성한 브랜치 삭제
-            repositoryPortOut.deleteBranch(
-                    new RepoBranchCommand(
-                            repoInfo,
-                            newBranchName
-                    )
-            );
-
+            deleteProposalBranchQuietly(repository, proposalBranch);
             throw new CustomException(RepositoryErrorCode.PR_CREATION_FAILED);
         }
     }
 
     @Async
     @Override
-    public void evaluateDraftReadme(RequestDraftEvaluation request, String taskId, Long userId, String owner, String name) {
+    public void evaluateDraftReadme(EvaluateDraftReadmeCommand command) {
         try {
-            User user = userPortOut.getById(userId);
-            log.info("User : {}", user);
-            String accessToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken().value());
-
-            ReadmeContext readmeContext = generateReadmeContext(
-                    owner,
-                    name,
-                    accessToken,
-                    request.branch()
+            ReadmeContext context = readmeContextLoader.load(
+                    command.userId(),
+                    command.owner(),
+                    command.name(),
+                    githubAccessTokenProvider.get(command.userId()),
+                    command.branch()
             );
-
-            EvaluationContentResult response = gptPortOut.evaluateReadme(
+            EvaluationContentResult evaluation = gptPortOut.evaluateReadme(
                     new EvaluationCommand(
-                            owner + "/" + name,
-                            request.content(),
-                            new RepositoryInfoCommand(
-                                    readmeContext.languages(),
-                                    readmeContext.commits(),
-                                    readmeContext.trees()
-                            ),
-                            readmeContext.entryContents(),
-                            readmeContext.importantFileContents(),
-                            readmeContext.repositoryInfo().techStack(),
-                            readmeContext.repositoryInfo().projectSize()
+                            command.owner() + "/" + command.name(),
+                            command.content(),
+                            repositoryInfo(context),
+                            context.entryContents(),
+                            context.importantFileContents(),
+                            context.repositoryInfo().techStack(),
+                            context.repositoryInfo().projectSize()
                     )
             );
-
-            sseSend(
-                    RedisKey.SSE_EMITTER_EVALUATION_DRAFT_KEY.getValue() + taskId,
-                    taskId,
+            readmeAsyncResultStore.publishEvaluation(
+                    command.taskId(),
                     SSETaskName.COMPLETION_EVALUATE_DRAFT.getTaskName(),
-                    new ResponseEvaluation(
-                            response.rating(),
-                            response.contents()
-                    )
+                    new ReadmeEvaluationResult(evaluation.rating(), evaluation.contents())
             );
         } catch (Exception e) {
-            sseSendError(
-                    taskId,
+            readmeAsyncResultStore.publishError(
+                    command.taskId(),
                     SSETaskName.COMPLETION_EVALUATE_DRAFT_ERROR.getTaskName(),
                     e
             );
@@ -256,435 +180,71 @@ public class RepositoryService implements RepositoryPortIn {
     }
 
     @Async
-    @Transactional
     @Override
-    public void generateDraftReadme(RequestGeneration request, String taskId, Long userId, String owner, String name) {
+    public void generateDraftReadme(GenerateDraftReadmeCommand command) {
         try {
-            User user = userPortOut.getById(userId);
-            String accessToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken().value());
-
-            ReadmeContext readmeContext = generateReadmeContext(
-                    owner,
-                    name,
-                    accessToken,
-                    request.branch()
+            ReadmeContext context = readmeContextLoader.load(
+                    command.userId(),
+                    command.owner(),
+                    command.name(),
+                    githubAccessTokenProvider.get(command.userId()),
+                    command.branch()
             );
-
             String draftReadme = gptPortOut.generateDraftReadme(
                     new GenerateReadmeCommand(
-                            owner + "/" + name,
-                            readmeContext.readme(),
-                            new RepositoryInfoCommand(
-                                    readmeContext.languages(),
-                                    readmeContext.commits(),
-                                    readmeContext.trees()
-                            ),
-                            readmeContext.entryContents(),
-                            readmeContext.importantFileContents(),
-                            readmeContext.repositoryInfo().techStack(),
-                            readmeContext.repositoryInfo().projectSize()
+                            command.owner() + "/" + command.name(),
+                            context.readme(),
+                            repositoryInfo(context),
+                            context.entryContents(),
+                            context.importantFileContents(),
+                            context.repositoryInfo().techStack(),
+                            context.repositoryInfo().projectSize()
                     )
             );
-
-            Project project = projectPortOut.getByUserIdAndRepoFullName(userId, owner + "/" + name)
-                    .orElseGet(() -> projectPortOut.save(new Project(null, userId, owner + "/" + name)));
-
-            List<Section> existingSections = sectionPortOut.getSectionsByUserIdAndRepoFullName(userId, owner + "/" + name);
-
-            if (!existingSections.isEmpty()) {
-                sectionPortOut.deleteAllByUserIdAndRepoFullName(userId, owner + "/" + name);
-            }
-
-            List<Section> savedSections = sectionPortOut.saveAll(
-                    Section.splitContent(
-                            project.getId(),
-                            draftReadme,
-                            Section.SplitMode.SPLIT
-                    )
+            GeneratedReadmeResult result = readmeSectionWriter.replace(
+                    command.userId(),
+                    command.owner() + "/" + command.name(),
+                    draftReadme
             );
-
-            sseSend(
-                    RedisKey.SSE_EMITTER_GENERATION_KEY.getValue() + taskId,
-                    taskId,
+            readmeAsyncResultStore.publishGeneratedReadme(
+                    command.taskId(),
                     SSETaskName.COMPLETION_GENERATE.getTaskName(),
-                    new ResponseSections(
-                            savedSections.stream()
-                                    .map(SectionPortInMapper.INSTANCE::toResponseSection)
-                                    .toList()
-                    )
+                    result
             );
         } catch (Exception e) {
-            sseSendError(
-                    taskId,
+            readmeAsyncResultStore.publishError(
+                    command.taskId(),
                     SSETaskName.COMPLETION_GENERATE_ERROR.getTaskName(),
                     e
             );
         }
     }
 
-    private <T> T getFallbackResult(String key, String taskId, TypeReference<T> typeReference) {
-        T cached = redisPortOut.getObject(key, typeReference);
-
-        if (cached == null) {
-            throw new CustomException(RepositoryErrorCode.FALLBACK_NOT_FOUND);
-        }
-
-        ssePortOut.deleteEmitter(taskId);
-        redisPortOut.delete(key);
-        return cached;
+    private RepoInfoCommand repositoryInfo(Long userId, String owner, String name) {
+        return new RepoInfoCommand(userId, githubAccessTokenProvider.get(userId), owner, name);
     }
 
-    private void sseSend(String key, String taskId, String taskName, Object data) {
-        boolean isSent = ssePortOut.sendCompletion(taskId, taskName, data);
-
-        if (!isSent) {
-            redisPortOut.setObjectIfAbsent(
-                    key,
-                    data,
-                    Instant.now().plus(1, ChronoUnit.HOURS)
-            );
-        }
-    }
-
-    private void sseSendError(String taskId, String taskName, Exception e) {
-        log.error("SSE send error for task {}: {}", taskId, e.getMessage(), e);
-
-        if (e instanceof CustomException) {
-            ssePortOut.sendCompletion(
-                    taskId,
-                    taskName,
-                    ErrorResponse.toResponseEntity((ErrorCode) ((CustomException) e).getErrorCode())
-            );
-        } else {
-            ssePortOut.sendCompletion(
-                    taskId,
-                    taskName,
-                    ErrorResponse.toResponseEntity(GlobalErrorCode.INTERNAL_SERVER_ERROR)
-            );
-        }
-    }
-
-    private ReadmeContext generateReadmeContext(
-            String owner,
-            String name,
-            String accessToken,
-            String branch
-    ) {
-        RepoInfoCommand repoInfoCommand = new RepoInfoCommand(
-                accessToken,
-                owner,
-                name
-        );
-
-        RepoBranchCommand branchCommand = new RepoBranchCommand(
-                repoInfoCommand,
-                branch
-        );
-
-        // 최신 커밋 SHA 조회 (캐싱 여부 판단용)
-        String latestShaKey = repositoryPortOut.getRecentSHA(branchCommand);
-
-        if (latestShaKey == null) {
-            throw new CustomException(RepositoryErrorCode.BRANCH_NOT_FOUND);
-        }
-
-        Instant expiration = Instant.now().plus(3, ChronoUnit.HOURS);
-
-        String readme = getReadmeWithCache(branchCommand, latestShaKey, expiration);
-        List<RepositoryInfoCommand.CommitCommand> commits = getCommitsWithCache(
-                branchCommand,
-                latestShaKey,
-                expiration
-        );
-        List<RepositoryLanguageResult> languages = getLanguagesWithCache(repoInfoCommand, latestShaKey, expiration);
-        List<RepositoryTreeResult> trees = getTreesWithCache(branchCommand, latestShaKey, expiration);
-        GPTRepositoryInfoResult repositoryInfo = getRepositoryWithCache(
-                owner, name, latestShaKey,
-                new RepositoryInfoCommand(
-                        languages,
-                        commits,
-                        trees
-                ),
-                expiration
-        );
-        List<RepositoryFileContentResult> entryContents = getEntryContentsWithCache(branchCommand, repositoryInfo, latestShaKey, expiration);
-        List<RepositoryFileContentResult> importantFileContents = getImportantFileContentsWithCache(
-                branchCommand,
-                repositoryInfo,
-                latestShaKey, expiration
-        );
-
-        return new ReadmeContext(
-                readme,
-                commits,
-                repositoryInfo,
-                languages,
-                trees,
-                entryContents,
-                importantFileContents
+    private RepositoryInfoCommand repositoryInfo(ReadmeContext context) {
+        return new RepositoryInfoCommand(
+                context.languages(),
+                context.commits(),
+                context.trees()
         );
     }
 
-    private <T> T getOrLoadAndCache(
-            String key,
-            Supplier<T> loader,
-            Function<String, T> cacheReader,
-            BiConsumer<String, T> cacheWriter
+    private void deleteProposalBranchQuietly(
+            RepoInfoCommand repository,
+            String proposalBranch
     ) {
         try {
-            T cachedData = cacheReader.apply(key);
-            if (cachedData != null) {
-                return cachedData;
-            }
-        } catch (Exception e) {
-            log.warn("Cache read failed for key {}: {}", key, e.getMessage());
-        }
-
-        T data = loader.get();
-
-        if (data != null) {
-            try {
-                cacheWriter.accept(key, data);
-            } catch (Exception e) {
-                log.warn("Cache write failed for key {}: {}", key, e.getMessage());
-            }
-        }
-
-        return data;
-    }
-
-    private List<RepositoryInfoCommand.CommitCommand> getCommits(
-            RepoBranchCommand command
-    ) {
-        ContributorsResult contributors = repositoryPortOut.getContributors(command.repoInfo());
-        List<CompletableFuture<CommitResult>> commitFutures = contributors.contributors().stream()
-                .map(contributor -> CompletableFuture.supplyAsync(() ->
-                        commitPortOut.getCommits(command, contributor)
-                ))
-                .toList();
-
-        // size 계산보다 자바가 알아서 크기 최적화하는 것이 빠르므로 toArray에 0 전달
-        CompletableFuture<List<CommitResult>> commitsFuture = CompletableFuture.allOf(commitFutures.toArray(new CompletableFuture[0]))
-                .thenApply(v -> commitFutures.stream()
-                        .map(CompletableFuture::join)
-                        .toList()
-                );
-
-        return commitsFuture.join().stream()
-                .map(commitResult -> new RepositoryInfoCommand.CommitCommand(
-                        new RepositoryInfoCommand.ContributorCommand(
-                                commitResult.contributor().username(),
-                                commitResult.contributor().avatarUrl()
-                        ),
-                        commitResult.latestCommits().stream()
-                                .map(CommitResult.Commit::message)
-                                .toList(),
-                        commitResult.middleCommits().stream()
-                                .map(CommitResult.Commit::message)
-                                .toList(),
-                        commitResult.initialCommits().stream()
-                                .map(CommitResult.Commit::message)
-                                .toList()
-                ))
-                .toList();
-    }
-
-    private String getReadmeWithCache(
-            RepoBranchCommand command,
-            String sha,
-            Instant expiration
-    ) {
-        String key = RedisKeyFactory.createReadmeKey(
-                command.repoInfo().owner(),
-                command.repoInfo().name(),
-                sha
-        );
-
-        return getOrLoadAndCache(
-                key,
-                () -> repositoryPortOut.getReadmeContent(command),
-                redisPortOut::get,
-                (writeKey, val) -> redisPortOut.set(writeKey, val, expiration)
-        );
-    }
-
-    private List<RepositoryInfoCommand.CommitCommand> getCommitsWithCache(
-        RepoBranchCommand command,
-        String sha,
-        Instant expiration
-    ) {
-        String key = RedisKeyFactory.createCommitsKey(
-                command.repoInfo().owner(),
-                command.repoInfo().name(),
-                sha
-        );
-
-        return getOrLoadAndCache(
-                key,
-                () -> getCommits(command),
-                (readKey) -> redisPortOut.getObject(readKey, new TypeReference<List<RepositoryInfoCommand.CommitCommand>>() {}),
-                (writeKey, val) -> redisPortOut.setObject(writeKey, val, expiration)
-        );
-    }
-
-    private List<RepositoryLanguageResult> getLanguagesWithCache(
-            RepoInfoCommand command,
-            String sha,
-            Instant expiration
-    ) {
-        String key = RedisKeyFactory.createLanguageKey(
-                command.owner(),
-                command.name(),
-                sha
-        );
-
-        return getOrLoadAndCache(
-                key,
-                () -> repositoryPortOut.getRepositoryLanguages(command),
-                (readKey) -> redisPortOut.getObject(readKey, new TypeReference<List<RepositoryLanguageResult>>() {}),
-                (writeKey, val) -> redisPortOut.setObject(writeKey, val, expiration)
-        );
-    }
-
-    private List<RepositoryTreeResult> getTreesWithCache(
-            RepoBranchCommand command,
-            String sha,
-            Instant expiration
-    ) {
-        String key = RedisKeyFactory.createTreeKey(
-                command.repoInfo().owner(),
-                command.repoInfo().name(),
-                sha
-        );
-
-        return getOrLoadAndCache(
-                key,
-                () -> {
-                    List<RepositoryTreeResult> results = repositoryPortOut.getRepositoryTree(command);
-                    return repositoryTreeFilterPortOut.filter(results);
-                },
-                (readKey) -> redisPortOut.getObject(readKey, new TypeReference<List<RepositoryTreeResult>>() {}),
-                (writeKey, val) -> redisPortOut.setObject(writeKey, val, expiration)
-        );
-    }
-
-    private GPTRepositoryInfoResult getRepositoryWithCache(
-            String owner,
-            String name,
-            String sha,
-            RepositoryInfoCommand repositoryInfo,
-            Instant expiration
-    ) {
-        String key = RedisKeyFactory.createRepoInfoKey(owner, name, sha);
-
-        return getOrLoadAndCache(
-                key,
-                () -> gptPortOut.getRepositoryInfo(
-                        owner + "/" + name,
-                        repositoryInfo
-                ),
-                (readKey) -> redisPortOut.getObject(readKey, new TypeReference<GPTRepositoryInfoResult>() {}),
-                (writeKey, val) -> redisPortOut.setObject(writeKey, val, expiration)
-        );
-    }
-
-    private List<RepositoryFileContentResult> getEntryContentsWithCache(
-            RepoBranchCommand command,
-            GPTRepositoryInfoResult repositoryInfo,
-            String sha,
-            Instant expiration
-    ) {
-        String key = RedisKeyFactory.createEntryFileKey(
-                command.repoInfo().owner(),
-                command.repoInfo().name(),
-                sha
-        );
-
-        return getOrLoadAndCache(
-                key,
-                () -> fetchFileContents(
-                        command,
-                        getFilePaths(repositoryInfo.entryPoints())
-                ),
-                (readKey) -> {
-                    String encrypted = redisPortOut.get(readKey);
-                    return objectCipherPortOut.decrypt(
-                            encrypted,
-                            new TypeReference<List<RepositoryFileContentResult>>() {}
-                    );
-                },
-                (writeKey, val) -> {
-                    String encrypted = objectCipherPortOut.encrypt(val);
-                    redisPortOut.set(writeKey, encrypted, expiration);
-                }
-        );
-    }
-
-    private List<RepositoryFileContentResult> getImportantFileContentsWithCache(
-            RepoBranchCommand command,
-            GPTRepositoryInfoResult repositoryInfo,
-            String sha,
-            Instant expiration
-    ) {
-        String key = RedisKeyFactory.createImportanceFileKey(
-                command.repoInfo().owner(),
-                command.repoInfo().name(),
-                sha
-        );
-
-        return getOrLoadAndCache(
-                key,
-                () -> fetchFileContents(
-                        command,
-                        getFilePaths(repositoryInfo.importantFiles())
-                ),
-                (readKey) -> {
-                    String encrypted = redisPortOut.get(readKey);
-                    return objectCipherPortOut.decrypt(
-                            encrypted,
-                            new TypeReference<List<RepositoryFileContentResult>>() {}
-                    );
-                },
-                (writeKey, val) -> {
-                    String encrypted = objectCipherPortOut.encrypt(val);
-                    redisPortOut.set(writeKey, encrypted, expiration);
-                }
-        );
-    }
-
-    private List<String> getFilePaths(String[] paths) {
-        if (paths == null || paths.length == 0) {
-            return Collections.emptyList();
-        }
-
-        return Arrays.stream(paths)
-                // 끝이 / 로 끝나는 경로는 디렉토리이므로 제외 (GPT 응답이 항상 정확하지 않을 수 있으므로 방어적 코딩)
-                .filter(path -> path != null && !path.isBlank() && !path.endsWith("/"))
-                .toList();
-    }
-
-    private List<RepositoryFileContentResult> fetchFileContents(
-            RepoBranchCommand command,
-            List<String> paths
-    ) {
-        List<RepositoryFileContentResult> fileContents = new ArrayList<>();
-
-        for (String path : paths) {
-            RepositoryFileContentResult contentResult = repositoryPortOut.getFileContent(
-                    command,
-                    new RepositoryTreeResult(
-                            path,
-                            "file"
-                    )
+            repositoryMutationPortOut.deleteBranch(
+                    new RepoBranchCommand(repository, proposalBranch)
             );
-
-            if (contentResult.content() == null || contentResult.content().isBlank()) {
-                continue;
-            }
-
-            fileContents.add(contentResult);
+        } catch (Exception cleanupException) {
+            log.warn(
+                    "Failed to clean up README proposal branch: exceptionType={}",
+                    cleanupException.getClass().getSimpleName()
+            );
         }
-
-        return fileContents;
     }
 }

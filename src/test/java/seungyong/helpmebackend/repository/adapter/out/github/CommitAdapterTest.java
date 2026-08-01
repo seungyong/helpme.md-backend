@@ -1,10 +1,11 @@
 package seungyong.helpmebackend.repository.adapter.out.github;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpHeaders;
@@ -28,7 +29,12 @@ import static seungyong.helpmebackend.support.fixture.TestFixtures.repoBranchCom
 class CommitAdapterTest {
     @Mock private GithubApiExecutor githubApiExecutor;
 
-    @InjectMocks private CommitAdapter commitAdapter;
+    private CommitAdapter commitAdapter;
+
+    @BeforeEach
+    void setUp() {
+        commitAdapter = new CommitAdapter(githubApiExecutor, new ObjectMapper());
+    }
 
     private String createCommitJson(int count, String prefix) {
         List<String> commits = new ArrayList<>();
@@ -55,7 +61,7 @@ class CommitAdapterTest {
                 .body(createCommitJson(count, prefix));
 
         given(githubApiExecutor.executeGetJson(
-                contains("&page=" + page), anyString(), any(), any(), anyString(), any()
+                anyLong(), contains("&page=" + page), anyString(), anyString(), any(), anyString()
         )).willReturn(response);
     }
 

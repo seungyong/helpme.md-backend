@@ -6,6 +6,8 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import seungyong.helpmebackend.global.exception.CustomException;
+import seungyong.helpmebackend.global.exception.ErrorCode;
+import seungyong.helpmebackend.global.exception.ErrorResponse;
 import seungyong.helpmebackend.sse.application.port.out.SSEPortOut;
 import seungyong.helpmebackend.sse.domain.exception.SseErrorCode;
 
@@ -60,6 +62,15 @@ public class SSEAdapter implements SSEPortOut {
             sseRepository.removeEmitter(taskId);
             return false;
         }
+    }
+
+    @Override
+    public boolean sendError(String taskId, String taskName, ErrorCode errorCode) {
+        return sendCompletion(
+                taskId,
+                taskName,
+                ErrorResponse.toResponseEntity(errorCode).getBody()
+        );
     }
 
     @Override

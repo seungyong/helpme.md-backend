@@ -24,7 +24,7 @@ public enum RepositoryErrorCode implements ErrorCode {
     INSTALLED_REPOSITORY_NOT_FOUND(HttpStatus.NOT_FOUND, "설치된 레포지토리를 찾을 수 없습니다.", "REPO_40404"),
     FALLBACK_NOT_FOUND(HttpStatus.NOT_FOUND, "임시 저장된 데이터를 찾을 수 없습니다.", "REPO_40405"),
 
-    GITHUB_RATE_LIMIT_EXCEEDED(HttpStatus.FORBIDDEN, "GitHub API 요청 한도를 초과했습니다.", "REPO_42901"),
+    GITHUB_RATE_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "GitHub API 요청 한도를 초과했습니다.", "REPO_42901"),
     GITHUB_BRANCHES_TOO_MANY_REQUESTS(HttpStatus.TOO_MANY_REQUESTS, "GitHub 브랜치 정보 요청이 너무 많습니다.", "REPO_42902"),
 
     JSON_PROCESSING_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "JSON 처리 중 오류가 발생했습니다.", "REPO_50001"),

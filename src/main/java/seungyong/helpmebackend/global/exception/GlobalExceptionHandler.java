@@ -38,6 +38,20 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return ErrorResponse.toResponseEntity(e.getErrorCode());
     }
 
+    @ExceptionHandler(value = { GithubRateLimitException.class })
+    protected ResponseEntity<ErrorResponse> handleGithubRateLimitException(GithubRateLimitException e) {
+        log.warn(
+                "GitHub rate limit exceeded: retryAfterSeconds={}",
+                e.getRetryAfterSeconds()
+        );
+
+        ResponseEntity<ErrorResponse> errorResponse = ErrorResponse.toResponseEntity(e.getErrorCode());
+        return ResponseEntity
+                .status(errorResponse.getStatusCode())
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(e.getRetryAfterSeconds()))
+                .body(errorResponse.getBody());
+    }
+
     private boolean shouldClearAuthenticationCookies(CustomException e) {
         return e.getErrorCode() == GlobalErrorCode.INVALID_TOKEN
                 || e.getErrorCode() == UserErrorCode.USER_DELETION_IN_PROGRESS;

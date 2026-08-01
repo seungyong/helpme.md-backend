@@ -1,18 +1,22 @@
 package seungyong.helpmebackend.repository.application.port.in;
 
-import seungyong.helpmebackend.repository.adapter.in.web.dto.request.RequestDraftEvaluation;
-import seungyong.helpmebackend.repository.adapter.in.web.dto.request.RequestGeneration;
-import seungyong.helpmebackend.repository.adapter.in.web.dto.request.RequestPull;
-import seungyong.helpmebackend.repository.adapter.in.web.dto.response.*;
-import seungyong.helpmebackend.section.adapter.in.web.dto.response.ResponseSections;
+import seungyong.helpmebackend.repository.application.port.in.command.CreateReadmePullRequestCommand;
+import seungyong.helpmebackend.repository.application.port.in.command.EvaluateDraftReadmeCommand;
+import seungyong.helpmebackend.repository.application.port.in.command.GenerateDraftReadmeCommand;
+import seungyong.helpmebackend.repository.application.port.in.result.GeneratedReadmeResult;
+import seungyong.helpmebackend.repository.application.port.in.result.PullRequestResult;
+import seungyong.helpmebackend.repository.application.port.in.result.ReadmeEvaluationResult;
+import seungyong.helpmebackend.repository.application.port.in.result.RepositoryBranchesResult;
+import seungyong.helpmebackend.repository.application.port.in.result.RepositoryDetailsResult;
+import seungyong.helpmebackend.repository.application.port.in.result.RepositoryListResult;
 
 public interface RepositoryPortIn {
-    ResponseRepositories getRepositories(Long userId, Long installationId, Integer page, Integer perPage);
-    ResponseRepository getRepository(Long userId, String owner, String name);
-    ResponseBranches getBranches(Long userId, String owner, String name);
-    ResponseEvaluation fallbackDraftEvaluation(String taskId);
-    ResponseSections fallbackGenerateReadme(String taskId);
-    ResponsePull createPullRequest(RequestPull request, Long userId, String owner, String name);
-    void evaluateDraftReadme(RequestDraftEvaluation request, String taskId, Long userId, String owner, String name);
-    void generateDraftReadme(RequestGeneration request, String taskId, Long userId, String owner, String name);
+    RepositoryListResult getRepositories(Long userId, Long installationId, Integer page, Integer perPage);
+    RepositoryDetailsResult getRepository(Long userId, String owner, String name);
+    RepositoryBranchesResult getBranches(Long userId, String owner, String name);
+    ReadmeEvaluationResult fallbackDraftEvaluation(String taskId);
+    GeneratedReadmeResult fallbackGenerateReadme(String taskId);
+    PullRequestResult createPullRequest(CreateReadmePullRequestCommand command);
+    void evaluateDraftReadme(EvaluateDraftReadmeCommand command);
+    void generateDraftReadme(GenerateDraftReadmeCommand command);
 }
