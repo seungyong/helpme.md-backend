@@ -39,6 +39,36 @@ public class UserServiceTest {
     @InjectMocks private UserService userService;
 
     @Nested
+    @DisplayName("내 계정 조회")
+    class GetCurrentUserTest {
+        @Test
+        @DisplayName("성공 - 활성 사용자의 전체 도메인 정보를 반환")
+        void getCurrentUser_success() {
+            Long userId = 1L;
+            User expected = user(userId);
+            Mockito.when(userPortOut.getById(userId)).thenReturn(expected);
+
+            assertThat(userService.getCurrentUser(userId)).isSameAs(expected);
+        }
+
+        @ParameterizedTest
+        @EnumSource(value = UserStatus.class, names = { "DELETING", "DELETE_FAILED" })
+        @DisplayName("실패 - 탈퇴 처리 상태 사용자는 조회 불가")
+        void getCurrentUser_fail_deleting(UserStatus status) {
+            Long userId = 1L;
+            Mockito.when(userPortOut.getById(userId))
+                    .thenReturn(new User(userId, githubUser(), status));
+
+            assertThatThrownBy(() -> userService.getCurrentUser(userId))
+                    .isInstanceOf(CustomException.class)
+                    .hasFieldOrPropertyWithValue(
+                            "errorCode",
+                            UserErrorCode.USER_DELETION_IN_PROGRESS
+                    );
+        }
+    }
+
+    @Nested
     @DisplayName("활성 사용자 검증")
     class EnsureActiveUserTest {
         @Test

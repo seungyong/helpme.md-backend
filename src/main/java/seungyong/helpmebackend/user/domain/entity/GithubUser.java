@@ -72,4 +72,19 @@ public class GithubUser {
 
         this.githubToken = newToken;
     }
+
+    public void recordTokenVerification(
+            GithubTokenStatus verifiedStatus,
+            OffsetDateTime verifiedAt
+    ) {
+        if (verifiedStatus == null || verifiedStatus == GithubTokenStatus.UNKNOWN) {
+            throw new IllegalArgumentException("검증 결과는 valid 또는 revoked여야 합니다.");
+        }
+
+        this.tokenStatus = verifiedStatus;
+        this.tokenVerifiedAt = Objects.requireNonNull(
+                verifiedAt,
+                "GitHub 토큰 검증 시각은 null일 수 없습니다."
+        );
+    }
 }

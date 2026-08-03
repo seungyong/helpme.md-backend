@@ -67,7 +67,14 @@ public class UserIntegrationTest {
                 )
                 .andDo(MockMvcResultHandlers.print())
                 .andExpect(MockMvcResultMatchers.status().isOk())
-                .andExpect(MockMvcResultMatchers.jsonPath("$.username").value(username));
+                .andExpect(MockMvcResultMatchers.jsonPath("$.id").value(savedUser.getId()))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.name").value(username))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.githubId").value(1001L))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.plan.code").value("free"))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.plan.projectLimit").value(1))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.status").value("active"))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.githubTokenStatus").value("valid"))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.createdAt").isNotEmpty());
     }
 
     @Test

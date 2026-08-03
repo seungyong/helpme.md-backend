@@ -10,21 +10,16 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import seungyong.helpmebackend.auth.application.port.out.OAuth2PortOut;
 import seungyong.helpmebackend.auth.application.port.out.result.OAuthGithubUser;
 import seungyong.helpmebackend.auth.application.port.out.result.OAuthTokenResult;
-import seungyong.helpmebackend.auth.domain.entity.Installation;
 import seungyong.helpmebackend.global.application.port.out.JWTPortOut;
 import seungyong.helpmebackend.global.application.port.out.RedisPortOut;
 import seungyong.helpmebackend.global.domain.entity.JWT;
 import seungyong.helpmebackend.global.exception.CustomException;
 import seungyong.helpmebackend.global.exception.GlobalErrorCode;
-import seungyong.helpmebackend.repository.application.port.out.CipherPortOut;
-import seungyong.helpmebackend.repository.domain.entity.EncryptedToken;
-import seungyong.helpmebackend.user.application.port.out.UserPortOut;
 import seungyong.helpmebackend.user.domain.entity.GithubUser;
 import seungyong.helpmebackend.user.domain.entity.User;
 import seungyong.helpmebackend.user.domain.exception.UserErrorCode;
 
 import java.time.Instant;
-import java.util.List;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -36,9 +31,7 @@ import static seungyong.helpmebackend.support.fixture.TestFixtures.*;
 class AuthServiceTest {
     @Mock private OAuth2PortOut oAuth2PortOut;
     @Mock private RedisPortOut redisPortOut;
-    @Mock private CipherPortOut cipherPortOut;
     @Mock private JWTPortOut jwtPortOut;
-    @Mock private UserPortOut userPortOut;
     @Mock private AuthenticatedUserWriter authenticatedUserWriter;
 
     @InjectMocks private AuthService authService;
@@ -165,8 +158,6 @@ class AuthServiceTest {
                     .isInstanceOf(CustomException.class)
                     .hasFieldOrPropertyWithValue("errorCode", UserErrorCode.USER_DELETION_IN_PROGRESS);
 
-            verify(cipherPortOut, never()).encrypt(anyString());
-            verify(userPortOut, never()).save(any());
             verify(jwtPortOut, never()).generate(any());
         }
 
@@ -181,37 +172,6 @@ class AuthServiceTest {
             assertThatThrownBy(() -> authService.signupOrLogin(code, state))
                     .isInstanceOf(CustomException.class)
                     .hasFieldOrPropertyWithValue("errorCode", GlobalErrorCode.INVALID_OAUTH2_STATE);
-        }
-    }
-
-    @Nested
-    @DisplayName("getInstallations - 설치된 GitHub App 정보 조회")
-    class GetInstallations {
-        @Test
-        @DisplayName("성공")
-        void getInstallations_success() {
-            Long userId = 1L;
-            String decryptedToken = "decrypted-token";
-
-            List<Installation> expectedInstallations = installations();
-
-            User mockUser = mock(User.class);
-            GithubUser mockGithubUser = mock(GithubUser.class);
-            EncryptedToken mockToken = mock(EncryptedToken.class);
-
-            given(userPortOut.getById(userId)).willReturn(mockUser);
-            given(mockUser.getGithubUser()).willReturn(mockGithubUser);
-            given(mockGithubUser.getGithubToken()).willReturn(mockToken);
-            given(mockToken.value()).willReturn("encrypted-value");
-
-            given(cipherPortOut.decrypt("encrypted-value")).willReturn(decryptedToken);
-            given(oAuth2PortOut.getInstallations(userId, decryptedToken))
-                    .willReturn(expectedInstallations);
-
-            List<Installation> result = authService.getInstallations(userId);
-
-            assertThat(result).isEqualTo(expectedInstallations);
-            assertThat(result).hasSize(2);
         }
     }
 }

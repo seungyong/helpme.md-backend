@@ -5,15 +5,12 @@ import org.springframework.stereotype.Service;
 import seungyong.helpmebackend.auth.application.port.in.AuthPortIn;
 import seungyong.helpmebackend.auth.application.port.out.OAuth2PortOut;
 import seungyong.helpmebackend.auth.application.port.out.result.OAuthGithubUser;
-import seungyong.helpmebackend.auth.domain.entity.Installation;
 import seungyong.helpmebackend.global.exception.CustomException;
 import seungyong.helpmebackend.global.exception.GlobalErrorCode;
 import seungyong.helpmebackend.global.domain.entity.JWT;
 import seungyong.helpmebackend.global.domain.type.RedisKey;
-import seungyong.helpmebackend.repository.application.port.out.CipherPortOut;
 import seungyong.helpmebackend.global.application.port.out.JWTPortOut;
 import seungyong.helpmebackend.global.application.port.out.RedisPortOut;
-import seungyong.helpmebackend.user.application.port.out.UserPortOut;
 import seungyong.helpmebackend.user.domain.entity.JWTUser;
 import seungyong.helpmebackend.user.domain.entity.User;
 
@@ -23,16 +20,13 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.Base64;
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class AuthService implements AuthPortIn {
     private final OAuth2PortOut oAuth2PortOut;
     private final RedisPortOut redisPortOut;
-    private final CipherPortOut cipherPortOut;
     private final JWTPortOut jwtPortOut;
-    private final UserPortOut userPortOut;
     private final AuthenticatedUserWriter authenticatedUserWriter;
 
     @Override
@@ -76,10 +70,4 @@ public class AuthService implements AuthPortIn {
         return jwt;
     }
 
-    @Override
-    public List<Installation> getInstallations(Long userId) {
-        User user = userPortOut.getById(userId);
-        String decryptedToken = cipherPortOut.decrypt(user.getGithubUser().getGithubToken().value());
-        return oAuth2PortOut.getInstallations(userId, decryptedToken);
-    }
 }

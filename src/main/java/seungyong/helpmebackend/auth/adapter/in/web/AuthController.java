@@ -1,31 +1,22 @@
 package seungyong.helpmebackend.auth.adapter.in.web;
 
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
-import seungyong.helpmebackend.auth.adapter.in.web.dto.response.ResponseInstallations;
 import seungyong.helpmebackend.global.infrastructure.cookie.CookieUtil;
 import seungyong.helpmebackend.auth.application.port.in.AuthPortIn;
 import seungyong.helpmebackend.global.exception.CustomException;
-import seungyong.helpmebackend.global.exception.GlobalErrorCode;
 import seungyong.helpmebackend.user.domain.exception.UserErrorCode;
 import seungyong.helpmebackend.global.domain.entity.JWT;
-import seungyong.helpmebackend.global.infrastructure.swagger.annotation.ApiErrorResponse;
-import seungyong.helpmebackend.global.infrastructure.swagger.annotation.ApiErrorResponses;
 import seungyong.helpmebackend.global.infrastructure.swagger.annotation.UserRoleApiErrors;
-import seungyong.helpmebackend.global.domain.entity.CustomUserDetails;
 
 import java.io.IOException;
 
@@ -99,52 +90,6 @@ class AuthController {
         else { redirectUrl = loginOrSignup(code, state, response); }
 
         response.sendRedirect(redirectUrl);
-    }
-
-    @Operation(
-            summary = "접근 가능한 GitHub App 설치 정보 조회",
-            description = "사용자가 접근 가능한 GitHub App 설치 정보를 조회합니다.",
-            responses = {
-                    @ApiResponse(
-                            responseCode = "200",
-                            description = "설치 정보 조회 성공",
-                            content = @Content(
-                                    mediaType = MediaType.APPLICATION_JSON_VALUE,
-                                    schema = @Schema(implementation = ResponseInstallations.class)
-                            )
-
-                    )
-            }
-    )
-    @ApiErrorResponses({
-            @ApiErrorResponse(
-                    responseCode = "401",
-                    description = "인증되지 않은 사용자입니다.",
-                    errorCodeClasses = GlobalErrorCode.class,
-                    errorCodes = { "EXPIRED_ACCESS_TOKEN", "NOT_FOUND_TOKEN" }
-            ),
-            @ApiErrorResponse(
-                    responseCode = "404",
-                    description = "유저를 찾을 수 없습니다.",
-                    errorCodeClasses = UserErrorCode.class,
-                    errorCodes = { "USER_NOT_FOUND" }
-            ),
-            @ApiErrorResponse(
-                    responseCode = "500",
-                    description = "예기치 못한 서버 에러입니다.",
-                    errorCodeClasses = GlobalErrorCode.class,
-                    errorCodes = { "INTERNAL_SERVER_ERROR", "GITHUB_ERROR" }
-            )
-    })
-    @UserRoleApiErrors
-    @GetMapping("/installations")
-    public ResponseEntity<ResponseInstallations> getInstallation(
-            @AuthenticationPrincipal CustomUserDetails userDetails
-    ) {
-        ResponseInstallations installation = new ResponseInstallations(
-                authPortIn.getInstallations(userDetails.getUserId())
-        );
-        return ResponseEntity.ok(installation);
     }
 
     @Operation(

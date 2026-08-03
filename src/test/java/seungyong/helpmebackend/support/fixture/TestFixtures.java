@@ -1,9 +1,7 @@
 package seungyong.helpmebackend.support.fixture;
 
-import seungyong.helpmebackend.auth.adapter.in.web.dto.response.ResponseInstallations;
 import seungyong.helpmebackend.auth.application.port.out.result.OAuthGithubUser;
 import seungyong.helpmebackend.auth.application.port.out.result.OAuthTokenResult;
-import seungyong.helpmebackend.auth.domain.entity.Installation;
 import seungyong.helpmebackend.global.domain.entity.JWT;
 import seungyong.helpmebackend.project.adapter.out.persistence.entity.ProjectJpaEntity;
 import seungyong.helpmebackend.project.domain.entity.Project;
@@ -129,21 +127,6 @@ public final class TestFixtures {
 
     public static OAuthGithubUser oauthGithubUser() {
         return new OAuthGithubUser("octocat", 1001L);
-    }
-
-    public static Installation installation() {
-        return new Installation("101", "https://example.com/avatar.png", "octocat/helpme-md");
-    }
-
-    public static List<Installation> installations() {
-        return List.of(
-                installation(),
-                new Installation("102", "https://example.com/avatar-2.png", "octocat/helpme-md-api")
-        );
-    }
-
-    public static ResponseInstallations responseInstallations() {
-        return new ResponseInstallations(installations());
     }
 
     public static Project project(Long userId) {

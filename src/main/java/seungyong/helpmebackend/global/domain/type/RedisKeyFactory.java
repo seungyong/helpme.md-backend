@@ -17,7 +17,7 @@ public enum RedisKeyFactory {
 
     // file content
     FILE_V1_KEY("gh:file:entry:"),
-    FILE_V2_KEY("gh:file:importance:");
+    FILE_IMPORTANCE_KEY("gh:file:importance:");
 
     private final String prefix;
 
@@ -55,6 +55,6 @@ public enum RedisKeyFactory {
     }
 
     public static String createImportanceFileKey(String owner, String name, String sha) {
-        return FILE_V2_KEY.buildKey(owner, name, sha);
+        return FILE_IMPORTANCE_KEY.buildKey(owner, name, sha);
     }
 }

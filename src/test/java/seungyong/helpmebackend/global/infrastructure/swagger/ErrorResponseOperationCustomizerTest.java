@@ -56,6 +56,7 @@ class ErrorResponseOperationCustomizerTest {
         assertThat(operation.getResponses()).containsKeys("401", "409");
     }
 
+
     private HandlerMethod handlerMethod(String methodName) throws NoSuchMethodException {
         Method method = TestController.class.getDeclaredMethod(methodName);
         return new HandlerMethod(new TestController(), method);
@@ -91,4 +92,5 @@ class ErrorResponseOperationCustomizerTest {
         void api() {
         }
     }
+
 }

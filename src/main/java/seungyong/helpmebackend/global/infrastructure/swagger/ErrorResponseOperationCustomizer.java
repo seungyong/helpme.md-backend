@@ -63,6 +63,10 @@ public class ErrorResponseOperationCustomizer implements OperationCustomizer {
                 List.of(GlobalErrorCode.class),
                 new String[]{ "NOT_FOUND_TOKEN", "EXPIRED_ACCESS_TOKEN", "INVALID_TOKEN" }
         );
+        addUserDeletionError(operation);
+    }
+
+    private void addUserDeletionError(Operation operation) {
         addErrorResponseToOperation(
                 operation,
                 "409",

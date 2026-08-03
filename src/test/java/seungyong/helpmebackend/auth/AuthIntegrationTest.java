@@ -1,6 +1,5 @@
 package seungyong.helpmebackend.auth;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -22,14 +21,11 @@ import org.springframework.web.util.UriComponentsBuilder;
 import seungyong.helpmebackend.auth.application.port.out.OAuth2PortOut;
 import seungyong.helpmebackend.auth.application.port.out.result.OAuthGithubUser;
 import seungyong.helpmebackend.auth.application.port.out.result.OAuthTokenResult;
-import seungyong.helpmebackend.auth.domain.entity.Installation;
 import seungyong.helpmebackend.global.application.port.out.JWTPortOut;
 import seungyong.helpmebackend.global.application.port.out.RedisPortOut;
 import seungyong.helpmebackend.global.config.SecurityConfig;
-import seungyong.helpmebackend.global.domain.entity.CustomUserDetails;
 import seungyong.helpmebackend.global.domain.entity.JWT;
 import seungyong.helpmebackend.global.domain.type.RedisKey;
-import seungyong.helpmebackend.global.exception.GlobalErrorCode;
 import seungyong.helpmebackend.repository.application.port.out.CipherPortOut;
 import seungyong.helpmebackend.repository.domain.entity.EncryptedToken;
 import seungyong.helpmebackend.user.application.port.out.UserPortOut;
@@ -42,16 +38,12 @@ import seungyong.helpmebackend.user.domain.type.UserStatus;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-import static seungyong.helpmebackend.support.fixture.TestFixtures.installations;
 import static seungyong.helpmebackend.support.fixture.TestFixtures.oauthGithubUser;
 import static seungyong.helpmebackend.support.fixture.TestFixtures.oauthTokenResult;
 import static seungyong.helpmebackend.support.fixture.TestFixtures.user;
@@ -63,7 +55,6 @@ import static seungyong.helpmebackend.support.fixture.TestFixtures.user;
 class AuthIntegrationTest {
     @Autowired private RedisTemplate<String, String> redisTemplate;
     @Autowired private MockMvc mockMvc;
-    @Autowired private ObjectMapper objectMapper;
 
     @MockitoSpyBean private OAuth2PortOut oAuth2PortOut;
 
@@ -218,58 +209,6 @@ class AuthIntegrationTest {
             assertThat(persistedUser.getStatus()).isEqualTo(UserStatus.DELETING);
             assertThat(persistedUser.getLastLoginAt()).isNull();
             assertThat(redisPortOut.exists(stateKey)).isFalse();
-        }
-    }
-
-    @Nested
-    @DisplayName("getInstallation - 접근 가능한 GitHub App 설치 정보 조회")
-    class GetInstallation {
-        @Test
-        @DisplayName("성공")
-        void getInstallation_success() throws Exception {
-            String rawAccessToken = "real-github-token";
-            String realEncryptedToken = cipherPortOut.encrypt(rawAccessToken);
-
-            GithubUser githubUser = new GithubUser("test-user", 12345L, new EncryptedToken(realEncryptedToken));
-            User user = new User(null, githubUser);
-            User savedUser = userPortOut.save(user);
-
-            JWT jwt = jwtPortOut.generate(new JWTUser(savedUser.getId(), savedUser.getGithubUser().getName()));
-
-            CustomUserDetails mockUserDetails = mock(CustomUserDetails.class);
-            given(mockUserDetails.getUserId()).willReturn(savedUser.getId());
-
-            List<Installation> expectedInstallations = installations();
-            doReturn(expectedInstallations).when(oAuth2PortOut)
-                    .getInstallations(savedUser.getId(), rawAccessToken);
-
-            mockMvc.perform(get("/api/v1/oauth2/installations")
-                            .cookie(
-                                    new Cookie("accessToken", jwt.getAccessToken()),
-                                    new Cookie("refreshToken", jwt.getRefreshToken())
-                            ))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.installations").isArray())
-                    .andExpect(jsonPath("$.installations.length()").value(2))
-                    .andDo(MockMvcResultHandlers.print());
-        }
-
-        @Test
-        @DisplayName("실패 (삭제된 사용자의 Access Token)")
-        void getInstallation_failure_userNotFound() throws Exception {
-            Long nonExistentUserId = 9999L;
-            JWT jwt = jwtPortOut.generate(new JWTUser(nonExistentUserId, "nonexistent-user"));
-
-            mockMvc.perform(get("/api/v1/oauth2/installations")
-                            .cookie(
-                                    new Cookie("accessToken", jwt.getAccessToken()),
-                                    new Cookie("refreshToken", jwt.getRefreshToken())
-                            ))
-                    .andExpect(status().isUnauthorized())
-                    .andExpect(jsonPath("$.errorCode").value(GlobalErrorCode.INVALID_TOKEN.getErrorCode()))
-                    .andExpect(cookie().maxAge("accessToken", 0))
-                    .andExpect(cookie().maxAge("refreshToken", 0))
-                    .andDo(MockMvcResultHandlers.print());
         }
     }
 

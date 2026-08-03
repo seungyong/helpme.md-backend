@@ -65,7 +65,9 @@ class UserController {
     public ResponseEntity<ResponseUser> getUser(
             @AuthenticationPrincipal CustomUserDetails details
     ) {
-        ResponseUser responseUser = new ResponseUser(details.getUsername());
+        ResponseUser responseUser = ResponseUser.from(
+                userPortIn.getCurrentUser(details.getUserId())
+        );
         return ResponseEntity.ok(responseUser);
     }
 

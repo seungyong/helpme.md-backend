@@ -54,21 +54,14 @@ public class AuthenticationFilter extends OncePerRequestFilter {
         String accessToken = extractToken(request, "accessToken");
 
         if (accessToken == null) {
-            int status;
-            String body;
             String refreshToken = extractToken(request, "refreshToken");
+            GlobalErrorCode errorCode = refreshToken == null
+                    ? GlobalErrorCode.NOT_FOUND_TOKEN
+                    : GlobalErrorCode.EXPIRED_ACCESS_TOKEN;
 
-            if (refreshToken == null) {
-                status = GlobalErrorCode.NOT_FOUND_TOKEN.getHttpStatus().value();
-                body = ErrorResponse.toJson(GlobalErrorCode.NOT_FOUND_TOKEN);
-            } else {
-                status = GlobalErrorCode.EXPIRED_ACCESS_TOKEN.getHttpStatus().value();
-                body = ErrorResponse.toJson(GlobalErrorCode.EXPIRED_ACCESS_TOKEN);
-            }
-
-            response.setStatus(status);
+            response.setStatus(errorCode.getHttpStatus().value());
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-            response.getWriter().write(body);
+            response.getWriter().write(ErrorResponse.toJson(errorCode));
             response.getWriter().flush();
             return;
         }

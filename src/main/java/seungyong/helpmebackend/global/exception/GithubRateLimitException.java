@@ -8,7 +8,11 @@ public class GithubRateLimitException extends CustomException {
     private final int retryAfterSeconds;
 
     public GithubRateLimitException(int retryAfterSeconds) {
-        super(RepositoryErrorCode.GITHUB_RATE_LIMIT_EXCEEDED);
+        this(RepositoryErrorCode.GITHUB_RATE_LIMIT_EXCEEDED, retryAfterSeconds);
+    }
+
+    public GithubRateLimitException(ErrorCode errorCode, int retryAfterSeconds) {
+        super(errorCode);
         this.retryAfterSeconds = retryAfterSeconds;
     }
 }

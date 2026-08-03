@@ -6,7 +6,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import seungyong.helpmebackend.project.application.port.out.ProjectPortOut;
 import seungyong.helpmebackend.project.domain.entity.Project;
+import seungyong.helpmebackend.project.adapter.out.persistence.entity.ProjectJpaEntity;
 import seungyong.helpmebackend.support.repository.JpaTest;
+import seungyong.helpmebackend.user.adapter.out.persistence.mapper.UserPersistenceMapper;
 import seungyong.helpmebackend.user.application.port.out.UserPortOut;
 import seungyong.helpmebackend.user.domain.entity.User;
 
@@ -19,6 +21,7 @@ import static seungyong.helpmebackend.support.fixture.TestFixtures.user;
 public class ProjectAdapterTest {
     @Autowired private ProjectPortOut projectPortOut;
     @Autowired private UserPortOut userPortOut;
+    @Autowired private ProjectJpaRepository projectJpaRepository;
 
     @Test
     @DisplayName("프로젝트 저장 - 성공")
@@ -65,5 +68,26 @@ public class ProjectAdapterTest {
         projectPortOut.save(project);
 
         assertThat(projectPortOut.getByUserIdAndRepoFullName(savedUser.getId(), "nonexistent/repo")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("현재 사용자가 이미 연결한 GitHub Repository ID만 조회")
+    void getConnectedGithubRepoIds_success() {
+        User savedUser = userPortOut.save(user(null, "test-token"));
+        var userJpaEntity = UserPersistenceMapper.INSTANCE.toJpaEntity(savedUser);
+        projectJpaRepository.save(ProjectJpaEntity.builder()
+                .user(userJpaEntity)
+                .repoFullName("octocat/connected")
+                .githubRepoId(101L)
+                .build());
+
+        assertThat(projectPortOut.getConnectedGithubRepoIds(
+                savedUser.getId(),
+                java.util.List.of(101L, 102L)
+        )).containsExactly(101L);
+        assertThat(projectPortOut.getConnectedGithubRepoIds(
+                savedUser.getId(),
+                java.util.List.of()
+        )).isEmpty();
     }
 }

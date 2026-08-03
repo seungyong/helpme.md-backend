@@ -11,19 +11,14 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.HttpStatus;
 import seungyong.helpmebackend.auth.adapter.out.github.OAuth2Adapter;
 import seungyong.helpmebackend.auth.application.port.out.result.OAuthGithubUser;
 import seungyong.helpmebackend.auth.application.port.out.result.OAuthTokenResult;
-import seungyong.helpmebackend.auth.domain.entity.Installation;
 import seungyong.helpmebackend.global.exception.CustomException;
-import seungyong.helpmebackend.global.exception.GithubRateLimitException;
 import seungyong.helpmebackend.global.exception.GlobalErrorCode;
 import seungyong.helpmebackend.global.config.GithubPortConfig;
-import seungyong.helpmebackend.global.infrastructure.github.GithubApiException;
 import seungyong.helpmebackend.global.infrastructure.github.GithubApiExecutor;
 
-import java.util.List;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -37,7 +32,6 @@ class OAuth2AdapterTest {
     private OAuth2Adapter oAuth2Adapter;
 
     @Captor private ArgumentCaptor<GithubApiExecutor.JsonResponseParser<OAuthGithubUser>> userParserCaptor;
-    @Captor private ArgumentCaptor<GithubApiExecutor.JsonResponseParser<List<Installation>>> installationParserCaptor;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -142,91 +136,6 @@ class OAuth2AdapterTest {
 
             assertThatThrownBy(() -> oAuth2Adapter.getGithubUser(accessToken))
                     .isInstanceOf(CustomException.class);
-        }
-    }
-
-    @Nested
-    @DisplayName("getInstallations - 깃허브 설치 정보 조회")
-    class GetInstallations {
-        @Test
-        @DisplayName("성공")
-        void getInstallations_success() {
-            String accessToken = "github-access-token";
-            List<Installation> expectedInstallations = installations();
-
-            given(githubApiExecutor.executeGet(
-                    anyLong(), anyString(), eq(accessToken), any(), anyString()
-            ))
-                    .willReturn(expectedInstallations);
-
-            List<Installation> result = oAuth2Adapter.getInstallations(1L, accessToken);
-
-            assertThat(result).isEqualTo(expectedInstallations);
-        }
-
-        @Test
-        @DisplayName("성공 (JSON 파싱 로직 검증)")
-        void getInstallations_success_parser() throws Exception {
-            String accessToken = "github-access-token";
-            Installation expectedInstallation = installation();
-
-            String jsonString = String.format("""
-                    {
-                        "installations": [
-                            {
-                                "id": "%s",
-                                "account": {
-                                    "avatar_url": "%s",
-                                    "login": "%s"
-                                }
-                            }
-                        ]
-                    }
-                    """, expectedInstallation.getInstallationId(), expectedInstallation.getAvatarUrl(), expectedInstallation.getName());
-            JsonNode mockJsonNode = objectMapper.readTree(jsonString);
-
-            // 실제 API 호출을 막기위해 모킹
-            given(githubApiExecutor.executeGet(
-                    anyLong(), anyString(), eq(accessToken),
-                    installationParserCaptor.capture(), anyString()
-            ))
-                    .willReturn(List.of());
-
-            oAuth2Adapter.getInstallations(1L, accessToken);
-
-            // 캡처된 인자값인 json 익명 함수를 가져와 파싱 후 결과 검증 (GithubApiExecutor.JsonResponseParser<List<Installation>>)
-            List<Installation> parsedInstallations = installationParserCaptor.getValue().parse(mockJsonNode);
-
-            assertThat(parsedInstallations).hasSize(1);
-            assertThat(parsedInstallations.get(0).getInstallationId()).isEqualTo(expectedInstallation.getInstallationId());
-            assertThat(parsedInstallations.get(0).getAvatarUrl()).isEqualTo(expectedInstallation.getAvatarUrl());
-            assertThat(parsedInstallations.get(0).getName()).isEqualTo(expectedInstallation.getName());
-        }
-
-        @Test
-        @DisplayName("실패 (API 통신 오류)")
-        void getInstallations_failure_apiError() {
-            String accessToken = "github-access-token";
-
-            given(githubApiExecutor.executeGet(
-                    anyLong(), anyString(), eq(accessToken), any(), anyString()
-            ))
-                    .willThrow(new CustomException(GlobalErrorCode.GITHUB_ERROR));
-
-            assertThatThrownBy(() -> oAuth2Adapter.getInstallations(1L, accessToken))
-                    .isInstanceOf(CustomException.class);
-        }
-
-        @Test
-        @DisplayName("rate limit은 429 도메인 예외로 변환한다")
-        void getInstallations_failure_rateLimited() {
-            given(githubApiExecutor.executeGet(
-                    anyLong(), anyString(), anyString(), any(), anyString()
-            )).willThrow(new GithubApiException(HttpStatus.TOO_MANY_REQUESTS, true, 17, null));
-
-            assertThatThrownBy(() -> oAuth2Adapter.getInstallations(1L, "token"))
-                    .isInstanceOfSatisfying(GithubRateLimitException.class,
-                            exception -> assertThat(exception.getRetryAfterSeconds()).isEqualTo(17));
         }
     }
 }

@@ -44,6 +44,17 @@ public class UserService implements UserPortIn {
     }
 
     @Override
+    public User getCurrentUser(Long userId) {
+        User user = userPortOut.getById(userId);
+
+        if (!user.isAuthenticationAllowed()) {
+            throw new CustomException(UserErrorCode.USER_DELETION_IN_PROGRESS);
+        }
+
+        return user;
+    }
+
+    @Override
     public JWT reissue(String refreshToken) {
         Date now = new Date();
 

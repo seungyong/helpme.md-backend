@@ -1,6 +1,5 @@
 package seungyong.helpmebackend.auth.adapter.in.web;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -13,9 +12,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import seungyong.helpmebackend.auth.adapter.in.web.dto.response.ResponseInstallations;
 import seungyong.helpmebackend.auth.application.port.in.AuthPortIn;
-import seungyong.helpmebackend.global.domain.entity.CustomUserDetails;
 import seungyong.helpmebackend.global.domain.entity.JWT;
 import seungyong.helpmebackend.global.exception.CustomException;
 import seungyong.helpmebackend.global.filter.AuthenticationFilter;
@@ -26,14 +23,11 @@ import seungyong.helpmebackend.user.domain.exception.UserErrorCode;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static seungyong.helpmebackend.support.fixture.TestFixtures.jwt;
-import static seungyong.helpmebackend.support.fixture.TestFixtures.responseInstallations;
 
 @WebMvcTest(
         value = AuthController.class,
@@ -46,7 +40,6 @@ import static seungyong.helpmebackend.support.fixture.TestFixtures.responseInsta
 @TestPropertySource(properties = "frontend.url=https://test-frontend.com")
 class AuthControllerTest {
     @Autowired private MockMvc mockMvc;
-    @Autowired private ObjectMapper objectMapper;
 
     @MockitoBean private AuthPortIn authPortIn;
     @MockitoBean private CookieUtil cookieUtil;
@@ -143,39 +136,6 @@ class AuthControllerTest {
                     ));
 
             verify(cookieUtil).clearTokenCookie(any(HttpServletResponse.class));
-        }
-    }
-
-    @Nested
-    @DisplayName("getInstallation - 접근 가능한 GitHub App 설치 정보 조회")
-    class GetInstallation {
-        @Test
-        @DisplayName("성공")
-        void getInstallation_success() throws Exception {
-            CustomUserDetails mockUserDetails = mock(CustomUserDetails.class);
-            given(mockUserDetails.getUserId()).willReturn(1L);
-
-            ResponseInstallations expectedResponse = responseInstallations();
-            given(authPortIn.getInstallations(1L)).willReturn(expectedResponse.installations());
-
-            mockMvc.perform(get("/api/v1/oauth2/installations")
-                            .with(user(mockUserDetails)))
-                    .andExpect(status().isOk())
-                    .andExpect(content().json(objectMapper.writeValueAsString(expectedResponse)));
-        }
-
-        @Test
-        @DisplayName("실패 (유저를 찾을 수 없음)")
-        void getInstallation_failure_userNotFound() throws Exception {
-            CustomUserDetails mockUserDetails = mock(CustomUserDetails.class);
-            given(mockUserDetails.getUserId()).willReturn(999L);
-
-            given(authPortIn.getInstallations(999L)).willThrow(new CustomException(UserErrorCode.USER_NOT_FOUND));
-
-            mockMvc.perform(get("/api/v1/oauth2/installations")
-                            .with(user(mockUserDetails)))
-                    .andExpect(status().isNotFound())
-                    .andExpect(jsonPath("$.errorCode").value(UserErrorCode.USER_NOT_FOUND.getErrorCode()));
         }
     }
 

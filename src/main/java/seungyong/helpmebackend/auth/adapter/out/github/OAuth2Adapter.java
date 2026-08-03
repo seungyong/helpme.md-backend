@@ -1,12 +1,10 @@
 package seungyong.helpmebackend.auth.adapter.out.github;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import seungyong.helpmebackend.auth.application.port.out.OAuth2PortOut;
 import seungyong.helpmebackend.auth.application.port.out.result.OAuthGithubUser;
 import seungyong.helpmebackend.auth.application.port.out.result.OAuthTokenResult;
-import seungyong.helpmebackend.auth.domain.entity.Installation;
 import seungyong.helpmebackend.global.config.GithubPortConfig;
 import seungyong.helpmebackend.global.exception.CustomException;
 import seungyong.helpmebackend.global.exception.GithubRateLimitException;
@@ -15,8 +13,6 @@ import seungyong.helpmebackend.global.infrastructure.github.GithubApiException;
 import seungyong.helpmebackend.global.infrastructure.github.GithubApiExecutor;
 import seungyong.helpmebackend.global.infrastructure.github.GithubResponseParsingException;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
@@ -63,31 +59,6 @@ public class OAuth2Adapter implements OAuth2PortOut {
                             jsonNode.get("id").asLong()
                     ),
                     "get authenticated GitHub user"
-            ));
-    }
-
-    @Override
-    public List<Installation> getInstallations(Long userId, String accessToken) {
-        String url = "https://api.github.com/user/installations?per_page=100";
-
-        return executeOAuthRequest(() -> githubApiExecutor.executeGet(
-                    userId,
-                    url,
-                    accessToken,
-                    jsonNode -> {
-                        List<Installation> installations = new ArrayList<>();
-
-                        for (JsonNode item : jsonNode.get("installations")) {
-                            installations.add(new Installation(
-                                    item.get("id").asText(),
-                                    item.get("account").get("avatar_url").asText(),
-                                    item.get("account").get("login").asText()
-                            ));
-                        }
-
-                        return installations;
-                    },
-                    "list GitHub installations"
             ));
     }
 

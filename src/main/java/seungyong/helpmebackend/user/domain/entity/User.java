@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.ToString;
 import seungyong.helpmebackend.repository.domain.entity.EncryptedToken;
 import seungyong.helpmebackend.user.domain.type.UserStatus;
+import seungyong.helpmebackend.user.domain.type.GithubTokenStatus;
 
 import java.time.OffsetDateTime;
 import java.util.Objects;
@@ -100,5 +101,12 @@ public class User {
      */
     public void updateGithubToken(EncryptedToken newToken) {
         this.githubUser.updateGithubToken(newToken);
+    }
+
+    public void recordGithubTokenVerification(
+            GithubTokenStatus verifiedStatus,
+            OffsetDateTime verifiedAt
+    ) {
+        this.githubUser.recordTokenVerification(verifiedStatus, verifiedAt);
     }
 }

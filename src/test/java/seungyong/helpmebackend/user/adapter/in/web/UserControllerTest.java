@@ -27,8 +27,10 @@ import seungyong.helpmebackend.global.infrastructure.cookie.CookieUtil;
 import seungyong.helpmebackend.support.config.TestSecurityConfig;
 import seungyong.helpmebackend.user.application.port.in.UserPortIn;
 import seungyong.helpmebackend.user.domain.exception.UserErrorCode;
+import seungyong.helpmebackend.user.domain.entity.User;
 
 import static seungyong.helpmebackend.support.fixture.TestFixtures.jwt;
+import static seungyong.helpmebackend.support.fixture.TestFixtures.user;
 
 @WebMvcTest(
         value = UserController.class,
@@ -49,6 +51,8 @@ public class UserControllerTest {
         Long userId = 1L;
         String username = "test-user";
         CustomUserDetails userDetails = new CustomUserDetails(userId, username);
+        User user = user(userId);
+        Mockito.when(userPortIn.getCurrentUser(userId)).thenReturn(user);
 
         mockMvc
                 .perform(
@@ -57,7 +61,11 @@ public class UserControllerTest {
                 )
                 .andDo(MockMvcResultHandlers.print())
                 .andExpect(MockMvcResultMatchers.status().isOk())
-                .andExpect(MockMvcResultMatchers.jsonPath("$.username").value(username));
+                .andExpect(MockMvcResultMatchers.jsonPath("$.id").value(userId))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.name").value(username))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.githubId").value(1001L))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.plan.code").value("free"))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.status").value("active"));
     }
 
     @Nested
