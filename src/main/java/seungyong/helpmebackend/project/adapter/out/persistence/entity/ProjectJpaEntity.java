@@ -22,6 +22,7 @@ import org.hibernate.annotations.OnDeleteAction;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.type.SqlTypes;
 import seungyong.helpmebackend.global.adapter.out.persistence.converter.DatabaseEnumConverters;
+import seungyong.helpmebackend.project.domain.entity.ProjectSettings;
 import seungyong.helpmebackend.project.domain.type.ProjectStatus;
 import seungyong.helpmebackend.project.domain.type.ProjectSyncStatus;
 import seungyong.helpmebackend.project.domain.type.ProjectWebhookStatus;
@@ -222,5 +223,17 @@ public class ProjectJpaEntity {
         this.deletionErrorMessage = deletionErrorMessage;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
+    }
+
+    public void updateSettings(ProjectSettings settings) {
+        this.trackedBranches = settings.trackedBranches().toArray(String[]::new);
+        this.trackAllBranches = settings.trackAllBranches();
+        this.timezone = settings.timezone();
+        this.dailyEnabled = settings.daily().enabled();
+        this.dailyGenerationTime = settings.daily().generationTime();
+        this.weeklyEnabled = settings.weekly().enabled();
+        this.weeklyGenerationDay = settings.weekly().generationDay().getDatabaseValue();
+        this.weeklyGenerationTime = settings.weekly().generationTime();
+        this.webhookPayloadRetentionDays = settings.webhookPayloadRetentionDays();
     }
 }

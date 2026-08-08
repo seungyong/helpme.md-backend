@@ -18,8 +18,10 @@ import seungyong.helpmebackend.global.infrastructure.github.GithubClient;
 import seungyong.helpmebackend.global.infrastructure.github.GithubResponseParsingException;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 @Component
 @RequiredArgsConstructor
@@ -77,6 +79,84 @@ public class GithubAppAdapter implements GithubAppPortOut {
                     size
             );
         });
+    }
+
+    @Override
+    public void validateRepositoryBranches(
+            Long userId,
+            String accessToken,
+            Long installationId,
+            Long githubRepositoryId,
+            String repositoryFullName,
+            Set<String> requiredBranches
+    ) {
+        GithubAppExceptionTranslator.repositories(() -> {
+            if (!isRepositoryAccessibleToInstallation(
+                    userId,
+                    accessToken,
+                    installationId,
+                    githubRepositoryId
+            )) {
+                throw new CustomException(GithubErrorCode.GITHUB_PERMISSION_DENIED);
+            }
+
+            Set<String> missingBranches = new HashSet<>(requiredBranches);
+            String url = "https://api.github.com/repos/%s/branches?per_page=%d"
+                    .formatted(repositoryFullName, GITHUB_PAGE_SIZE);
+            int requestCount = 0;
+
+            // missingBranches가 비어있다면 모든 requiredBranches가 존재한다는 의미이므로 반복문 종료
+            while (url != null && !missingBranches.isEmpty()) {
+                ensurePageLimit(++requestCount);
+                JsonPage page = getJsonPage(
+                        userId,
+                        url,
+                        accessToken,
+                        "list repository branches"
+                );
+                if (!page.body().isArray()) {
+                    throw parsingFailure("branch response must be an array");
+                }
+                for (JsonNode branch : page.body()) {
+                    // Branch가 requiredBranches에 존재하면 missingBranches에서 제거
+                    missingBranches.remove(requiredText(branch, "name"));
+                }
+                url = page.nextUrl();
+            }
+
+            if (!missingBranches.isEmpty()) {
+                throw new CustomException(GithubErrorCode.GITHUB_RESOURCE_NOT_FOUND);
+            }
+            return null;
+        });
+    }
+
+    private boolean isRepositoryAccessibleToInstallation(
+            Long userId,
+            String accessToken,
+            Long installationId,
+            Long githubRepositoryId
+    ) {
+        String url = "https://api.github.com/user/installations/%d/repositories?per_page=%d"
+                .formatted(installationId, GITHUB_PAGE_SIZE);
+        int requestCount = 0;
+
+        while (url != null) {
+            ensurePageLimit(++requestCount);
+            JsonPage page = getJsonPage(
+                    userId,
+                    url,
+                    accessToken,
+                    "verify installation repository access"
+            );
+            for (JsonNode repository : requiredArray(page.body(), "repositories")) {
+                if (requiredLong(repository, "id") == githubRepositoryId) {
+                    return true;
+                }
+            }
+            url = page.nextUrl();
+        }
+        return false;
     }
 
     private GithubRepositoryPage getRepositoryPage(

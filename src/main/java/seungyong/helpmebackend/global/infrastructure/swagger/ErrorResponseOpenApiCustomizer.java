@@ -30,7 +30,7 @@ public class ErrorResponseOpenApiCustomizer implements OpenApiCustomizer {
                 .addProperty("error", new Schema<>().type("string").example("BAD_REQUEST"))
                 .addProperty("message", new Schema<>().type("string").example("Invalid request parameter"))
                 .addProperty("code", new Schema<>().type("string").example("BAD_REQUEST"))
-                .addProperty("errorCode", new Schema<>().type("string").example("VALID_400"));
+                .addProperty("errorCode", new Schema<>().type("string").example("REQ_400"));
 
         openApi.getComponents().addSchemas("ErrorResponse", errorResponseSchema);
     }

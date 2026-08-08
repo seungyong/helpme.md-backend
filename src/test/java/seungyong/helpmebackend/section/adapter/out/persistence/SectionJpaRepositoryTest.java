@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import seungyong.helpmebackend.project.adapter.out.persistence.entity.ProjectJpaEntity;
 import seungyong.helpmebackend.project.application.port.out.ProjectPortOut;
-import seungyong.helpmebackend.project.application.port.out.ProjectPortOutMapper;
+import seungyong.helpmebackend.project.adapter.out.persistence.mapper.ProjectPersistenceMapper;
 import seungyong.helpmebackend.project.domain.entity.Project;
 import seungyong.helpmebackend.section.adapter.out.persistence.entity.SectionJpaEntity;
 import seungyong.helpmebackend.support.repository.JpaTest;
@@ -41,7 +41,7 @@ public class SectionJpaRepositoryTest {
         Project project = project(savedUser.getId());
 
         Project savedProject = projectPortOut.save(project);
-        ProjectJpaEntity savedProjectEntity = ProjectPortOutMapper.INSTANCE.toJpaEntity(savedProject);
+        ProjectJpaEntity savedProjectEntity = ProjectPersistenceMapper.INSTANCE.toJpaEntity(savedProject);
 
         SectionJpaEntity section1 = SectionJpaEntity.builder()
                 .project(savedProjectEntity)
@@ -87,7 +87,7 @@ public class SectionJpaRepositoryTest {
         Project project = project(savedUser.getId());
 
         Project savedProject = projectPortOut.save(project);
-        ProjectJpaEntity savedProjectEntity = ProjectPortOutMapper.INSTANCE.toJpaEntity(savedProject);
+        ProjectJpaEntity savedProjectEntity = ProjectPersistenceMapper.INSTANCE.toJpaEntity(savedProject);
 
         SectionJpaEntity section1 = SectionJpaEntity.builder()
                 .project(savedProjectEntity)
@@ -132,7 +132,7 @@ public class SectionJpaRepositoryTest {
         Project project = project(savedUser.getId());
 
         Project savedProject = projectPortOut.save(project);
-        ProjectJpaEntity savedProjectEntity = ProjectPortOutMapper.INSTANCE.toJpaEntity(savedProject);
+        ProjectJpaEntity savedProjectEntity = ProjectPersistenceMapper.INSTANCE.toJpaEntity(savedProject);
 
         SectionJpaEntity section = SectionJpaEntity.builder()
                 .project(savedProjectEntity)
@@ -168,7 +168,7 @@ public class SectionJpaRepositoryTest {
         Project project = project(savedUser.getId());
 
         Project savedProject = projectPortOut.save(project);
-        ProjectJpaEntity savedProjectEntity = ProjectPortOutMapper.INSTANCE.toJpaEntity(savedProject);
+        ProjectJpaEntity savedProjectEntity = ProjectPersistenceMapper.INSTANCE.toJpaEntity(savedProject);
 
         SectionJpaEntity section1 = SectionJpaEntity.builder()
                 .project(savedProjectEntity)
@@ -202,7 +202,7 @@ public class SectionJpaRepositoryTest {
         Project project = project(savedUser.getId());
 
         Project savedProject = projectPortOut.save(project);
-        ProjectJpaEntity savedProjectEntity = ProjectPortOutMapper.INSTANCE.toJpaEntity(savedProject);
+        ProjectJpaEntity savedProjectEntity = ProjectPersistenceMapper.INSTANCE.toJpaEntity(savedProject);
 
         SectionJpaEntity section1 = SectionJpaEntity.builder()
                 .project(savedProjectEntity)

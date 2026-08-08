@@ -165,6 +165,49 @@ class GithubAppServiceTest {
         }
     }
 
+    @Nested
+    @DisplayName("GitHub Repository Branch 조회")
+    class Branches {
+        @Test
+        @DisplayName("사용자 token을 복호화해 필요한 Branch를 검증하고 검증 시각을 저장")
+        void success() {
+            User user = prepareUser();
+            Set<String> requiredBranches = Set.of("main", "develop");
+
+            githubAppService.validateRepositoryBranches(
+                    USER_ID,
+                    INSTALLATION_ID,
+                    778899L,
+                    "seungyong/helpme.md",
+                    requiredBranches
+            );
+
+            assertThat(user.getGithubUser().getTokenStatus()).isEqualTo(GithubTokenStatus.VALID);
+            verify(githubAppPortOut).validateRepositoryBranches(
+                    USER_ID,
+                    RAW_TOKEN,
+                    INSTALLATION_ID,
+                    778899L,
+                    "seungyong/helpme.md",
+                    requiredBranches
+            );
+            verify(userPortOut).save(user);
+        }
+
+        @Test
+        @DisplayName("Repository fullname이 없으면 GitHub를 호출하지 않고 404")
+        void failure_invalidRepositoryFullName() {
+            assertThatThrownBy(() -> githubAppService.validateRepositoryBranches(
+                    USER_ID, INSTALLATION_ID, 778899L, " ", Set.of("main")
+            ))
+                    .isInstanceOf(CustomException.class)
+                    .hasFieldOrPropertyWithValue(
+                            "errorCode",
+                            GithubErrorCode.GITHUB_RESOURCE_NOT_FOUND
+                    );
+        }
+    }
+
     private User prepareUser() {
         User user = user(USER_ID);
         given(userPortOut.getById(USER_ID)).willReturn(user);

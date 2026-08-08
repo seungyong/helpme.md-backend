@@ -2,7 +2,9 @@ package seungyong.helpmebackend.github.application;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import seungyong.helpmebackend.github.application.port.in.GithubAppPortIn;
+import seungyong.helpmebackend.github.application.port.in.GithubRepositoryAccessPortIn;
 import seungyong.helpmebackend.github.application.port.in.result.GithubInstallationsResult;
 import seungyong.helpmebackend.github.application.port.in.result.GithubRepositoriesResult;
 import seungyong.helpmebackend.github.application.port.out.GithubAppPortOut;
@@ -27,7 +29,7 @@ import java.util.function.Supplier;
 
 @Service
 @RequiredArgsConstructor
-public class GithubAppService implements GithubAppPortIn {
+public class GithubAppService implements GithubAppPortIn, GithubRepositoryAccessPortIn {
     private static final int DEFAULT_PAGE_SIZE = 30;
     private static final int MAX_PAGE_SIZE = 100;
 
@@ -101,6 +103,36 @@ public class GithubAppService implements GithubAppPortIn {
         );
     }
 
+    @Override
+    public void validateRepositoryBranches(
+            Long userId,
+            Long installationId,
+            Long githubRepositoryId,
+            String repositoryFullName,
+            Set<String> requiredBranches
+    ) {
+        if (installationId == null || installationId < 1
+                || githubRepositoryId == null || githubRepositoryId < 1
+                || !StringUtils.hasText(repositoryFullName)
+                || requiredBranches == null || requiredBranches.isEmpty()) {
+            throw new CustomException(GithubErrorCode.GITHUB_RESOURCE_NOT_FOUND);
+        }
+
+        User user = getActiveUser(userId);
+        String accessToken = decryptToken(user);
+        verifyGithubToken(
+                user,
+                () -> githubAppPortOut.validateRepositoryBranches(
+                        userId,
+                        accessToken,
+                        installationId,
+                        githubRepositoryId,
+                        repositoryFullName,
+                        Set.copyOf(requiredBranches)
+                )
+        );
+    }
+
     private User getActiveUser(Long userId) {
         User user = userPortOut.getById(userId);
         if (!user.isAuthenticationAllowed()) {
@@ -127,6 +159,13 @@ public class GithubAppService implements GithubAppPortIn {
             }
             throw exception;
         }
+    }
+
+    private void verifyGithubToken(User user, Runnable action) {
+        verifyGithubToken(user, () -> {
+            action.run();
+            return null;
+        });
     }
 
     private int normalizeSize(Integer size) {

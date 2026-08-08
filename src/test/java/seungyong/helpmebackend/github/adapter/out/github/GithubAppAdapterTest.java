@@ -18,6 +18,7 @@ import seungyong.helpmebackend.global.infrastructure.github.GithubApiExecutor;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Function;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -171,6 +172,145 @@ class GithubAppAdapterTest {
         verify(githubApiExecutor, atLeastOnce()).executeGetJson(
                 anyLong(), anyString(), anyString(), anyString(), any(), anyString()
         );
+    }
+
+    @Test
+    @DisplayName("필요한 Branch가 다음 페이지에 있으면 GitHub Link를 따라 검증")
+    void validateRepositoryBranches_success_pagination() {
+        List<String> requestedUrls = new ArrayList<>();
+        given(githubApiExecutor.executeGetJson(
+                anyLong(), anyString(), anyString(), anyString(), any(), anyString()
+        )).willAnswer(invocation -> {
+            String url = invocation.getArgument(1);
+            requestedUrls.add(url);
+            if (url.contains("/user/installations/")) {
+                return handle(invocation, ResponseEntity.ok("{\"repositories\":[{\"id\":778899}]}"));
+            }
+            if (url.contains("page=2")) {
+                return handle(invocation, ResponseEntity.ok("[{\"name\":\"develop\"}]"));
+            }
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.add(
+                    HttpHeaders.LINK,
+                    "<https://api.github.com/repos/seungyong/helpme.md/branches?per_page=100&page=2>; rel=\"next\""
+            );
+            return handle(
+                    invocation,
+                    new ResponseEntity<>("[{\"name\":\"main\"}]", headers, HttpStatus.OK)
+            );
+        });
+
+        githubAppAdapter.validateRepositoryBranches(
+                USER_ID,
+                TOKEN,
+                INSTALLATION_ID,
+                778899L,
+                "seungyong/helpme.md",
+                Set.of("main", "develop")
+        );
+
+        assertThat(requestedUrls).containsExactly(
+                "https://api.github.com/user/installations/9001/repositories?per_page=100",
+                "https://api.github.com/repos/seungyong/helpme.md/branches?per_page=100",
+                "https://api.github.com/repos/seungyong/helpme.md/branches?per_page=100&page=2"
+        );
+    }
+
+    @Test
+    @DisplayName("필요한 Branch를 모두 찾으면 다음 Branch 페이지를 조회하지 않음")
+    void validateRepositoryBranches_success_stopEarly() {
+        List<String> requestedUrls = new ArrayList<>();
+        given(githubApiExecutor.executeGetJson(
+                anyLong(), anyString(), anyString(), anyString(), any(), anyString()
+        )).willAnswer(invocation -> {
+            String url = invocation.getArgument(1);
+            requestedUrls.add(url);
+            if (url.contains("/user/installations/")) {
+                return handle(invocation, ResponseEntity.ok("{\"repositories\":[{\"id\":778899}]}"));
+            }
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.add(
+                    HttpHeaders.LINK,
+                    "<https://api.github.com/repos/seungyong/helpme.md/branches?per_page=100&page=2>; rel=\"next\""
+            );
+            return handle(
+                    invocation,
+                    new ResponseEntity<>("[{\"name\":\"main\"}]", headers, HttpStatus.OK)
+            );
+        });
+
+        githubAppAdapter.validateRepositoryBranches(
+                USER_ID,
+                TOKEN,
+                INSTALLATION_ID,
+                778899L,
+                "seungyong/helpme.md",
+                Set.of("main")
+        );
+
+        assertThat(requestedUrls).containsExactly(
+                "https://api.github.com/user/installations/9001/repositories?per_page=100",
+                "https://api.github.com/repos/seungyong/helpme.md/branches?per_page=100"
+        );
+    }
+
+    @Test
+    @DisplayName("Repository가 installation 허용 대상이 아니면 Branch 조회 전 403")
+    void validateRepositoryBranches_failure_notAccessibleToInstallation() {
+        List<String> requestedUrls = new ArrayList<>();
+        given(githubApiExecutor.executeGetJson(
+                anyLong(), anyString(), anyString(), anyString(), any(), anyString()
+        )).willAnswer(invocation -> {
+            requestedUrls.add(invocation.getArgument(1));
+            return handle(
+                    invocation,
+                    ResponseEntity.ok("{\"repositories\":[{\"id\":999999}]}" )
+            );
+        });
+
+        assertThatThrownBy(() -> githubAppAdapter.validateRepositoryBranches(
+                USER_ID,
+                TOKEN,
+                INSTALLATION_ID,
+                778899L,
+                "seungyong/helpme.md",
+                Set.of("main")
+        )).isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue(
+                        "errorCode",
+                        GithubErrorCode.GITHUB_PERMISSION_DENIED
+                );
+
+        assertThat(requestedUrls).noneMatch(url -> url.contains("/branches"));
+    }
+
+    @Test
+    @DisplayName("마지막 페이지까지 필요한 Branch가 없으면 404")
+    void validateRepositoryBranches_failure_branchNotFound() {
+        given(githubApiExecutor.executeGetJson(
+                anyLong(), anyString(), anyString(), anyString(), any(), anyString()
+        )).willAnswer(invocation -> {
+            String url = invocation.getArgument(1);
+            if (url.contains("/user/installations/")) {
+                return handle(invocation, ResponseEntity.ok("{\"repositories\":[{\"id\":778899}]}"));
+            }
+            return handle(invocation, ResponseEntity.ok("[{\"name\":\"main\"}]"));
+        });
+
+        assertThatThrownBy(() -> githubAppAdapter.validateRepositoryBranches(
+                USER_ID,
+                TOKEN,
+                INSTALLATION_ID,
+                778899L,
+                "seungyong/helpme.md",
+                Set.of("main", "deleted")
+        )).isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue(
+                        "errorCode",
+                        GithubErrorCode.GITHUB_RESOURCE_NOT_FOUND
+                );
     }
 
     @Test
