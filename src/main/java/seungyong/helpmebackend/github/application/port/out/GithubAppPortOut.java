@@ -1,6 +1,7 @@
 package seungyong.helpmebackend.github.application.port.out;
 
 import seungyong.helpmebackend.github.domain.entity.GithubInstallation;
+import seungyong.helpmebackend.github.domain.entity.GithubRepository;
 import seungyong.helpmebackend.github.domain.entity.GithubRepositoryPage;
 
 import java.util.List;
@@ -16,6 +17,13 @@ public interface GithubAppPortOut {
             String query,
             int page,
             int size
+    );
+
+    GithubRepository getRepository(
+            Long userId,
+            String accessToken,
+            Long installationId,
+            Long githubRepositoryId
     );
 
     void validateRepositoryBranches(

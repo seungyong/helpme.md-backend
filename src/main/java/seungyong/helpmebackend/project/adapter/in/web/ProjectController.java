@@ -8,10 +8,12 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -23,6 +25,9 @@ import seungyong.helpmebackend.global.infrastructure.swagger.annotation.ApiError
 import seungyong.helpmebackend.global.infrastructure.swagger.annotation.ApiErrorResponses;
 import seungyong.helpmebackend.global.infrastructure.swagger.annotation.UserRoleApiErrors;
 import seungyong.helpmebackend.project.adapter.in.web.dto.request.RequestProjectSettings;
+import seungyong.helpmebackend.project.adapter.in.web.dto.request.RequestCreateProject;
+import seungyong.helpmebackend.project.adapter.in.web.dto.response.ResponseCreatedProject;
+import seungyong.helpmebackend.project.adapter.in.web.dto.response.ResponseSyncRetry;
 import seungyong.helpmebackend.project.adapter.in.web.dto.response.ResponseProject;
 import seungyong.helpmebackend.project.adapter.in.web.dto.response.ResponseProjectSettings;
 import seungyong.helpmebackend.project.adapter.in.web.dto.response.ResponseUpdatedProjectSettings;
@@ -36,6 +41,36 @@ import seungyong.helpmebackend.project.domain.exception.ProjectErrorCode;
 @UserRoleApiErrors
 class ProjectController {
     private final ProjectPortIn projectPortIn;
+
+    @Operation(summary = "프로젝트 연결")
+    @PostMapping
+    public ResponseEntity<ResponseCreatedProject> createProject(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Valid @RequestBody RequestCreateProject request
+    ) {
+        ResponseCreatedProject response = ResponseCreatedProject.from(
+                projectPortIn.createProject(request.toCommand(userDetails.getUserId()))
+        );
+        return ResponseEntity.accepted()
+                .header(HttpHeaders.LOCATION, response.location())
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(response.retryAfterSeconds()))
+                .body(response);
+    }
+
+    @Operation(summary = "프로젝트 최초 동기화 재시도")
+    @PostMapping("/{projectId}/sync-retry")
+    public ResponseEntity<ResponseSyncRetry> retryInitialSync(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long projectId
+    ) {
+        ResponseSyncRetry response = ResponseSyncRetry.from(
+                projectPortIn.retryInitialSync(userDetails.getUserId(), projectId)
+        );
+        return ResponseEntity.accepted()
+                .header(HttpHeaders.LOCATION, response.location())
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(response.retryAfterSeconds()))
+                .body(response);
+    }
 
     @Operation(
             summary = "프로젝트 상세 조회",

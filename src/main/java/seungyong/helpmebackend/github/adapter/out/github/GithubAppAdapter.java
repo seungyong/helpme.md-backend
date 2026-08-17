@@ -82,6 +82,37 @@ public class GithubAppAdapter implements GithubAppPortOut {
     }
 
     @Override
+    public GithubRepository getRepository(
+            Long userId,
+            String accessToken,
+            Long installationId,
+            Long githubRepositoryId
+    ) {
+        return GithubAppExceptionTranslator.repositories(() -> {
+            String url = "https://api.github.com/user/installations/%d/repositories/%d"
+                    .formatted(installationId, githubRepositoryId);
+            JsonNode body = githubApiExecutor.executeGet(
+                    userId,
+                    url,
+                    accessToken,
+                    node -> node,
+                    "get installation repository"
+            );
+            JsonNode permissions = requiredObject(body, "permissions");
+            return new GithubRepository(
+                    requiredLong(body, "id"),
+                    requiredText(body, "full_name"),
+                    requiredBoolean(body, "private"),
+                    requiredText(body, "default_branch"),
+                    new GithubRepository.Permissions(
+                            requiredBoolean(permissions, "admin"),
+                            requiredBoolean(permissions, "push")
+                    )
+            );
+        });
+    }
+
+    @Override
     public void validateRepositoryBranches(
             Long userId,
             String accessToken,

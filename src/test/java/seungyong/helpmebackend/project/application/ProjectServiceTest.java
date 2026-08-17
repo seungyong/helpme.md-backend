@@ -10,13 +10,20 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import seungyong.helpmebackend.github.application.port.in.GithubRepositoryAccessPortIn;
 import seungyong.helpmebackend.github.domain.exception.GithubErrorCode;
+import seungyong.helpmebackend.github.domain.entity.GithubRepository;
 import seungyong.helpmebackend.global.exception.CustomException;
 import seungyong.helpmebackend.global.exception.GlobalErrorCode;
 import seungyong.helpmebackend.project.application.port.in.command.UpdateProjectSettingsCommand;
+import seungyong.helpmebackend.project.application.port.in.command.CreateProjectCommand;
 import seungyong.helpmebackend.project.application.port.out.ProjectPortOut;
 import seungyong.helpmebackend.project.domain.entity.Project;
 import seungyong.helpmebackend.project.domain.entity.ProjectSettings;
+import seungyong.helpmebackend.project.domain.exception.ProjectErrorCode;
 import seungyong.helpmebackend.project.domain.type.ReflectionWeekday;
+import seungyong.helpmebackend.user.application.port.out.UserPortOut;
+import seungyong.helpmebackend.webhook.application.port.out.WebhookWorkPortOut;
+
+import static seungyong.helpmebackend.support.fixture.TestFixtures.user;
 
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
@@ -39,6 +46,9 @@ class ProjectServiceTest {
     @Mock private ProjectAccessResolver projectAccessResolver;
     @Mock private ProjectPortOut projectPortOut;
     @Mock private GithubRepositoryAccessPortIn githubRepositoryAccessPortIn;
+    @Mock private UserPortOut userPortOut;
+    @Mock private ProjectCreationWriter projectCreationWriter;
+    @Mock private WebhookWorkPortOut webhookWorkPortOut;
     @InjectMocks private ProjectService projectService;
 
     private Project project;
@@ -54,6 +64,63 @@ class ProjectServiceTest {
                 .settings(ProjectSettings.defaults())
                 .updatedAt(OffsetDateTime.of(2026, 8, 5, 12, 0, 0, 0, ZoneOffset.UTC))
                 .build();
+    }
+
+    @Nested
+    @DisplayName("프로젝트 생성")
+    class CreateProject {
+        @Test
+        @DisplayName("canonical GitHub 정보와 검증된 Branch로 pending 프로젝트를 생성")
+        void success() {
+            CreateProjectCommand command = new CreateProjectCommand(
+                    USER_ID, 9001L, 778899L, "main", List.of("main", "test"),
+                    false, "Asia/Seoul"
+            );
+            GithubRepository repository = new GithubRepository(
+                    778899L, "seungyong/helpme.md", true, "main",
+                    new GithubRepository.Permissions(false, true)
+            );
+            given(userPortOut.getById(USER_ID)).willReturn(user(USER_ID));
+            given(projectPortOut.countByUserId(USER_ID)).willReturn(0L);
+            given(projectPortOut.getByUserIdAndGithubRepoId(USER_ID, 778899L))
+                    .willReturn(java.util.Optional.empty());
+            given(githubRepositoryAccessPortIn.getRepository(USER_ID, 9001L, 778899L))
+                    .willReturn(repository);
+            given(projectCreationWriter.create(org.mockito.ArgumentMatchers.any(Project.class)))
+                    .willAnswer(invocation -> invocation.getArgument(0));
+
+            Project created = projectService.createProject(command);
+
+            assertThat(created.getRepoFullName()).isEqualTo("seungyong/helpme.md");
+            assertThat(created.isPrivateRepository()).isTrue();
+            assertThat(created.getSync().status().getDatabaseValue()).isEqualTo("pending");
+            verify(githubRepositoryAccessPortIn).validateRepositoryBranches(
+                    USER_ID, 9001L, 778899L, "seungyong/helpme.md", Set.of("main", "test")
+            );
+            verify(projectCreationWriter).create(org.mockito.ArgumentMatchers.any(Project.class));
+        }
+
+        @Test
+        @DisplayName("플랜 한도에 도달하면 GitHub API를 호출하지 않음")
+        void failure_planLimit() {
+            CreateProjectCommand command = new CreateProjectCommand(
+                    USER_ID, 9001L, 778899L, "main", List.of(), false, "Asia/Seoul"
+            );
+            given(userPortOut.getById(USER_ID)).willReturn(user(USER_ID));
+            given(projectPortOut.countByUserId(USER_ID)).willReturn(1L);
+
+            assertThatThrownBy(() -> projectService.createProject(command))
+                    .isInstanceOf(CustomException.class)
+                    .hasFieldOrPropertyWithValue(
+                            "errorCode", ProjectErrorCode.PROJECT_LIMIT_EXCEEDED
+                    );
+
+            verify(githubRepositoryAccessPortIn, never()).getRepository(
+                    org.mockito.ArgumentMatchers.anyLong(),
+                    org.mockito.ArgumentMatchers.anyLong(),
+                    org.mockito.ArgumentMatchers.anyLong()
+            );
+        }
     }
 
     @Nested

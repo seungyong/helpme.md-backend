@@ -104,6 +104,26 @@ public class GithubAppService implements GithubAppPortIn, GithubRepositoryAccess
     }
 
     @Override
+    public GithubRepository getRepository(
+            Long userId,
+            Long installationId,
+            Long githubRepositoryId
+    ) {
+        if (installationId == null || installationId < 1
+                || githubRepositoryId == null || githubRepositoryId < 1) {
+            throw new CustomException(GlobalErrorCode.BAD_REQUEST);
+        }
+        User user = getActiveUser(userId);
+        String accessToken = decryptToken(user);
+        return verifyGithubToken(
+                user,
+                () -> githubAppPortOut.getRepository(
+                        userId, accessToken, installationId, githubRepositoryId
+                )
+        );
+    }
+
+    @Override
     public void validateRepositoryBranches(
             Long userId,
             Long installationId,

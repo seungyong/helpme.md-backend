@@ -175,6 +175,40 @@ class GithubAppAdapterTest {
     }
 
     @Test
+    @DisplayName("선택한 Repository는 installation 전용 단건 API로 한 번만 조회")
+    void getRepository_success_singleInstallationRequest() {
+        List<String> requestedUrls = new ArrayList<>();
+        given(githubApiExecutor.executeGet(
+                anyLong(), anyString(), anyString(), any(), anyString()
+        )).willAnswer(invocation -> {
+            requestedUrls.add(invocation.getArgument(1));
+            GithubApiExecutor.JsonResponseParser<?> parser = invocation.getArgument(3);
+            return parser.parse(new ObjectMapper().readTree("""
+                    {
+                      "id":778899,
+                      "full_name":"seungyong/helpme.md",
+                      "private":true,
+                      "default_branch":"main",
+                      "permissions":{"admin":true,"push":true}
+                    }
+                    """));
+        });
+
+        var result = githubAppAdapter.getRepository(
+                USER_ID, TOKEN, INSTALLATION_ID, 778899L
+        );
+
+        assertThat(requestedUrls).containsExactly(
+                "https://api.github.com/user/installations/9001/repositories/778899"
+        );
+        assertThat(result.fullName()).isEqualTo("seungyong/helpme.md");
+        assertThat(result.permissions().push()).isTrue();
+        verify(githubApiExecutor, never()).executeGetJson(
+                anyLong(), anyString(), anyString(), anyString(), any(), anyString()
+        );
+    }
+
+    @Test
     @DisplayName("필요한 Branch가 다음 페이지에 있으면 GitHub Link를 따라 검증")
     void validateRepositoryBranches_success_pagination() {
         List<String> requestedUrls = new ArrayList<>();

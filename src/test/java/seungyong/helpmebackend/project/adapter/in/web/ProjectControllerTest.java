@@ -19,6 +19,7 @@ import seungyong.helpmebackend.global.filter.AuthenticationFilter;
 import seungyong.helpmebackend.global.infrastructure.cookie.CookieUtil;
 import seungyong.helpmebackend.project.application.port.in.ProjectPortIn;
 import seungyong.helpmebackend.project.application.port.in.command.UpdateProjectSettingsCommand;
+import seungyong.helpmebackend.project.application.port.in.command.CreateProjectCommand;
 import seungyong.helpmebackend.project.domain.entity.Project;
 import seungyong.helpmebackend.project.domain.entity.ProjectOperationError;
 import seungyong.helpmebackend.project.domain.entity.ProjectSettings;
@@ -41,6 +42,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -59,6 +61,40 @@ class ProjectControllerTest {
     @Autowired private MockMvc mockMvc;
     @MockitoBean private ProjectPortIn projectPortIn;
     @MockitoBean private CookieUtil cookieUtil;
+
+    @Test
+    @DisplayName("프로젝트 생성은 durable 작업이 등록된 202와 polling 위치를 반환")
+    void createProject_success() throws Exception {
+        given(projectPortIn.createProject(
+                org.mockito.ArgumentMatchers.any(CreateProjectCommand.class)
+        )).willReturn(Project.builder()
+                .id(PROJECT_ID)
+                .userId(USER_ID)
+                .repoFullName("seungyong/helpme.md")
+                .githubRepoId(778899L)
+                .githubInstallationId(9001L)
+                .defaultBranch("main")
+                .build());
+
+        mockMvc.perform(post("/api/v1/projects").with(user())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "githubInstallationId":9001,
+                                  "githubRepoId":778899,
+                                  "defaultBranch":"main",
+                                  "trackedBranches":["main"],
+                                  "trackAllBranches":false,
+                                  "timezone":"Asia/Seoul"
+                                }
+                                """))
+                .andExpect(status().isAccepted())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                        .header().string("Location", "/api/v1/projects/101"))
+                .andExpect(jsonPath("$.projectId").value(PROJECT_ID))
+                .andExpect(jsonPath("$.syncStatus").value("pending"))
+                .andExpect(jsonPath("$.webhookStatus").value("waiting"));
+    }
 
     @Nested
     @DisplayName("프로젝트 상세 조회")

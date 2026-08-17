@@ -236,4 +236,50 @@ public class ProjectJpaEntity {
         this.weeklyGenerationTime = settings.weekly().generationTime();
         this.webhookPayloadRetentionDays = settings.webhookPayloadRetentionDays();
     }
+
+    public void markSyncPending() {
+        this.syncStatus = ProjectSyncStatus.PENDING;
+        this.syncStartedAt = null;
+        this.syncCompletedAt = null;
+        this.syncErrorCode = null;
+        this.syncErrorMessage = null;
+    }
+
+    public void markSyncRunning(OffsetDateTime startedAt) {
+        this.syncStatus = ProjectSyncStatus.RUNNING;
+        this.syncStartedAt = startedAt;
+        this.syncCompletedAt = null;
+        this.syncErrorCode = null;
+        this.syncErrorMessage = null;
+    }
+
+    public void markSyncReady(OffsetDateTime completedAt) {
+        this.syncStatus = ProjectSyncStatus.READY;
+        this.syncCompletedAt = completedAt;
+        this.syncErrorCode = null;
+        this.syncErrorMessage = null;
+    }
+
+    public void markSyncFailed(String code, String message, OffsetDateTime failedAt) {
+        this.syncStatus = ProjectSyncStatus.FAILED;
+        this.syncCompletedAt = failedAt;
+        this.syncErrorCode = code;
+        this.syncErrorMessage = message;
+    }
+
+    public void markWebhookHealthy(String deliveryId, OffsetDateTime receivedAt) {
+        this.webhookStatus = ProjectWebhookStatus.HEALTHY;
+        this.webhookLastCheckedAt = receivedAt;
+        this.webhookLastReceivedAt = receivedAt;
+        this.webhookLastDeliveryId = deliveryId;
+        this.webhookErrorCode = null;
+        this.webhookErrorMessage = null;
+    }
+
+    public void markWebhookDegraded(String code, String message, OffsetDateTime checkedAt) {
+        this.webhookStatus = ProjectWebhookStatus.DEGRADED;
+        this.webhookLastCheckedAt = checkedAt;
+        this.webhookErrorCode = code;
+        this.webhookErrorMessage = message;
+    }
 }

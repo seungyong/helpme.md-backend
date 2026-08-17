@@ -136,4 +136,49 @@ public class WebhookDeliveryJpaEntity {
         this.receivedAt = receivedAt;
         this.updatedAt = updatedAt;
     }
+
+    public void claim(OffsetDateTime startedAt) {
+        this.status = WebhookDeliveryStatus.PROCESSING;
+        this.processingStartedAt = startedAt;
+        this.attempts++;
+        this.nextRetryAt = null;
+        this.errorCode = null;
+        this.errorMessage = null;
+    }
+
+    public void complete(boolean ignored, OffsetDateTime completedAt) {
+        this.status = ignored ? WebhookDeliveryStatus.IGNORED : WebhookDeliveryStatus.PROCESSED;
+        this.processedAt = completedAt;
+        this.processingStartedAt = null;
+        this.nextRetryAt = null;
+        this.errorCode = null;
+        this.errorMessage = null;
+    }
+
+    public void fail(String code, String message, OffsetDateTime retryAt) {
+        this.status = WebhookDeliveryStatus.FAILED;
+        this.processingStartedAt = null;
+        this.nextRetryAt = retryAt;
+        this.errorCode = code;
+        this.errorMessage = message;
+    }
+
+    public void reset() {
+        this.status = WebhookDeliveryStatus.RECEIVED;
+        this.attempts = 0;
+        this.nextRetryAt = null;
+        this.processingStartedAt = null;
+        this.processedAt = null;
+        this.errorCode = null;
+        this.errorMessage = null;
+    }
+
+    public void recordRelatedDelivery(String relatedDeliveryId) {
+        this.action = relatedDeliveryId;
+    }
+
+    public void purgePayload(OffsetDateTime purgedAt) {
+        this.sanitizedPayload = null;
+        this.payloadPurgedAt = purgedAt;
+    }
 }
