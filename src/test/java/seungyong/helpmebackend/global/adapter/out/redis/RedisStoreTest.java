@@ -254,6 +254,23 @@ public class RedisStoreTest {
             assertThat(result).isNull();
             Mockito.verify(redisTemplate.opsForValue(), Mockito.times(1)).get(key);
         }
+
+        @Test
+        @DisplayName("성공 - 객체를 원자적으로 조회하고 삭제")
+        void getObjectAndDelete_existingKey() {
+            String key = "oneTimeKey";
+            Mockito.when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+            Mockito.when(valueOperations.getAndDelete(key))
+                    .thenReturn("{\"id\":1,\"username\":\"test-name\"}");
+
+            JWTUser result = redisStore.getObjectAndDelete(
+                    key, new TypeReference<JWTUser>() { }
+            );
+
+            assertThat(result).isNotNull();
+            assertThat(result.getId()).isEqualTo(1L);
+            Mockito.verify(valueOperations).getAndDelete(key);
+        }
     }
 
     @Test

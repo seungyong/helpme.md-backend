@@ -15,5 +15,6 @@ public interface RedisPortOut {
     Optional<Duration> getTimeToLive(String key);
     String get(String key);
     <T> T getObject(String key, TypeReference<T> typeRef);
+    <T> T getObjectAndDelete(String key, TypeReference<T> typeRef);
     void delete(String key);
 }

@@ -55,6 +55,11 @@ public class RedisAdapter implements RedisPortOut {
     }
 
     @Override
+    public <T> T getObjectAndDelete(String key, TypeReference<T> typeRef) {
+        return redisStore.getObjectAndDelete(key, typeRef);
+    }
+
+    @Override
     public void delete(String key) {
         redisStore.delete(key);
     }

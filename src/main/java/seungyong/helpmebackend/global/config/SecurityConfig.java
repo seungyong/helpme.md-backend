@@ -48,7 +48,8 @@ public class SecurityConfig {
                                 "/api/v1/oauth2/login",
                                 "/api/v1/users/reissue",
                                 "/api/v1/users/logout",
-                                "/api/v1/webhooks/github"
+                                "/api/v1/webhooks/github",
+                                "/api/v1/integrations/notion/oauth/callback"
                         ).permitAll()
                         .requestMatchers(
                                 "/api/v1/sse/subscribe"

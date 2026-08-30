@@ -41,6 +41,7 @@ public class AuthenticationFilter extends OncePerRequestFilter {
                 || (path.equals("/api/v1/users/reissue") && method.equals("POST"))
                 || (path.equals("/api/v1/users/logout") && method.equals("POST"))
                 || (path.equals("/api/v1/webhooks/github") && method.equals("POST"))
+                || (path.equals("/api/v1/integrations/notion/oauth/callback") && method.equals("GET"))
                 || path.endsWith(".html")
                 || path.startsWith("/swagger-ui")
                 || path.startsWith("/v3/api-docs")

@@ -52,7 +52,9 @@ public class AuthService implements AuthPortIn {
     @Override
     public JWT signupOrLogin(String code, String state) {
         String stateKey = RedisKey.OAUTH2_STATE_KEY.getValue() + state;
-        if (!redisPortOut.exists(stateKey)) { throw new CustomException(GlobalErrorCode.INVALID_OAUTH2_STATE); }
+        if (!redisPortOut.exists(stateKey)) {
+            throw new CustomException(GlobalErrorCode.OAUTH_STATE_INVALID);
+        }
         redisPortOut.delete(stateKey);
 
         String accessToken = oAuth2PortOut.getAccessToken(code).accessToken();

@@ -12,6 +12,7 @@ import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 import seungyong.helpmebackend.global.infrastructure.cookie.CookieUtil;
 import seungyong.helpmebackend.user.domain.exception.UserErrorCode;
+import seungyong.helpmebackend.notion.domain.exception.NotionRateLimitException;
 
 @Slf4j
 @RestControllerAdvice
@@ -45,6 +46,16 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 e.getRetryAfterSeconds()
         );
 
+        ResponseEntity<ErrorResponse> errorResponse = ErrorResponse.toResponseEntity(e.getErrorCode());
+        return ResponseEntity
+                .status(errorResponse.getStatusCode())
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(e.getRetryAfterSeconds()))
+                .body(errorResponse.getBody());
+    }
+
+    @ExceptionHandler(value = { NotionRateLimitException.class })
+    protected ResponseEntity<ErrorResponse> handleNotionRateLimitException(NotionRateLimitException e) {
+        log.warn("Notion rate limit exceeded: retryAfterSeconds={}", e.getRetryAfterSeconds());
         ResponseEntity<ErrorResponse> errorResponse = ErrorResponse.toResponseEntity(e.getErrorCode());
         return ResponseEntity
                 .status(errorResponse.getStatusCode())

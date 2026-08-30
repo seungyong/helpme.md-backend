@@ -188,6 +188,23 @@ class RedisStore {
     }
 
     /**
+     * Redis 값을 원자적으로 가져오고 삭제합니다.
+     * OAuth state처럼 한 번만 소비해야 하는 값에 사용합니다.
+     */
+    public <T> T getObjectAndDelete(String key, TypeReference<T> typeRef) {
+        try {
+            String value = redisTemplate.opsForValue().getAndDelete(key);
+            if (value == null) {
+                return null;
+            }
+            return objectMapper.readValue(value, typeRef);
+        } catch (Exception e) {
+            log.error("Redis getObjectAndDelete error. key = {}", key, e);
+            throw new CustomException(GlobalErrorCode.REDIS_ERROR);
+        }
+    }
+
+    /**
      * Redis에 저장된 key를 삭제합니다.
      *
      * @param key 삭제할 key

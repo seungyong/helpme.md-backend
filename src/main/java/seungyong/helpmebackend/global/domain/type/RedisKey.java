@@ -12,6 +12,9 @@ public enum RedisKey {
     // oauth2:state:{state}
     OAUTH2_STATE_KEY("oauth2:state:"),
 
+    // notion:oauth:state:{state}
+    NOTION_OAUTH_STATE_KEY("notion:oauth:state:"),
+
     // sse:emitter:push:{userId}
     SSE_EMITTER_EVALUATION_DRAFT_KEY("sse:emitter:draft:"),
     SSE_EMITTER_GENERATION_KEY("sse:emitter:generation:"),

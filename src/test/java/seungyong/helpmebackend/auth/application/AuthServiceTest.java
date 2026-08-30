@@ -171,7 +171,7 @@ class AuthServiceTest {
 
             assertThatThrownBy(() -> authService.signupOrLogin(code, state))
                     .isInstanceOf(CustomException.class)
-                    .hasFieldOrPropertyWithValue("errorCode", GlobalErrorCode.INVALID_OAUTH2_STATE);
+                    .hasFieldOrPropertyWithValue("errorCode", GlobalErrorCode.OAUTH_STATE_INVALID);
         }
     }
 }

@@ -16,7 +16,11 @@ public enum GlobalErrorCode implements ErrorCode {
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "예기치 못한 서버 에러입니다.", "SERVER_500"),
     GITHUB_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "GitHub 서버 에러입니다.", "GITHUB_50001"),
     REDIS_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Redis 서버 에러입니다.", "REDIS_50002"),
-    INVALID_OAUTH2_STATE(HttpStatus.INTERNAL_SERVER_ERROR, "유효하지 않은 OAuth2 state 값입니다.", "OAUTH2_50003"),
+    OAUTH_STATE_INVALID(
+            HttpStatus.BAD_REQUEST,
+            "OAuth state가 누락되었거나 일치하지 않거나 만료되었습니다.",
+            "AUTH_40001"
+    ),
     GPT_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "GPT 서버 에러입니다.", "GPT_50004")
     ;
 

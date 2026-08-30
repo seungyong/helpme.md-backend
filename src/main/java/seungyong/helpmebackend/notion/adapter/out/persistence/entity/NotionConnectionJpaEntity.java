@@ -23,6 +23,7 @@ import seungyong.helpmebackend.notion.domain.type.NotionConnectionStatus;
 import seungyong.helpmebackend.user.adapter.out.persistence.entity.UserJpaEntity;
 
 import java.time.OffsetDateTime;
+import java.util.Objects;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -129,5 +130,70 @@ public class NotionConnectionJpaEntity {
         this.errorMessage = errorMessage;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
+    }
+
+    public boolean belongsToWorkspace(String targetWorkspaceId) {
+        return Objects.equals(workspaceId, targetWorkspaceId);
+    }
+
+    public void reconnect(NotionAuthorizationValues values) {
+        this.workspaceId = values.workspaceId();
+        this.workspaceName = values.workspaceName();
+        this.botId = values.botId();
+        this.ownerName = values.ownerName();
+        this.ownerEmail = values.ownerEmail();
+        this.encryptedAccessToken = values.encryptedAccessToken();
+        this.encryptedRefreshToken = values.encryptedRefreshToken();
+        this.tokenRefreshedAt = values.authorizedAt();
+        this.status = NotionConnectionStatus.CONNECTED;
+        this.lastVerifiedAt = values.authorizedAt();
+        this.errorCode = null;
+        this.errorMessage = null;
+    }
+
+    public void rotateTokens(
+            String changedAccessToken,
+            String changedRefreshToken,
+            OffsetDateTime refreshedAt
+    ) {
+        this.encryptedAccessToken = changedAccessToken;
+        this.encryptedRefreshToken = changedRefreshToken;
+        this.tokenRefreshedAt = refreshedAt;
+        this.status = NotionConnectionStatus.CONNECTED;
+        this.errorCode = null;
+        this.errorMessage = null;
+    }
+
+    public void recordVerification(OffsetDateTime verifiedAt) {
+        this.lastVerifiedAt = verifiedAt;
+        this.status = NotionConnectionStatus.CONNECTED;
+        this.errorCode = null;
+        this.errorMessage = null;
+    }
+
+    public void markReconnectRequired(
+            String changedErrorCode,
+            String changedErrorMessage
+    ) {
+        this.status = NotionConnectionStatus.RECONNECT_REQUIRED;
+        this.errorCode = changedErrorCode;
+        this.errorMessage = changedErrorMessage;
+    }
+
+    public void changeDefaultPage(String pageId, String pageTitle) {
+        this.defaultParentPageId = pageId;
+        this.defaultParentPageTitle = pageTitle;
+    }
+
+    public record NotionAuthorizationValues(
+            String workspaceId,
+            String workspaceName,
+            String botId,
+            String ownerName,
+            String ownerEmail,
+            String encryptedAccessToken,
+            String encryptedRefreshToken,
+            OffsetDateTime authorizedAt
+    ) {
     }
 }
