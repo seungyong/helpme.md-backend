@@ -9,9 +9,14 @@ import seungyong.helpmebackend.devlog.adapter.out.persistence.entity.DevlogJpaEn
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.Optional;
+import java.util.List;
 
 interface DevlogJpaRepository extends JpaRepository<DevlogJpaEntity, Long> {
     Optional<DevlogJpaEntity> findByProject_IdAndLogDate(Long projectId, LocalDate logDate);
+
+    List<DevlogJpaEntity> findAllByProject_IdAndLogDateBetweenOrderByLogDateAsc(
+            Long projectId, LocalDate from, LocalDate to
+    );
 
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("""

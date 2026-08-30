@@ -21,5 +21,7 @@ interface ProjectJpaRepository extends JpaRepository<ProjectJpaEntity, Long> {
             ProjectStatus status
     );
 
+    List<ProjectJpaEntity> findAllByStatus(ProjectStatus status);
+
     List<ProjectJpaEntity> findAllByUser_IdAndGithubRepoIdIn(Long userId, Collection<Long> githubRepoIds);
 }

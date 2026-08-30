@@ -63,4 +63,23 @@ interface ActivityJpaRepository extends JpaRepository<ActivityJpaEntity, Long> {
             @Param("from") OffsetDateTime from,
             @Param("to") OffsetDateTime to
     );
+
+    @Query("""
+            select a from Activity a
+            where a.project.id = :projectId
+              and a.occurredAt >= :from and a.occurredAt < :to
+            order by a.occurredAt desc, a.id desc
+            """)
+    List<ActivityJpaEntity> findEvidence(
+            @Param("projectId") Long projectId,
+            @Param("from") OffsetDateTime from,
+            @Param("to") OffsetDateTime to,
+            Pageable pageable
+    );
+
+    long countByProject_IdAndOccurredAtGreaterThanEqualAndOccurredAtLessThan(
+            Long projectId,
+            OffsetDateTime from,
+            OffsetDateTime to
+    );
 }

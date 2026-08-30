@@ -14,6 +14,7 @@ import seungyong.helpmebackend.project.adapter.out.persistence.entity.ProjectJpa
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.Optional;
+import java.util.List;
 
 @Repository
 @RequiredArgsConstructor
@@ -25,6 +26,18 @@ public class DevlogAdapter implements DevlogPortOut {
     public Optional<Devlog> getByProjectIdAndLogDate(Long projectId, LocalDate logDate) {
         return devlogJpaRepository.findByProject_IdAndLogDate(projectId, logDate)
                 .map(this::toDomain);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Devlog> getByProjectIdAndLogDateBetween(
+            Long projectId, LocalDate from, LocalDate to
+    ) {
+        return devlogJpaRepository
+                .findAllByProject_IdAndLogDateBetweenOrderByLogDateAsc(projectId, from, to)
+                .stream()
+                .map(this::toDomain)
+                .toList();
     }
 
     @Override

@@ -24,6 +24,8 @@ public interface ProjectPortOut {
 
     List<Project> getActiveByGithubRepository(Long installationId, Long githubRepoId);
 
+    List<Project> getAllActive();
+
     Project markSyncPending(Long projectId);
 
     Project markSyncRunning(Long projectId, OffsetDateTime startedAt);

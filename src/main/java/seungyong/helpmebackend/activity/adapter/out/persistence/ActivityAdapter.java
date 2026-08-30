@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import seungyong.helpmebackend.activity.adapter.out.persistence.entity.ActivityJpaEntity;
 import seungyong.helpmebackend.activity.application.port.out.ActivityPortOut;
 import seungyong.helpmebackend.activity.domain.entity.Activity;
+import seungyong.helpmebackend.activity.domain.entity.ActivityEvidenceBatch;
 import seungyong.helpmebackend.activity.domain.entity.ActivityPage;
 import seungyong.helpmebackend.activity.domain.type.ActivityType;
 import seungyong.helpmebackend.project.adapter.out.persistence.entity.ProjectJpaEntity;
@@ -19,6 +20,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.LinkedHashMap;
@@ -125,6 +127,38 @@ public class ActivityAdapter implements ActivityPortOut {
                 number(summaryValues, 3)
         );
         return new ActivityPage(items, summary, nextCursor, hasNext, filtersApplied);
+    }
+
+    /**
+     * 해당 프로젝트의 활동을 조회하고, 총 개수를 포함한 ActivityEvidenceBatch를 반환합니다.
+     * 활동은 발생 시간(occurredAt)을 기준으로 내림차순으로 정렬되며, 지정된 기간(from ~ to) 내의 활동들을 제한합니다.
+     *
+     * @param projectId 프로젝트 ID
+     * @param from      발생 시간의 시작 날짜
+     * @param to        발생 시간의 종료 날짜
+     * @param limit     조회할 활동 증거의 최대 개수
+     * @return 조회된 활동 증거와 총 개수를 포함한 {@link ActivityEvidenceBatch}
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public ActivityEvidenceBatch findEvidence(
+            Long projectId,
+            OffsetDateTime from,
+            OffsetDateTime to,
+            int limit
+    ) {
+        List<ActivityJpaEntity> entities = new ArrayList<>(
+                activityJpaRepository.findEvidence(
+                        projectId, from, to, PageRequest.of(0, limit)
+                )
+        );
+        Collections.reverse(entities);
+        List<Activity> items = entities.stream().map(this::toDomain).toList();
+        long totalCount = activityJpaRepository
+                .countByProject_IdAndOccurredAtGreaterThanEqualAndOccurredAtLessThan(
+                        projectId, from, to
+                );
+        return new ActivityEvidenceBatch(items, totalCount);
     }
 
     private ActivityJpaEntity toJpaEntity(Activity activity) {

@@ -88,6 +88,15 @@ public class ProjectAdapter implements ProjectPortOut {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<Project> getAllActive() {
+        return projectJpaRepository.findAllByStatus(ProjectStatus.ACTIVE)
+                .stream()
+                .map(ProjectPersistenceMapper.INSTANCE::toDomainEntity)
+                .toList();
+    }
+
+    @Override
     @Transactional
     public Project markSyncPending(Long projectId) {
         ProjectJpaEntity entity = getEntity(projectId);

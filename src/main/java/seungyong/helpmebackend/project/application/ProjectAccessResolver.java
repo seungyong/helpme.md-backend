@@ -12,6 +12,13 @@ import seungyong.helpmebackend.project.domain.exception.ProjectErrorCode;
 public class ProjectAccessResolver {
     private final ProjectPortOut projectPortOut;
 
+    /**
+     * 프로젝트 접근 권한을 확인하고, 프로젝트를 반환합니다.
+     * @param userId 사용자 ID
+     * @param projectId 프로젝트 ID
+     * @return 프로젝트 엔티티
+     * @throws CustomException 프로젝트가 존재하지 않거나, 접근 권한이 없거나, 비활성화된 경우 발생
+     */
     public Project resolveActive(Long userId, Long projectId) {
         Project project = projectPortOut.getById(projectId)
                 .orElseThrow(() -> new CustomException(ProjectErrorCode.PROJECT_NOT_FOUND));

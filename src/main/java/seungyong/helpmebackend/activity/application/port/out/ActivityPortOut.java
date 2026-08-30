@@ -1,6 +1,7 @@
 package seungyong.helpmebackend.activity.application.port.out;
 
 import seungyong.helpmebackend.activity.domain.entity.Activity;
+import seungyong.helpmebackend.activity.domain.entity.ActivityEvidenceBatch;
 import seungyong.helpmebackend.activity.domain.entity.ActivityPage;
 import seungyong.helpmebackend.activity.domain.type.ActivityType;
 
@@ -23,5 +24,12 @@ public interface ActivityPortOut {
             Long cursorId,
             int size,
             boolean filtersApplied
+    );
+
+    ActivityEvidenceBatch findEvidence(
+            Long projectId,
+            OffsetDateTime from,
+            OffsetDateTime to,
+            int limit
     );
 }

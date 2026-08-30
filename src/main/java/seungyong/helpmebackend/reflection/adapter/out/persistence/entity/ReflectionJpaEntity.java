@@ -81,9 +81,11 @@ public class ReflectionJpaEntity {
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "source_snapshot", nullable = false)
+    // AI 생성에 사용한 Activity·Devlog·일일 회고 근거의 JSON snapshot
     private JsonNode sourceSnapshot;
 
     @Column(name = "source_hash", columnDefinition = "TEXT")
+    // snapshot 주요 내용을 정렬해 계산한 SHA-256 지문, 동일 근거 비교용
     private String sourceHash;
 
     @Column(name = "generation_attempts", nullable = false)
@@ -160,8 +162,76 @@ public class ReflectionJpaEntity {
         this.updatedAt = updatedAt;
     }
 
+    public void saveDocument(
+            String changedTitle,
+            JsonNode changedContent,
+            OffsetDateTime changedAt
+    ) {
+        title = changedTitle;
+        content = changedContent;
+        status = ReflectionStatus.SAVED;
+        savedAt = changedAt;
+        version++;
+        errorCode = null;
+        errorMessage = null;
+    }
+
+    public void queue() {
+        status = ReflectionStatus.QUEUED;
+        generationAttempts = 0;
+        generationStartedAt = null;
+        errorCode = null;
+        errorMessage = null;
+    }
+
+    public void requeueStuck() {
+        status = ReflectionStatus.QUEUED;
+        generationStartedAt = null;
+        errorCode = null;
+        errorMessage = null;
+    }
+
+    public void claim(OffsetDateTime startedAt) {
+        status = ReflectionStatus.GENERATING;
+        generationAttempts++;
+        generationStartedAt = startedAt;
+        errorCode = null;
+        errorMessage = null;
+    }
+
+    public void completeGeneration(
+            String generatedTitle,
+            JsonNode generatedContent,
+            SourceQuality generatedQuality,
+            JsonNode generatedSnapshot,
+            String generatedSourceHash,
+            OffsetDateTime completedAt
+    ) {
+        // 재생성 실패 시 기존 결과를 보존하기 위해 AI 성공 시점에만 content와 snapshot/hash 교체
+        title = generatedTitle;
+        content = generatedContent;
+        sourceQuality = generatedQuality;
+        sourceSnapshot = generatedSnapshot;
+        sourceHash = generatedSourceHash;
+        status = ReflectionStatus.DRAFT;
+        generationStartedAt = null;
+        generatedAt = completedAt;
+        savedAt = null;
+        errorCode = null;
+        errorMessage = null;
+        version++;
+    }
+
+    public void failGeneration(String code, String message) {
+        status = ReflectionStatus.FAILED;
+        generationStartedAt = null;
+        errorCode = code;
+        errorMessage = message;
+    }
+
     private static ObjectNode emptyDocument() {
         ObjectNode document = JsonNodeFactory.instance.objectNode();
+        document.put("schemaVersion", 1);
         document.set("sections", JsonNodeFactory.instance.arrayNode());
         return document;
     }
