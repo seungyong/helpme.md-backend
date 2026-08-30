@@ -14,6 +14,7 @@ import seungyong.helpmebackend.support.repository.JpaTest;
 import seungyong.helpmebackend.user.application.port.out.UserPortOut;
 import seungyong.helpmebackend.user.domain.entity.User;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -176,6 +177,88 @@ public class SectionAdapterTest {
         Optional<Integer> lastOrderIdx = sectionPortOut.lastOrderIdxByUserIdAndRepoFullName(savedUser.getId(), savedProject.getRepoFullName());
         assertThat(lastOrderIdx).isNotEmpty()
                 .hasValue(2);
+    }
+
+    @Test
+    @DisplayName("컴포넌트 중간 삽입은 뒤 컴포넌트의 순서와 version을 함께 증가")
+    void increaseOrderIdxFrom_versioned() {
+        User savedUser = saveUser();
+        Project savedProject = saveProject(savedUser.getId());
+        sectionPortOut.saveAll(List.of(
+                section(null, savedProject.getId(), 0),
+                section(null, savedProject.getId(), 1)
+        ));
+        OffsetDateTime now = OffsetDateTime.parse("2026-08-30T10:00:00Z");
+
+        assertThat(sectionPortOut.lockProject(savedProject.getId())).isTrue();
+        sectionPortOut.increaseOrderIdxFrom(
+                savedUser.getId(), savedProject.getRepoFullName(), 1, now
+        );
+        sectionPortOut.save(new Section(
+                null, savedProject.getId(), "삽입", "본문", 1
+        ));
+
+        List<Section> components = sectionPortOut
+                .getSectionsByUserIdAndRepoFullName(
+                        savedUser.getId(), savedProject.getRepoFullName()
+                );
+        assertThat(components).extracting(Section::getOrderIdx)
+                .containsExactly(0, 1, 2);
+        assertThat(components.get(2).getVersion()).isEqualTo(1);
+        assertThat(components.get(2).getUpdatedAt()).isEqualTo(now);
+    }
+
+    @Test
+    @DisplayName("컴포넌트 이동은 대상 version 조건으로 갱신하고 사이 항목을 재정렬")
+    void updateIfVersionMatches_reorder() {
+        User savedUser = saveUser();
+        Project savedProject = saveProject(savedUser.getId());
+        List<Section> saved = sectionPortOut.saveAll(List.of(
+                section(null, savedProject.getId(), 0),
+                section(null, savedProject.getId(), 1),
+                section(null, savedProject.getId(), 2)
+        ));
+        Section target = saved.get(2);
+        OffsetDateTime now = OffsetDateTime.parse("2026-08-30T10:10:00Z");
+
+        assertThat(sectionPortOut.lockProject(savedProject.getId())).isTrue();
+        sectionPortOut.shiftOrderIdxForMove(
+                savedUser.getId(), savedProject.getRepoFullName(),
+                target.getId(), 2, 0, now
+        );
+        Optional<Section> updated = sectionPortOut.updateIfVersionMatches(
+                target.getId(), savedUser.getId(), savedProject.getRepoFullName(),
+                "이동", "수정 본문", 0, 0, now
+        );
+
+        assertThat(updated).isPresent();
+        assertThat(updated.orElseThrow().getVersion()).isEqualTo(1);
+        List<Section> components = sectionPortOut
+                .getSectionsByUserIdAndRepoFullName(
+                        savedUser.getId(), savedProject.getRepoFullName()
+                );
+        assertThat(components).extracting(Section::getOrderIdx)
+                .containsExactly(0, 1, 2);
+        assertThat(components.get(0).getId()).isEqualTo(target.getId());
+        assertThat(components).extracting(Section::getVersion)
+                .containsExactly(1, 1, 1);
+    }
+
+    @Test
+    @DisplayName("오래된 version으로는 컴포넌트를 수정하거나 삭제할 수 없음")
+    void conditionalMutation_versionConflict() {
+        User savedUser = saveUser();
+        Project savedProject = saveProject(savedUser.getId());
+        Section saved = sectionPortOut.save(section(savedProject.getId()));
+        OffsetDateTime now = OffsetDateTime.parse("2026-08-30T10:20:00Z");
+
+        assertThat(sectionPortOut.updateIfVersionMatches(
+                saved.getId(), savedUser.getId(), savedProject.getRepoFullName(),
+                "오래된 수정", "본문", 1, 3, now
+        )).isEmpty();
+        assertThat(sectionPortOut.deleteIfVersionMatches(
+                saved.getId(), savedUser.getId(), savedProject.getRepoFullName(), 3
+        )).isFalse();
     }
 
     private User saveUser() {

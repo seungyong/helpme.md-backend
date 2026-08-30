@@ -1,19 +1,51 @@
 package seungyong.helpmebackend.section.domain.entity;
 
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
 @Getter
-@AllArgsConstructor
 public class Section {
     private Long id;
     private Long projectId;
     private String title;
     private String content;
     private Integer orderIdx;
+    private Integer version;
+    private OffsetDateTime createdAt;
+    private OffsetDateTime updatedAt;
+
+    public Section(
+            Long id,
+            Long projectId,
+            String title,
+            String content,
+            Integer orderIdx
+    ) {
+        this(id, projectId, title, content, orderIdx, 0, null, null);
+    }
+
+    public Section(
+            Long id,
+            Long projectId,
+            String title,
+            String content,
+            Integer orderIdx,
+            Integer version,
+            OffsetDateTime createdAt,
+            OffsetDateTime updatedAt
+    ) {
+        this.id = id;
+        this.projectId = projectId;
+        this.title = title;
+        this.content = content;
+        this.orderIdx = orderIdx;
+        this.version = version == null ? 0 : version;
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
+    }
 
     public enum SplitMode {
         WHOLE,

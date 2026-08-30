@@ -22,6 +22,9 @@ public enum RedisKey {
     // github-auth:{userId}:{owner}/{name}
     GITHUB_AUTH_KEY("github-auth:"),
 
+    // github:component-auth:{userId}:{owner}/{name}
+    GITHUB_COMPONENT_AUTH_KEY("github:component-auth:"),
+
     // github:rate-limit:{userId}
     GITHUB_RATE_LIMIT_KEY("github:rate-limit:")
     ;

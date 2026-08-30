@@ -1,12 +1,17 @@
 package seungyong.helpmebackend.section.adapter.out.persistence;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
+import seungyong.helpmebackend.project.adapter.out.persistence.entity.ProjectJpaEntity;
 import seungyong.helpmebackend.section.adapter.out.persistence.entity.SectionJpaEntity;
+import seungyong.helpmebackend.section.adapter.out.persistence.mapper.SectionPersistenceMapper;
 import seungyong.helpmebackend.section.application.port.out.SectionPortOut;
-import seungyong.helpmebackend.section.application.port.out.SectionPortOutMapper;
 import seungyong.helpmebackend.section.domain.entity.Section;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -14,28 +19,31 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class SectionAdapter implements SectionPortOut {
     private final SectionJpaRepository sectionJpaRepository;
+    private final EntityManager entityManager;
 
     @Override
     public Section save(Section section) {
-        SectionJpaEntity savedEntity = sectionJpaRepository.save(SectionPortOutMapper.INSTANCE.toEntity(section));
-        return SectionPortOutMapper.INSTANCE.toDomain(savedEntity);
+        SectionJpaEntity savedEntity = sectionJpaRepository.save(
+                SectionPersistenceMapper.toEntity(section)
+        );
+        return SectionPersistenceMapper.toDomain(savedEntity);
     }
 
     @Override
     public List<Section> saveAll(List<Section> sections) {
         List<SectionJpaEntity> sectionJpaEntities = sections.stream()
-                .map(SectionPortOutMapper.INSTANCE::toEntity)
+                .map(SectionPersistenceMapper::toEntity)
                 .toList();
 
         return sectionJpaRepository.saveAll(sectionJpaEntities)
                 .stream()
-                .map(SectionPortOutMapper.INSTANCE::toDomain)
+                .map(SectionPersistenceMapper::toDomain)
                 .toList();
     }
 
     @Override
     public void delete(Section section) {
-        sectionJpaRepository.delete(SectionPortOutMapper.INSTANCE.toEntity(section));
+        sectionJpaRepository.delete(SectionPersistenceMapper.toEntity(section));
     }
 
     /**
@@ -70,14 +78,27 @@ public class SectionAdapter implements SectionPortOut {
     @Override
     public Optional<Section> getByIdAndUserId(Long sectionId, Long userId) {
         return sectionJpaRepository.findByIdAndProject_User_Id(sectionId, userId)
-                .map(SectionPortOutMapper.INSTANCE::toDomain);
+                .map(SectionPersistenceMapper::toDomain);
+    }
+
+    @Override
+    public Optional<Section> getByIdAndUserIdAndRepoFullName(
+            Long sectionId,
+            Long userId,
+            String repoFullName
+    ) {
+        return sectionJpaRepository
+                .findByIdAndProject_User_IdAndProject_RepoFullName(
+                        sectionId, userId, repoFullName
+                )
+                .map(SectionPersistenceMapper::toDomain);
     }
 
     @Override
     public List<Section> getSectionsByUserIdAndRepoFullName(Long userId, String repoFullName) {
         return sectionJpaRepository.findAllByUserIdAndRepoFullName(userId, repoFullName)
                 .stream()
-                .map(SectionPortOutMapper.INSTANCE::toDomain)
+                .map(SectionPersistenceMapper::toDomain)
                 .toList();
     }
 
@@ -85,5 +106,92 @@ public class SectionAdapter implements SectionPortOut {
     public Optional<Integer> lastOrderIdxByUserIdAndRepoFullName(Long userId, String repoFullName) {
         return sectionJpaRepository.findLastOrderIdxByUserIdAndRepoFullName(userId, repoFullName)
                 .map(SectionJpaEntity::getOrderIdx);
+    }
+
+    @Override
+    public boolean lockProject(Long projectId) {
+        return entityManager.find(
+                ProjectJpaEntity.class,
+                projectId,
+                LockModeType.PESSIMISTIC_WRITE
+        ) != null;
+    }
+
+    @Override
+    public void increaseOrderIdxFrom(
+            Long userId,
+            String repoFullName,
+            Integer targetIdx,
+            OffsetDateTime updatedAt
+    ) {
+        sectionJpaRepository.increaseOrderIdxFrom(
+                userId, repoFullName, targetIdx, updatedAt
+        );
+    }
+
+    @Override
+    public void shiftOrderIdxForMove(
+            Long userId,
+            String repoFullName,
+            Long sectionId,
+            Integer currentIdx,
+            Integer targetIdx,
+            OffsetDateTime updatedAt
+    ) {
+        if (currentIdx < targetIdx) {
+            sectionJpaRepository.shiftOrderIdxDownForMove(
+                    userId, repoFullName, sectionId, currentIdx, targetIdx, updatedAt
+            );
+        } else if (currentIdx > targetIdx) {
+            sectionJpaRepository.shiftOrderIdxUpForMove(
+                    userId, repoFullName, sectionId, currentIdx, targetIdx, updatedAt
+            );
+        }
+    }
+
+    @Override
+    @Transactional
+    public Optional<Section> updateIfVersionMatches(
+            Long sectionId,
+            Long userId,
+            String repoFullName,
+            String title,
+            String content,
+            Integer orderIdx,
+            Integer expectedVersion,
+            OffsetDateTime updatedAt
+    ) {
+        int changed = sectionJpaRepository.updateIfVersionMatches(
+                sectionId, userId, repoFullName, title, content, orderIdx,
+                expectedVersion, updatedAt
+        );
+        if (changed == 0) {
+            return Optional.empty();
+        }
+        return getByIdAndUserIdAndRepoFullName(sectionId, userId, repoFullName);
+    }
+
+    @Override
+    public boolean deleteIfVersionMatches(
+            Long sectionId,
+            Long userId,
+            String repoFullName,
+            Integer expectedVersion
+    ) {
+        return sectionJpaRepository.deleteIfVersionMatches(
+                sectionId, userId, repoFullName, expectedVersion
+        ) == 1;
+    }
+
+    @Override
+    public void decreaseOrderIdxAfterVersioned(
+            Long userId,
+            String repoFullName,
+            Integer targetIdx,
+            OffsetDateTime updatedAt
+    ) {
+        sectionJpaRepository.decreaseOrderIdxAfterVersioned(
+                userId, repoFullName, targetIdx, updatedAt
+        );
     }
 }
