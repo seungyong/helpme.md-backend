@@ -116,6 +116,38 @@ class ProjectIntegrationTest {
                 .andExpect(jsonPath("$.errorCode").value("PROJECT_40903"));
     }
 
+    @Test
+    @DisplayName("빈 프로젝트의 목록·개요를 HTTP부터 실제 DB 집계까지 조회")
+    void getProjectQueries_emptyProject() throws Exception {
+        User user = saveUser("aggregate-user", 2001L);
+        Project project = saveProject(
+                user.getId(), "aggregate-user/empty-project", ProjectStatus.ACTIVE
+        );
+
+        mockMvc.perform(get("/api/v1/projects").cookie(cookies(user)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.plan.code").value("free"))
+                .andExpect(jsonPath("$.plan.limit").value(1))
+                .andExpect(jsonPath("$.plan.used").value(1))
+                .andExpect(jsonPath("$.items[0].id").value(project.getId()))
+                .andExpect(jsonPath("$.items[0].metrics.eventCount7d").value(0))
+                .andExpect(jsonPath("$.items[0].metrics.completedReflectionCount").value(0))
+                .andExpect(jsonPath("$.items[0].metrics.lastActivityTitle").isEmpty())
+                .andExpect(jsonPath("$.page.hasNext").value(false));
+
+        mockMvc.perform(get(
+                        "/api/v1/projects/{projectId}/overview", project.getId()
+                ).cookie(cookies(user)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.healthStatus").value("syncing"))
+                .andExpect(jsonPath("$.metrics.events7d.current").value(0))
+                .andExpect(jsonPath("$.today.activityCount").value(0))
+                .andExpect(jsonPath("$.today.devlog.exists").value(false))
+                .andExpect(jsonPath("$.today.dailyReflection").isEmpty())
+                .andExpect(jsonPath("$.recentActivities").isEmpty())
+                .andExpect(jsonPath("$.currentWeek.completedDailyCount").value(0));
+    }
+
     private User saveUser(String name, long githubId) {
         return userPortOut.save(new User(
                 null,

@@ -17,7 +17,27 @@ public record UserPlan(
         }
     }
 
+    /**
+     * 무료 플랜을 생성합니다.
+     *
+     * @return 무료 플랜
+     */
     public static UserPlan free() {
         return new UserPlan(PlanCode.FREE, (short) 1, null);
+    }
+
+    /**
+     * 현재 시각 기준으로 유효한 프로젝트 한도를 반환합니다.
+     * 만약 플랜이 FREE이거나, 만료된 플랜이라면 1을 반환합니다.
+     *
+     * @param now 기준 시각
+     * @return 유효한 프로젝트 한도
+     */
+    public short effectiveProjectLimit(OffsetDateTime now) {
+        Objects.requireNonNull(now, "기준 시각은 null일 수 없습니다.");
+        if (code == PlanCode.FREE || expiresAt != null && !expiresAt.isAfter(now)) {
+            return 1;
+        }
+        return projectLimit;
     }
 }
