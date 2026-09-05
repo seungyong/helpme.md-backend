@@ -152,8 +152,69 @@ public class PortfolioJpaEntity {
         this.updatedAt = updatedAt;
     }
 
+    public void saveDocument(
+            String changedTitle,
+            PortfolioTone changedTone,
+            JsonNode changedContent,
+            OffsetDateTime changedAt
+    ) {
+        title = changedTitle;
+        tone = changedTone;
+        content = changedContent;
+        status = PortfolioStatus.SAVED;
+        savedAt = changedAt;
+        version++;
+        errorCode = null;
+        errorMessage = null;
+    }
+
+    public void queue(JsonNode changedSnapshot, String changedSourceHash) {
+        sourceSnapshot = changedSnapshot;
+        sourceHash = changedSourceHash;
+        status = PortfolioStatus.QUEUED;
+        generationAttempts = 0;
+        generationStartedAt = null;
+        errorCode = null;
+        errorMessage = null;
+    }
+
+    public void requeueStuck() {
+        status = PortfolioStatus.QUEUED;
+        generationStartedAt = null;
+        errorCode = null;
+        errorMessage = null;
+    }
+
+    public void claim(OffsetDateTime startedAt) {
+        status = PortfolioStatus.GENERATING;
+        generationAttempts++;
+        generationStartedAt = startedAt;
+        errorCode = null;
+        errorMessage = null;
+    }
+
+    public void completeGeneration(JsonNode generatedContent, OffsetDateTime completedAt) {
+        // 재생성 실패 시 이전 문서를 보존하도록 AI 성공 시점에만 content와 version 교체
+        content = generatedContent;
+        status = PortfolioStatus.DRAFT;
+        generationStartedAt = null;
+        generatedAt = completedAt;
+        savedAt = null;
+        errorCode = null;
+        errorMessage = null;
+        version++;
+    }
+
+    public void failGeneration(String code, String message) {
+        status = PortfolioStatus.FAILED;
+        generationStartedAt = null;
+        errorCode = code;
+        errorMessage = message;
+    }
+
     private static ObjectNode emptyDocument() {
         ObjectNode document = JsonNodeFactory.instance.objectNode();
+        document.put("schemaVersion", 1);
         document.set("sections", JsonNodeFactory.instance.arrayNode());
         return document;
     }
