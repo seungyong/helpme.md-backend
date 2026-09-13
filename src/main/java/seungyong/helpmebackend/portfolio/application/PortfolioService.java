@@ -6,6 +6,8 @@ import org.springframework.util.StringUtils;
 import seungyong.helpmebackend.global.exception.CustomException;
 import seungyong.helpmebackend.global.exception.DocumentErrorCode;
 import seungyong.helpmebackend.global.exception.GlobalErrorCode;
+import seungyong.helpmebackend.global.application.pagination.CursorPage;
+import seungyong.helpmebackend.global.application.pagination.CursorPagination;
 import seungyong.helpmebackend.portfolio.application.port.in.PortfolioPortIn;
 import seungyong.helpmebackend.portfolio.application.port.in.command.CreatePortfolioCommand;
 import seungyong.helpmebackend.portfolio.application.port.in.command.GetPortfolioSourcesQuery;
@@ -23,12 +25,9 @@ import seungyong.helpmebackend.portfolio.domain.type.PortfolioTone;
 import seungyong.helpmebackend.project.application.ProjectAccessResolver;
 import seungyong.helpmebackend.project.domain.entity.Project;
 
-import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
-import java.util.ArrayList;
-import java.util.Base64;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -37,8 +36,6 @@ import java.util.Set;
 @Service
 @RequiredArgsConstructor
 public class PortfolioService implements PortfolioPortIn {
-    private static final int DEFAULT_SIZE = 20;
-    private static final int MAX_SIZE = 100;
     private static final int RETRY_AFTER_SECONDS = 2;
 
     private final ProjectAccessResolver projectAccessResolver;
@@ -88,19 +85,20 @@ public class PortfolioService implements PortfolioPortIn {
 
         Project project = projectAccessResolver.resolveActive(query.userId(), query.projectId());
         PortfolioStatus status = parseStatus(query.status());
-        int size = normalizeSize(query.size());
-
-        PortfolioCursor cursor = decodeCursor(query.cursor());
+        CursorPagination<OffsetDateTime> pagination =
+                CursorPagination.offsetDateTime(query.cursor(), query.size());
         List<Portfolio> found = portfolioPortOut.findPage(
-                project.getId(), status, cursor.updatedAt(), cursor.id(), size + 1
+                project.getId(), status, pagination
+        );
+        CursorPage<Portfolio> page = pagination.page(
+                found, Portfolio::updatedAt, Portfolio::id
         );
 
-        boolean hasNext = found.size() > size;
-        List<Portfolio> page = hasNext ? new ArrayList<>(found.subList(0, size)) : found;
-
         Map<Long, PortfolioLastExportSummary> latestExports =
-                portfolioPortOut.findLatestExportSummaries(page.stream().map(Portfolio::id).toList());
-        List<PortfolioPage.Item> items = page.stream().map(portfolio -> new PortfolioPage.Item(
+                portfolioPortOut.findLatestExportSummaries(
+                        page.items().stream().map(Portfolio::id).toList()
+                );
+        List<PortfolioPage.Item> items = page.items().stream().map(portfolio -> new PortfolioPage.Item(
                 portfolio.id(), portfolio.title(), portfolio.periodStart(), portfolio.periodEnd(),
                 portfolio.tone(), portfolio.status(), portfolio.content().sections().size(),
                 portfolio.sourceSnapshot().reflections().size(),
@@ -111,8 +109,8 @@ public class PortfolioService implements PortfolioPortIn {
         return new PortfolioPage(
                 items,
                 PortfolioEligibility.from(sourcePortOut.countSavedReflections(project.getId())),
-                hasNext ? encodeCursor(page.get(page.size() - 1)) : null,
-                hasNext
+                page.nextCursor(),
+                page.hasNext()
         );
     }
 
@@ -329,28 +327,6 @@ public class PortfolioService implements PortfolioPortIn {
         } catch (RuntimeException exception) {
             throw new CustomException(GlobalErrorCode.BAD_REQUEST);
         }
-    }
-
-    private int normalizeSize(Integer size) {
-        int value = size == null ? DEFAULT_SIZE : size;
-        if (value < 1 || value > MAX_SIZE) throw new CustomException(GlobalErrorCode.BAD_REQUEST);
-        return value;
-    }
-
-    private PortfolioCursor decodeCursor(String cursor) {
-        if (!StringUtils.hasText(cursor)) return new PortfolioCursor(null, null);
-        try {
-            String raw = new String(Base64.getUrlDecoder().decode(cursor), StandardCharsets.UTF_8);
-            String[] parts = raw.split("\\|", 2);
-            return new PortfolioCursor(OffsetDateTime.parse(parts[0]), Long.parseLong(parts[1]));
-        } catch (RuntimeException exception) {
-            throw new CustomException(GlobalErrorCode.BAD_REQUEST);
-        }
-    }
-
-    private String encodeCursor(Portfolio portfolio) {
-        String raw = portfolio.updatedAt() + "|" + portfolio.id();
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(raw.getBytes(StandardCharsets.UTF_8));
     }
 
     private String apiActivityType(PortfolioSourceData.ActivityData activity) {

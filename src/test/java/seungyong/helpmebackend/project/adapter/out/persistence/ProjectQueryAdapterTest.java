@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import seungyong.helpmebackend.activity.adapter.out.persistence.entity.ActivityJpaEntity;
 import seungyong.helpmebackend.activity.domain.type.ActivityType;
+import seungyong.helpmebackend.global.application.pagination.CursorPagination;
 import seungyong.helpmebackend.project.adapter.out.persistence.entity.ProjectJpaEntity;
 import seungyong.helpmebackend.project.application.port.out.ProjectPortOut;
 import seungyong.helpmebackend.project.application.port.out.ProjectQueryPortOut;
@@ -35,8 +36,6 @@ import seungyong.helpmebackend.user.domain.entity.User;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -82,11 +81,11 @@ class ProjectQueryAdapterTest {
 
         ProjectListQueryResult active = projectQueryPortOut.findProjects(
                 savedUser.getId(), 1, ProjectListStatus.ACTIVE,
-                NOW.minusDays(7), null, null, 20
+                NOW.minusDays(7), CursorPagination.offsetDateTime(null, 20)
         );
         ProjectListQueryResult attention = projectQueryPortOut.findProjects(
                 savedUser.getId(), 1, ProjectListStatus.ATTENTION_REQUIRED,
-                NOW.minusDays(7), null, null, 20
+                NOW.minusDays(7), CursorPagination.offsetDateTime(null, 20)
         );
 
         assertThat(active.items()).hasSize(2);
@@ -166,16 +165,12 @@ class ProjectQueryAdapterTest {
     void findProjects_cursorPagination() {
         ProjectListQueryResult first = projectQueryPortOut.findProjects(
                 savedUser.getId(), 2, ProjectListStatus.ACTIVE,
-                NOW.minusDays(7), null, null, 1
+                NOW.minusDays(7), CursorPagination.offsetDateTime(null, 1)
         );
-        String decoded = new String(
-                Base64.getUrlDecoder().decode(first.nextCursor()), StandardCharsets.UTF_8
-        );
-        String[] cursor = decoded.split("\\|", 2);
 
         ProjectListQueryResult second = projectQueryPortOut.findProjects(
                 savedUser.getId(), 2, ProjectListStatus.ACTIVE,
-                NOW.minusDays(7), OffsetDateTime.parse(cursor[0]), Long.parseLong(cursor[1]), 1
+                NOW.minusDays(7), CursorPagination.offsetDateTime(first.nextCursor(), 1)
         );
 
         assertThat(first.hasNext()).isTrue();

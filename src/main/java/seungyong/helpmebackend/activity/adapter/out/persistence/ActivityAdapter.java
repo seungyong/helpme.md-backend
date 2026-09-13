@@ -13,13 +13,13 @@ import seungyong.helpmebackend.activity.domain.entity.Activity;
 import seungyong.helpmebackend.activity.domain.entity.ActivityEvidenceBatch;
 import seungyong.helpmebackend.activity.domain.entity.ActivityPage;
 import seungyong.helpmebackend.activity.domain.type.ActivityType;
+import seungyong.helpmebackend.global.application.pagination.CursorPage;
+import seungyong.helpmebackend.global.application.pagination.CursorPagination;
 import seungyong.helpmebackend.project.adapter.out.persistence.entity.ProjectJpaEntity;
 import seungyong.helpmebackend.webhook.adapter.out.persistence.entity.WebhookDeliveryJpaEntity;
 
-import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -84,9 +84,7 @@ public class ActivityAdapter implements ActivityPortOut {
      * @param type               활동 타입 ({@link ActivityType})
      * @param from               발생 시간의 시작 날짜
      * @param to                 발생 시간의 종료 날짜
-     * @param cursorOccurredAt   커서 기반 페이지네이션을 위한 발생 시간
-     * @param cursorId           커서 기반 페이지네이션을 위한 활동 ID
-     * @param size               페이지 크기 (한 페이지에 포함될 활동 수)
+     * @param pagination         커서, 응답 페이지 크기와 조회 limit을 관리하는 페이지네이션 객체
      * @param filtersApplied     필터링 조건이 적용되었는지 여부
      * @return 페이지네이션 정보와 함께 조회된 활동들을 포함한 {@link ActivityPage}
      */
@@ -99,21 +97,18 @@ public class ActivityAdapter implements ActivityPortOut {
             ActivityType type,
             OffsetDateTime from,
             OffsetDateTime to,
-            OffsetDateTime cursorOccurredAt,
-            Long cursorId,
-            int size,
+            CursorPagination<OffsetDateTime> pagination,
             boolean filtersApplied
     ) {
         List<ActivityJpaEntity> entities = activityJpaRepository.findPage(
-                projectId, query, branch, type, from, to, cursorOccurredAt, cursorId,
-                PageRequest.of(0, size + 1)
+                projectId, query, branch, type, from, to,
+                pagination.cursorValue(), pagination.cursorId(),
+                PageRequest.of(0, pagination.queryLimit())
         );
-        boolean hasNext = entities.size() > size;
-        List<ActivityJpaEntity> pageEntities = hasNext
-                ? new ArrayList<>(entities.subList(0, size))
-                : entities;
-        List<Activity> items = pageEntities.stream().map(this::toDomain).toList();
-        String nextCursor = hasNext ? encodeCursor(pageEntities.get(pageEntities.size() - 1)) : null;
+        CursorPage<ActivityJpaEntity> page = pagination.page(
+                entities, ActivityJpaEntity::getOccurredAt, ActivityJpaEntity::getId
+        );
+        List<Activity> items = page.items().stream().map(this::toDomain).toList();
 
         Object[] values = activityJpaRepository.summarize(
                 projectId, query, branch, type, ActivityType.PUSH_COMMIT, from, to
@@ -126,7 +121,9 @@ public class ActivityAdapter implements ActivityPortOut {
                 number(summaryValues, 2),
                 number(summaryValues, 3)
         );
-        return new ActivityPage(items, summary, nextCursor, hasNext, filtersApplied);
+        return new ActivityPage(
+                items, summary, page.nextCursor(), page.hasNext(), filtersApplied
+        );
     }
 
     /**
@@ -206,12 +203,6 @@ public class ActivityAdapter implements ActivityPortOut {
                 .details(details)
                 .createdAt(entity.getCreatedAt())
                 .build();
-    }
-
-    private String encodeCursor(ActivityJpaEntity entity) {
-        String raw = entity.getOccurredAt() + "|" + entity.getId();
-        return Base64.getUrlEncoder().withoutPadding()
-                .encodeToString(raw.getBytes(StandardCharsets.UTF_8));
     }
 
     private long number(Object[] values, int index) {

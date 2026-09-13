@@ -6,6 +6,7 @@ import seungyong.helpmebackend.reflection.domain.entity.ReflectionSourceSnapshot
 import seungyong.helpmebackend.reflection.domain.type.ReflectionKind;
 import seungyong.helpmebackend.reflection.domain.type.ReflectionStatus;
 import seungyong.helpmebackend.reflection.domain.type.SourceQuality;
+import seungyong.helpmebackend.global.application.pagination.CursorPagination;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -46,9 +47,7 @@ public interface ReflectionPortOut {
      * @param from 조회 시작일 (null이면 제한 없음)
      * @param to 조회 종료일 (null이면 제한 없음)
      * @param status 회고 상태 (null이면 제한 없음)
-     * @param cursorPeriodStart 커서 기준 회고 시작일 (null이면 제한 없음)
-     * @param cursorId 커서 기준 회고 ID (null이면 제한 없음)
-     * @param limit 조회할 회고 수
+     * @param pagination 커서와 페이지 크기, 다음 페이지 확인용 조회 limit
      * @return 회고 목록
      */
     List<Reflection> findPage(
@@ -57,9 +56,7 @@ public interface ReflectionPortOut {
             LocalDate from,
             LocalDate to,
             ReflectionStatus status,
-            LocalDate cursorPeriodStart,
-            Long cursorId,
-            int limit
+            CursorPagination<LocalDate> pagination
     );
 
     /**

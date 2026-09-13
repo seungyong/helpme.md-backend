@@ -4,6 +4,7 @@ import seungyong.helpmebackend.project.application.port.out.query.ProjectOvervie
 import seungyong.helpmebackend.project.application.port.out.result.ProjectListQueryResult;
 import seungyong.helpmebackend.project.application.port.out.result.ProjectOverviewQueryResult;
 import seungyong.helpmebackend.project.domain.type.ProjectListStatus;
+import seungyong.helpmebackend.global.application.pagination.CursorPagination;
 
 import java.time.OffsetDateTime;
 
@@ -13,9 +14,7 @@ public interface ProjectQueryPortOut {
             int effectiveLimit,
             ProjectListStatus status,
             OffsetDateTime metricFrom,
-            OffsetDateTime cursorCreatedAt,
-            Long cursorId,
-            int size
+            CursorPagination<OffsetDateTime> pagination
     );
 
     ProjectOverviewQueryResult findOverview(

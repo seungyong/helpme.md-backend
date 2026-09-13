@@ -7,6 +7,7 @@ import seungyong.helpmebackend.portfolio.domain.entity.PortfolioLastExportSummar
 import seungyong.helpmebackend.portfolio.domain.entity.PortfolioSourceSnapshot;
 import seungyong.helpmebackend.portfolio.domain.type.PortfolioStatus;
 import seungyong.helpmebackend.portfolio.domain.type.PortfolioTone;
+import seungyong.helpmebackend.global.application.pagination.CursorPagination;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -21,8 +22,8 @@ public interface PortfolioPortOut {
 
     Optional<Portfolio> getByProjectIdAndRequestKey(Long projectId, UUID requestKey);
 
-    List<Portfolio> findPage(Long projectId, PortfolioStatus status, OffsetDateTime cursorUpdatedAt,
-                             Long cursorId, int limit);
+    List<Portfolio> findPage(Long projectId, PortfolioStatus status,
+                             CursorPagination<OffsetDateTime> pagination);
 
     Map<Long, PortfolioLastExportSummary> findLatestExportSummaries(List<Long> portfolioIds);
 

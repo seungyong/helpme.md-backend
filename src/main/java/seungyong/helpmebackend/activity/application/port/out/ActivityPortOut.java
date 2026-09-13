@@ -4,6 +4,7 @@ import seungyong.helpmebackend.activity.domain.entity.Activity;
 import seungyong.helpmebackend.activity.domain.entity.ActivityEvidenceBatch;
 import seungyong.helpmebackend.activity.domain.entity.ActivityPage;
 import seungyong.helpmebackend.activity.domain.type.ActivityType;
+import seungyong.helpmebackend.global.application.pagination.CursorPagination;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -20,9 +21,7 @@ public interface ActivityPortOut {
             ActivityType type,
             OffsetDateTime from,
             OffsetDateTime to,
-            OffsetDateTime cursorOccurredAt,
-            Long cursorId,
-            int size,
+            CursorPagination<OffsetDateTime> pagination,
             boolean filtersApplied
     );
 

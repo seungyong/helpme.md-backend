@@ -6,6 +6,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import seungyong.helpmebackend.global.exception.CustomException;
 import seungyong.helpmebackend.global.exception.GlobalErrorCode;
+import seungyong.helpmebackend.global.application.pagination.CursorPagination;
 import seungyong.helpmebackend.project.application.port.in.ProjectQueryPortIn;
 import seungyong.helpmebackend.project.application.port.out.ProjectPortOut;
 import seungyong.helpmebackend.project.application.port.out.ProjectQueryPortOut;
@@ -24,7 +25,6 @@ import seungyong.helpmebackend.reflection.domain.type.ReflectionStatus;
 import seungyong.helpmebackend.user.application.port.out.UserPortOut;
 import seungyong.helpmebackend.user.domain.entity.User;
 
-import java.nio.charset.StandardCharsets;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -32,13 +32,10 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.temporal.TemporalAdjusters;
-import java.util.Base64;
 
 @Service
 @RequiredArgsConstructor
 public class ProjectQueryService implements ProjectQueryPortIn {
-    private static final int DEFAULT_SIZE = 20;
-    private static final int MAX_SIZE = 100;
     private static final int RECENT_ACTIVITY_LIMIT = 5;
 
     private final ProjectAccessResolver projectAccessResolver;
@@ -57,18 +54,16 @@ public class ProjectQueryService implements ProjectQueryPortIn {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         User user = userPortOut.getById(userId);
         int effectiveLimit = user.getPlan().effectiveProjectLimit(now);
-        int normalizedSize = normalizeSize(size);
+        CursorPagination<OffsetDateTime> pagination =
+                CursorPagination.offsetDateTime(cursor, size);
         ProjectListStatus normalizedStatus = normalizeStatus(status);
-        Cursor decodedCursor = decodeCursor(cursor);
 
         ProjectListQueryResult result = projectQueryPortOut.findProjects(
                 userId,
                 effectiveLimit,
                 normalizedStatus,
                 now.minusDays(7),
-                decodedCursor.createdAt(),
-                decodedCursor.id(),
-                normalizedSize
+                pagination
         );
         return new ProjectList(
                 new ProjectList.Plan(
@@ -236,14 +231,6 @@ public class ProjectQueryService implements ProjectQueryPortIn {
                 ? DayOfWeek.SUNDAY : DayOfWeek.of(weekday.getDatabaseValue());
     }
 
-    private int normalizeSize(Integer size) {
-        int value = size == null ? DEFAULT_SIZE : size;
-        if (value < 1 || value > MAX_SIZE) {
-            throw new CustomException(GlobalErrorCode.BAD_REQUEST);
-        }
-        return value;
-    }
-
     private ProjectListStatus normalizeStatus(String status) {
         if (!StringUtils.hasText(status)) {
             return ProjectListStatus.ACTIVE;
@@ -255,21 +242,4 @@ public class ProjectQueryService implements ProjectQueryPortIn {
         }
     }
 
-    private Cursor decodeCursor(String cursor) {
-        if (!StringUtils.hasText(cursor)) {
-            return new Cursor(null, null);
-        }
-        try {
-            String decoded = new String(
-                    Base64.getUrlDecoder().decode(cursor), StandardCharsets.UTF_8
-            );
-            String[] parts = decoded.split("\\|", 2);
-            return new Cursor(OffsetDateTime.parse(parts[0]), Long.parseLong(parts[1]));
-        } catch (RuntimeException exception) {
-            throw new CustomException(GlobalErrorCode.BAD_REQUEST);
-        }
-    }
-
-    private record Cursor(OffsetDateTime createdAt, Long id) {
-    }
 }

@@ -5,10 +5,10 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import seungyong.helpmebackend.activity.domain.type.ActivityType;
+import seungyong.helpmebackend.global.application.pagination.CursorPagination;
 import seungyong.helpmebackend.global.exception.CustomException;
 import seungyong.helpmebackend.global.exception.GlobalErrorCode;
 import seungyong.helpmebackend.project.application.port.out.ProjectPortOut;
@@ -38,6 +38,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 import static seungyong.helpmebackend.support.fixture.TestFixtures.user;
@@ -85,7 +86,7 @@ class ProjectQueryServiceTest {
             given(userPortOut.getById(USER_ID)).willReturn(user(USER_ID));
             given(projectPortOut.countByUserId(USER_ID)).willReturn(1L);
             given(projectQueryPortOut.findProjects(
-                    anyLong(), anyInt(), any(), any(), any(), any(), anyInt()
+                    anyLong(), anyInt(), any(), any(), any(CursorPagination.class)
             )).willReturn(new ProjectListQueryResult(
                     List.of(item), "next", true
             ));
@@ -100,9 +101,10 @@ class ProjectQueryServiceTest {
                     org.mockito.ArgumentMatchers.eq(1),
                     org.mockito.ArgumentMatchers.eq(ProjectListStatus.ACTIVE),
                     any(),
-                    org.mockito.ArgumentMatchers.isNull(),
-                    org.mockito.ArgumentMatchers.isNull(),
-                    org.mockito.ArgumentMatchers.eq(20)
+                    argThat(pagination -> pagination.cursorValue() == null
+                            && pagination.cursorId() == null
+                            && pagination.pageSize() == 20
+                            && pagination.queryLimit() == 21)
             );
         }
 
@@ -115,22 +117,21 @@ class ProjectQueryServiceTest {
             );
             given(userPortOut.getById(USER_ID)).willReturn(user(USER_ID));
             given(projectQueryPortOut.findProjects(
-                    anyLong(), anyInt(), any(), any(), any(), any(), anyInt()
+                    anyLong(), anyInt(), any(), any(), any(CursorPagination.class)
             )).willReturn(new ProjectListQueryResult(List.of(), null, false));
 
             service.getProjects(USER_ID, cursor, 10, "attention_required");
 
-            ArgumentCaptor<OffsetDateTime> timeCaptor = ArgumentCaptor.forClass(OffsetDateTime.class);
             verify(projectQueryPortOut).findProjects(
                     org.mockito.ArgumentMatchers.eq(USER_ID),
                     org.mockito.ArgumentMatchers.eq(1),
                     org.mockito.ArgumentMatchers.eq(ProjectListStatus.ATTENTION_REQUIRED),
                     any(),
-                    timeCaptor.capture(),
-                    org.mockito.ArgumentMatchers.eq(101L),
-                    org.mockito.ArgumentMatchers.eq(10)
+                    argThat(pagination -> cursorTime.equals(pagination.cursorValue())
+                            && Long.valueOf(101L).equals(pagination.cursorId())
+                            && pagination.pageSize() == 10
+                            && pagination.queryLimit() == 11)
             );
-            assertThat(timeCaptor.getValue()).isEqualTo(cursorTime);
         }
 
         @Test

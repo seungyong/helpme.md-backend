@@ -24,8 +24,9 @@ import seungyong.helpmebackend.reflection.domain.type.ReflectionGenerationMode;
 import seungyong.helpmebackend.reflection.domain.type.ReflectionKind;
 import seungyong.helpmebackend.reflection.domain.type.ReflectionStatus;
 import seungyong.helpmebackend.reflection.domain.type.SourceQuality;
+import seungyong.helpmebackend.global.application.pagination.CursorPage;
+import seungyong.helpmebackend.global.application.pagination.CursorPagination;
 
-import java.nio.charset.StandardCharsets;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -33,15 +34,11 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.temporal.TemporalAdjusters;
-import java.util.ArrayList;
-import java.util.Base64;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class ReflectionService implements ReflectionPortIn {
-    private static final int DEFAULT_SIZE = 20;
-    private static final int MAX_SIZE = 100;
     private static final int RETRY_AFTER_SECONDS = 2;
 
     private final ProjectAccessResolver projectAccessResolver;
@@ -55,26 +52,22 @@ public class ReflectionService implements ReflectionPortIn {
         Project project = projectAccessResolver.resolveActive(query.userId(), query.projectId());
         ReflectionKind kind = parseKind(query.kind());
         ReflectionStatus status = parseStatus(query.status());
-        int size = normalizeSize(query.size());
-        Cursor cursor = decodeCursor(query.cursor());
+        CursorPagination<LocalDate> pagination =
+                CursorPagination.localDate(query.cursor(), query.size());
 
-        // size + 1개를 조회하여 hasNext 여부를 판단
         List<Reflection> found = reflectionPortOut.findPage(
                 project.getId(), kind, query.from(), query.to(), status,
-                cursor.periodStart(), cursor.id(), size + 1
+                pagination
         );
-        boolean hasNext = found.size() > size;
-
-        // hasNext가 true이면 found에서 size만큼 잘라서 items에 넣고, 마지막 아이템의 커서를 nextCursor로 설정
-        List<Reflection> items = hasNext
-                ? new ArrayList<>(found.subList(0, size)) : found;
-        String nextCursor = hasNext ? encodeCursor(items.get(items.size() - 1)) : null;
+        CursorPage<Reflection> page = pagination.page(
+                found, Reflection::periodStart, Reflection::id
+        );
 
         return new ReflectionPage(
-                items,
+                page.items(),
                 currentPeriod(project, kind),
-                nextCursor,
-                hasNext
+                page.nextCursor(),
+                page.hasNext()
         );
     }
 
@@ -365,38 +358,6 @@ public class ReflectionService implements ReflectionPortIn {
         } catch (RuntimeException exception) {
             throw new CustomException(GlobalErrorCode.BAD_REQUEST);
         }
-    }
-
-    private int normalizeSize(Integer size) {
-        int value = size == null ? DEFAULT_SIZE : size;
-        if (value < 1 || value > MAX_SIZE) {
-            throw new CustomException(GlobalErrorCode.BAD_REQUEST);
-        }
-        return value;
-    }
-
-    private Cursor decodeCursor(String cursor) {
-        if (!StringUtils.hasText(cursor)) {
-            return new Cursor(null, null);
-        }
-        try {
-            String raw = new String(
-                    Base64.getUrlDecoder().decode(cursor), StandardCharsets.UTF_8
-            );
-            String[] parts = raw.split("\\|", 2);
-            return new Cursor(LocalDate.parse(parts[0]), Long.parseLong(parts[1]));
-        } catch (RuntimeException exception) {
-            throw new CustomException(GlobalErrorCode.BAD_REQUEST);
-        }
-    }
-
-    private String encodeCursor(Reflection reflection) {
-        String raw = reflection.periodStart() + "|" + reflection.id();
-        return Base64.getUrlEncoder().withoutPadding()
-                .encodeToString(raw.getBytes(StandardCharsets.UTF_8));
-    }
-
-    private record Cursor(LocalDate periodStart, Long id) {
     }
 
     private record Period(

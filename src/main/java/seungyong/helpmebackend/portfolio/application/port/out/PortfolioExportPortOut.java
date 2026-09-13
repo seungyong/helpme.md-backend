@@ -4,6 +4,7 @@ import seungyong.helpmebackend.portfolio.domain.entity.PortfolioExport;
 import seungyong.helpmebackend.portfolio.domain.type.PortfolioConflictAction;
 import seungyong.helpmebackend.portfolio.domain.type.PortfolioExportFormat;
 import seungyong.helpmebackend.portfolio.domain.type.PortfolioExportStatus;
+import seungyong.helpmebackend.global.application.pagination.CursorPagination;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -15,8 +16,8 @@ public interface PortfolioExportPortOut {
     Optional<PortfolioExport> getByIdempotencyKey(UUID idempotencyKey);
     Optional<PortfolioExport> getByPortfolioIdAndId(Long portfolioId, Long exportId);
     List<PortfolioExport> findPage(Long portfolioId, PortfolioExportFormat format,
-                                   PortfolioExportStatus status, OffsetDateTime cursorCreatedAt,
-                                   Long cursorId, int limit);
+                                   PortfolioExportStatus status,
+                                   CursorPagination<OffsetDateTime> pagination);
     Optional<PortfolioExport> claimNext(OffsetDateTime now, OffsetDateTime stuckBefore);
     void completePdf(Long exportId, String storagePath, String fileName, long fileSizeBytes,
                      int pageCount, OffsetDateTime expiresAt, OffsetDateTime completedAt);

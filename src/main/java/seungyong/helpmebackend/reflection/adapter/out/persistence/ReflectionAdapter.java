@@ -16,6 +16,7 @@ import seungyong.helpmebackend.reflection.domain.entity.ReflectionSourceSnapshot
 import seungyong.helpmebackend.reflection.domain.type.ReflectionKind;
 import seungyong.helpmebackend.reflection.domain.type.ReflectionStatus;
 import seungyong.helpmebackend.reflection.domain.type.SourceQuality;
+import seungyong.helpmebackend.global.application.pagination.CursorPagination;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -79,13 +80,12 @@ public class ReflectionAdapter implements ReflectionPortOut {
             LocalDate from,
             LocalDate to,
             ReflectionStatus status,
-            LocalDate cursorPeriodStart,
-            Long cursorId,
-            int limit
+            CursorPagination<LocalDate> pagination
     ) {
         return reflectionJpaRepository.findPage(
-                projectId, kind, from, to, status, cursorPeriodStart, cursorId,
-                PageRequest.of(0, limit)
+                projectId, kind, from, to, status,
+                pagination.cursorValue(), pagination.cursorId(),
+                PageRequest.of(0, pagination.queryLimit())
         ).stream().map(this::toDomain).toList();
     }
 

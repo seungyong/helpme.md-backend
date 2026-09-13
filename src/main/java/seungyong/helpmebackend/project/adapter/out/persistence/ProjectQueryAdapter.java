@@ -21,13 +21,12 @@ import seungyong.helpmebackend.project.domain.type.ProjectListStatus;
 import seungyong.helpmebackend.project.domain.type.ProjectStatus;
 import seungyong.helpmebackend.project.domain.type.ProjectSyncStatus;
 import seungyong.helpmebackend.project.domain.type.ProjectWebhookStatus;
+import seungyong.helpmebackend.global.application.pagination.CursorPage;
+import seungyong.helpmebackend.global.application.pagination.CursorPagination;
 import seungyong.helpmebackend.reflection.domain.type.ReflectionKind;
 import seungyong.helpmebackend.reflection.domain.type.ReflectionStatus;
 
-import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
-import java.util.ArrayList;
-import java.util.Base64;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -51,9 +50,7 @@ public class ProjectQueryAdapter implements ProjectQueryPortOut {
             int effectiveLimit,
             ProjectListStatus status,
             OffsetDateTime metricFrom,
-            OffsetDateTime cursorCreatedAt,
-            Long cursorId,
-            int size
+            CursorPagination<OffsetDateTime> pagination
     ) {
         // 플랜에 의해 잠금 해제된 프로젝트 ID를 조회
         // 현재는 생성일, ID 기준으로 오래된 순서로 정렬
@@ -64,15 +61,13 @@ public class ProjectQueryAdapter implements ProjectQueryPortOut {
                 )
         );
 
-        // 커서 기준으로 size + 1개의 프로젝트를 조회하여 다음 페이지 존재 여부를 확인
         List<ProjectJpaEntity> entities = findProjectPage(
-                userId, status, unlockedIds, cursorCreatedAt, cursorId, size
+                userId, status, unlockedIds, pagination
         );
-
-        // 페이지네이션 처리: 조회된 엔티티 수가 요청한 size보다 많으면 다음 페이지가 존재함
-        boolean hasNext = entities.size() > size;
-        List<ProjectJpaEntity> pageEntities = hasNext
-                ? new ArrayList<>(entities.subList(0, size)) : entities;
+        CursorPage<ProjectJpaEntity> page = pagination.page(
+                entities, ProjectJpaEntity::getCreatedAt, ProjectJpaEntity::getId
+        );
+        List<ProjectJpaEntity> pageEntities = page.items();
         List<Long> projectIds = pageEntities.stream().map(ProjectJpaEntity::getId).toList();
 
         // 각 프로젝트별 최근 활동 수, 회고 수, 최신 활동 제목을 조회
@@ -112,10 +107,9 @@ public class ProjectQueryAdapter implements ProjectQueryPortOut {
             );
         }).toList();
 
-        // 다음 페이지가 존재하면 마지막 엔티티를 기준으로 커서를 생성
-        String nextCursor = hasNext && !pageEntities.isEmpty()
-                ? encodeCursor(pageEntities.get(pageEntities.size() - 1)) : null;
-        return new ProjectListQueryResult(items, nextCursor, hasNext);
+        return new ProjectListQueryResult(
+                items, page.nextCursor(), page.hasNext()
+        );
     }
 
     @Override
@@ -230,12 +224,9 @@ public class ProjectQueryAdapter implements ProjectQueryPortOut {
             Long userId,
             ProjectListStatus status,
             Set<Long> unlockedIds,
-            OffsetDateTime cursorCreatedAt,
-            Long cursorId,
-            int size
+            CursorPagination<OffsetDateTime> pagination
     ) {
-        // 페이지 요청 생성: size + 1을 요청하여 다음 페이지 존재 여부를 확인
-        PageRequest page = PageRequest.of(0, size + 1);
+        PageRequest page = PageRequest.of(0, pagination.queryLimit());
         if (status == ProjectListStatus.ATTENTION_REQUIRED) {
             // 활성 상태이면서 동기화 실패 또는 경고 상태인 프로젝트를 조회
             return projectQueryJpaRepository.findAttentionRequiredPage(
@@ -245,8 +236,8 @@ public class ProjectQueryAdapter implements ProjectQueryPortOut {
                     WARNING_WEBHOOK_STATUSES,
                     // project_limit은 1 이상이므로 일반적으로 비어 있지 않지만 IN 조건은 안전하게 보정
                     unlockedIds.isEmpty() ? Set.of(-1L) : unlockedIds,
-                    cursorCreatedAt,
-                    cursorId,
+                    pagination.cursorValue(),
+                    pagination.cursorId(),
                     page
             );
         }
@@ -255,8 +246,8 @@ public class ProjectQueryAdapter implements ProjectQueryPortOut {
         return projectQueryJpaRepository.findActivePage(
                 userId,
                 ProjectStatus.ACTIVE,
-                cursorCreatedAt,
-                cursorId,
+                pagination.cursorValue(),
+                pagination.cursorId(),
                 page
         );
     }
@@ -272,9 +263,4 @@ public class ProjectQueryAdapter implements ProjectQueryPortOut {
         return value == null ? 0L : value;
     }
 
-    private String encodeCursor(ProjectJpaEntity entity) {
-        String raw = entity.getCreatedAt() + "|" + entity.getId();
-        return Base64.getUrlEncoder().withoutPadding()
-                .encodeToString(raw.getBytes(StandardCharsets.UTF_8));
-    }
 }

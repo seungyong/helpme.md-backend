@@ -16,6 +16,7 @@ import seungyong.helpmebackend.portfolio.domain.entity.PortfolioLastExportSummar
 import seungyong.helpmebackend.portfolio.domain.entity.PortfolioSourceSnapshot;
 import seungyong.helpmebackend.portfolio.domain.type.PortfolioStatus;
 import seungyong.helpmebackend.portfolio.domain.type.PortfolioTone;
+import seungyong.helpmebackend.global.application.pagination.CursorPagination;
 import seungyong.helpmebackend.project.adapter.out.persistence.entity.ProjectJpaEntity;
 
 import java.time.OffsetDateTime;
@@ -67,10 +68,11 @@ public class PortfolioAdapter implements PortfolioPortOut {
 
     @Override
     @Transactional(readOnly = true)
-    public List<Portfolio> findPage(Long projectId, PortfolioStatus status, OffsetDateTime cursorUpdatedAt,
-                                    Long cursorId, int limit) {
+    public List<Portfolio> findPage(Long projectId, PortfolioStatus status,
+                                    CursorPagination<OffsetDateTime> pagination) {
         return portfolioJpaRepository.findPage(
-                projectId, status, cursorUpdatedAt, cursorId, PageRequest.of(0, limit)
+                projectId, status, pagination.cursorValue(), pagination.cursorId(),
+                PageRequest.of(0, pagination.queryLimit())
         ).stream().map(this::toDomain).toList();
     }
 

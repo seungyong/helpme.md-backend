@@ -8,6 +8,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import seungyong.helpmebackend.activity.application.port.out.ActivityPortOut;
 import seungyong.helpmebackend.activity.domain.entity.ActivityPage;
+import seungyong.helpmebackend.global.application.pagination.CursorPagination;
 import seungyong.helpmebackend.global.exception.CustomException;
 import seungyong.helpmebackend.global.exception.GlobalErrorCode;
 import seungyong.helpmebackend.project.application.ProjectAccessResolver;
@@ -20,8 +21,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
@@ -47,7 +47,7 @@ class ActivityServiceTest {
         );
         given(activityPortOut.findActivities(
                 eq(101L), eq("webhook"), eq("main"), any(), any(), any(),
-                eq(null), eq(null), eq(20), eq(true)
+                any(CursorPagination.class), eq(true)
         )).willReturn(page);
 
         ActivityPage result = activityService.getActivities(
@@ -60,7 +60,11 @@ class ActivityServiceTest {
         ArgumentCaptor<OffsetDateTime> to = ArgumentCaptor.forClass(OffsetDateTime.class);
         verify(activityPortOut).findActivities(
                 eq(101L), eq("webhook"), eq("main"), any(), from.capture(), to.capture(),
-                eq(null), eq(null), eq(20), eq(true)
+                argThat(pagination -> pagination.cursorValue() == null
+                        && pagination.cursorId() == null
+                        && pagination.pageSize() == 20
+                        && pagination.queryLimit() == 21),
+                eq(true)
         );
         assertThat(from.getValue().toLocalDate()).isEqualTo(LocalDate.of(2026, 8, 1));
         assertThat(to.getValue().toLocalDate()).isEqualTo(LocalDate.of(2026, 8, 8));

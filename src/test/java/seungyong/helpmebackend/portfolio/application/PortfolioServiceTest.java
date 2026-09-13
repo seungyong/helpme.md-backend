@@ -8,6 +8,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import seungyong.helpmebackend.global.exception.CustomException;
 import seungyong.helpmebackend.global.exception.DocumentErrorCode;
+import seungyong.helpmebackend.global.application.pagination.CursorPagination;
 import seungyong.helpmebackend.portfolio.application.port.in.command.CreatePortfolioCommand;
 import seungyong.helpmebackend.portfolio.application.port.in.command.GetPortfolioSourcesQuery;
 import seungyong.helpmebackend.portfolio.application.port.in.command.ListPortfoliosQuery;
@@ -39,6 +40,8 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -134,12 +137,14 @@ class PortfolioServiceTest {
     }
 
     @Test
-    @DisplayName("목록은 size+1 커서 조회 후 eligibility와 다음 커서를 구성")
+    @DisplayName("목록은 공통 cursor pagination으로 eligibility와 다음 커서를 구성")
     void list_withNextCursor() {
         Portfolio first = withUpdatedAt(portfolio(502L, PortfolioStatus.DRAFT, 1), 12);
         Portfolio second = withUpdatedAt(portfolio(501L, PortfolioStatus.SAVED, 2), 11);
         given(projectAccessResolver.resolveActive(USER_ID, PROJECT_ID)).willReturn(project(false));
-        given(portfolioPortOut.findPage(PROJECT_ID, null, null, null, 2))
+        given(portfolioPortOut.findPage(
+                eq(PROJECT_ID), isNull(), any(CursorPagination.class)
+        ))
                 .willReturn(List.of(first, second));
         given(portfolioPortOut.findLatestExportSummaries(List.of(502L))).willReturn(Map.of());
         given(sourcePortOut.countSavedReflections(PROJECT_ID)).willReturn(3L);

@@ -16,6 +16,7 @@ import seungyong.helpmebackend.portfolio.domain.entity.PortfolioExportOptions;
 import seungyong.helpmebackend.portfolio.domain.type.PortfolioConflictAction;
 import seungyong.helpmebackend.portfolio.domain.type.PortfolioExportFormat;
 import seungyong.helpmebackend.portfolio.domain.type.PortfolioExportStatus;
+import seungyong.helpmebackend.global.application.pagination.CursorPagination;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -61,10 +62,13 @@ public class PortfolioExportAdapter implements PortfolioExportPortOut {
     @Override
     @Transactional(readOnly = true)
     public List<PortfolioExport> findPage(Long portfolioId, PortfolioExportFormat format,
-                                          PortfolioExportStatus status, OffsetDateTime cursorCreatedAt,
-                                          Long cursorId, int limit) {
-        return repository.findPage(portfolioId, format, status, cursorCreatedAt, cursorId,
-                PageRequest.of(0, limit)).stream().map(this::toDomain).toList();
+                                          PortfolioExportStatus status,
+                                          CursorPagination<OffsetDateTime> pagination) {
+        return repository.findPage(
+                portfolioId, format, status,
+                pagination.cursorValue(), pagination.cursorId(),
+                PageRequest.of(0, pagination.queryLimit())
+        ).stream().map(this::toDomain).toList();
     }
 
     @Override

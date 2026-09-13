@@ -7,6 +7,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import seungyong.helpmebackend.global.exception.CustomException;
 import seungyong.helpmebackend.global.exception.GlobalErrorCode;
+import seungyong.helpmebackend.global.application.pagination.CursorPage;
+import seungyong.helpmebackend.global.application.pagination.CursorPagination;
 import seungyong.helpmebackend.notion.application.port.out.NotionConnectionPortOut;
 import seungyong.helpmebackend.notion.domain.entity.NotionConnection;
 import seungyong.helpmebackend.notion.domain.exception.NotionErrorCode;
@@ -32,21 +34,16 @@ import seungyong.helpmebackend.portfolio.domain.type.PortfolioStatus;
 import seungyong.helpmebackend.project.application.ProjectAccessResolver;
 import seungyong.helpmebackend.project.domain.entity.Project;
 
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.List;
 import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
 public class PortfolioExportService implements PortfolioExportPortIn {
-    private static final int DEFAULT_PAGE_SIZE = 20;
-    private static final int MAX_PAGE_SIZE = 100;
-
     private final ProjectAccessResolver projectAccessResolver;
     private final PortfolioPortOut portfolioPortOut;
     private final PortfolioExportPortOut exportPortOut;
@@ -60,25 +57,18 @@ public class PortfolioExportService implements PortfolioExportPortIn {
     public PortfolioExportPage getExports(ListPortfolioExportsQuery query) {
         verifyAccess(query.userId(), query.projectId(), query.portfolioId());
 
-        int size = query.size() == null ? DEFAULT_PAGE_SIZE : query.size();
-        if (size < 1 || size > MAX_PAGE_SIZE) throw new CustomException(GlobalErrorCode.BAD_REQUEST);
+        CursorPagination<OffsetDateTime> pagination =
+                CursorPagination.offsetDateTime(query.cursor(), query.size());
+        List<PortfolioExport> fetched = exportPortOut.findPage(
+                query.portfolioId(), query.format(), query.status(), pagination
+        );
+        CursorPage<PortfolioExport> page = pagination.page(
+                fetched, PortfolioExport::createdAt, PortfolioExport::id
+        );
 
-        ExportCursor cursor = decodeCursor(query.cursor());
-        List<PortfolioExport> fetched = exportPortOut.findPage(query.portfolioId(), query.format(), query.status(),
-                cursor == null ? null : cursor.createdAt(), cursor == null ? null : cursor.id(), size + 1);
-
-        boolean hasNext = fetched.size() > size;
-        List<PortfolioExport> items =
-                hasNext ? fetched.subList(0, size) : fetched;
-
-        String nextCursor = null;
-
-        if (hasNext) {
-            PortfolioExport last = items.get(items.size() - 1);
-            nextCursor = encodeCursor(last.createdAt(), last.id());
-        }
-
-        return new PortfolioExportPage(items, nextCursor, hasNext);
+        return new PortfolioExportPage(
+                page.items(), page.nextCursor(), page.hasNext()
+        );
     }
 
     @Override
@@ -219,23 +209,4 @@ public class PortfolioExportService implements PortfolioExportPortIn {
                 && Objects.equals(existing.options(), options);
     }
 
-    private String encodeCursor(OffsetDateTime createdAt, Long id) {
-        String raw = createdAt + "|" + id;
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(raw.getBytes(StandardCharsets.UTF_8));
-    }
-
-    private ExportCursor decodeCursor(String cursor) {
-        if (!StringUtils.hasText(cursor)) return null;
-        try {
-            String raw = new String(Base64.getUrlDecoder().decode(cursor), StandardCharsets.UTF_8);
-            int separator = raw.lastIndexOf('|');
-            return new ExportCursor(OffsetDateTime.parse(raw.substring(0, separator)),
-                    Long.parseLong(raw.substring(separator + 1)));
-        } catch (RuntimeException exception) {
-            throw new CustomException(GlobalErrorCode.BAD_REQUEST);
-        }
-    }
-
-    private record ExportCursor(OffsetDateTime createdAt, Long id) {
-    }
 }
