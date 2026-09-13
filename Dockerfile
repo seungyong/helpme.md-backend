@@ -44,6 +44,10 @@ RUN jlink \
 # 세 번째 스테이지: 최종 이미지 설정
 FROM eclipse-temurin:17-jre
 
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends fonts-nanum \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 # 톰캣 (스프링 내장 서버)이 임시 파일을 저장할 수 있도록 /tmp 디렉토리를 볼륨으로 설정

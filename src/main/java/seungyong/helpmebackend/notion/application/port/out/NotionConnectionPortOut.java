@@ -9,6 +9,8 @@ import java.util.Optional;
 public interface NotionConnectionPortOut {
     Optional<NotionConnection> getByUserId(Long userId);
 
+    Optional<NotionConnection> getById(Long connectionId);
+
     NotionConnection saveAuthorization(Long userId, NotionAuthorization authorization);
 
     NotionConnection rotateTokens(

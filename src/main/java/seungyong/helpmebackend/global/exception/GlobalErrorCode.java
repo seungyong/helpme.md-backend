@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 @RequiredArgsConstructor
 public enum GlobalErrorCode implements ErrorCode {
     BAD_REQUEST(HttpStatus.BAD_REQUEST, "필수사항 또는 형식을 지키지 않은 잘못된 요청입니다.", "REQ_400"),
+    IDEMPOTENCY_KEY_CONFLICT(HttpStatus.CONFLICT, "같은 Idempotency-Key가 다른 요청에 사용되었습니다.", "REQ_40901"),
 
     INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "유효하지 않은 토큰입니다.", "AUTH_40102"),
     EXPIRED_ACCESS_TOKEN(HttpStatus.UNAUTHORIZED, "만료된 액세스 토큰입니다.", "AUTH_40102"),

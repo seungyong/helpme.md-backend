@@ -26,6 +26,12 @@ public class NotionConnectionAdapter implements NotionConnectionPortOut {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public Optional<NotionConnection> getById(Long connectionId) {
+        return notionConnectionJpaRepository.findById(connectionId).map(this::toDomain);
+    }
+
+    @Override
     @Transactional
     public NotionConnection saveAuthorization(
             Long userId, NotionAuthorization authorization

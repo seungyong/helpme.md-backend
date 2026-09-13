@@ -4,6 +4,8 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import seungyong.helpmebackend.global.domain.type.DatabaseValueEnum;
 
+import java.util.Arrays;
+
 @Getter
 @RequiredArgsConstructor
 public enum PortfolioExportStatus implements DatabaseValueEnum {
@@ -15,4 +17,9 @@ public enum PortfolioExportStatus implements DatabaseValueEnum {
     EXPIRED("expired");
 
     private final String databaseValue;
+
+    public static PortfolioExportStatus fromDatabaseValue(String value) {
+        return Arrays.stream(values()).filter(item -> item.databaseValue.equals(value)).findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("unsupported portfolio export status"));
+    }
 }

@@ -29,7 +29,8 @@ import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
-public class NotionApiAdapter implements NotionProviderPortOut {
+public class NotionApiAdapter implements NotionProviderPortOut,
+        seungyong.helpmebackend.portfolio.application.port.out.PortfolioNotionProviderPortOut {
     private static final String AUTHORIZATION_URL = "https://api.notion.com/v1/oauth/authorize";
 
     private final RestClient.Builder restClientBuilder;
@@ -142,6 +143,132 @@ public class NotionApiAdapter implements NotionProviderPortOut {
                 .body(Map.of("token", accessToken))
                 .retrieve()
                 .toBodilessEntity());
+    }
+
+    @Override
+    public seungyong.helpmebackend.portfolio.application.port.out.NotionPageWriteResult write(
+            String accessToken,
+            String parentPageId,
+            seungyong.helpmebackend.portfolio.domain.entity.PortfolioExportDocument document,
+            boolean checkTitleConflict,
+            seungyong.helpmebackend.portfolio.domain.type.PortfolioConflictAction conflictAction,
+            String conflictPageId
+    ) {
+        if (conflictAction == seungyong.helpmebackend.portfolio.domain.type.PortfolioConflictAction.UPDATE) {
+            if (!StringUtils.hasText(conflictPageId)) {
+                throw new NotionProviderException(NotionProviderException.Failure.BAD_REQUEST);
+            }
+            appendUpdatedSnapshot(accessToken, conflictPageId, document);
+            JsonNode page = retrievePageNode(accessToken, conflictPageId);
+            return new seungyong.helpmebackend.portfolio.application.port.out.NotionPageWriteResult(
+                    false, conflictPageId, document.title(), text(page, "url"));
+        }
+
+        if (conflictAction == null && checkTitleConflict) {
+            JsonNode existing = findExactChild(accessToken, parentPageId, document.title());
+            if (existing != null) {
+                return new seungyong.helpmebackend.portfolio.application.port.out.NotionPageWriteResult(
+                        true, requiredText(existing, "id"), document.title(), text(existing, "url"));
+            }
+        }
+
+        String title = conflictAction == seungyong.helpmebackend.portfolio.domain.type.PortfolioConflictAction.COPY
+                ? document.title() + " (복사본)" : document.title();
+        JsonNode created = createPage(accessToken, parentPageId, title, document);
+        return new seungyong.helpmebackend.portfolio.application.port.out.NotionPageWriteResult(
+                false, requiredText(created, "id"), title, requiredText(created, "url"));
+    }
+
+    private JsonNode findExactChild(String accessToken, String parentPageId, String title) {
+        JsonNode response = execute(() -> client(accessToken).post().uri("/v1/search")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("query", title, "filter", Map.of("property", "object", "value", "page"),
+                        "page_size", 20))
+                .retrieve().body(JsonNode.class));
+        for (JsonNode page : response.path("results")) {
+            if (parentPageId.equals(page.path("parent").path("page_id").asText())
+                    && title.equals(pageTitle(page))) return page;
+        }
+        return null;
+    }
+
+    private JsonNode createPage(String accessToken, String parentPageId, String title,
+                                seungyong.helpmebackend.portfolio.domain.entity.PortfolioExportDocument document) {
+        return execute(() -> client(accessToken).post().uri("/v1/pages")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("parent", Map.of("page_id", parentPageId),
+                        "properties", titleProperty(title), "children", blocks(document, false)))
+                .retrieve().body(JsonNode.class));
+    }
+
+    private void appendUpdatedSnapshot(
+            String accessToken,
+            String pageId,
+            seungyong.helpmebackend.portfolio.domain.entity.PortfolioExportDocument document
+    ) {
+        // 사용자 작성 블록을 삭제하지 않고 동일 페이지에 새 snapshot 구역을 추가하는 안전한 update
+        execute(() -> client(accessToken).patch().uri("/v1/blocks/{pageId}/children", pageId)
+                .contentType(MediaType.APPLICATION_JSON).body(Map.of("children", blocks(document, true)))
+                .retrieve().toBodilessEntity());
+    }
+
+    private JsonNode retrievePageNode(String accessToken, String pageId) {
+        return execute(() -> client(accessToken).get().uri("/v1/pages/{pageId}", pageId)
+                .retrieve().body(JsonNode.class));
+    }
+
+    private Map<String, Object> titleProperty(String title) {
+        return Map.of("title", Map.of("title", List.of(Map.of("type", "text",
+                "text", Map.of("content", title)))));
+    }
+
+    private List<Map<String, Object>> blocks(
+            seungyong.helpmebackend.portfolio.domain.entity.PortfolioExportDocument document,
+            boolean updated
+    ) {
+        List<Map<String, Object>> values = new ArrayList<>();
+        if (updated) values.add(block("업데이트된 포트폴리오", "heading_1"));
+        values.add(block(document.periodStart() + " - " + document.periodEnd(), "paragraph"));
+        for (seungyong.helpmebackend.portfolio.domain.entity.PortfolioDocument.Section section
+                : document.content().sections()) {
+            values.add(block(section.title(), "heading_2"));
+            for (String part : splitRichText(section.contentMd())) values.add(block(part, "paragraph"));
+        }
+        if (!document.evidenceLinks().isEmpty()) {
+            values.add(block("근거 링크", "heading_2"));
+            for (seungyong.helpmebackend.portfolio.domain.entity.PortfolioExportDocument.EvidenceLink link
+                    : document.evidenceLinks()) {
+                values.add(block(link.label() + ": " + link.url(), "bulleted_list_item"));
+            }
+        }
+        if (values.size() > 100) throw new NotionProviderException(NotionProviderException.Failure.BAD_REQUEST);
+        return values;
+    }
+
+    private Map<String, Object> block(String content, String type) {
+        return Map.of("object", "block", "type", type, type,
+                Map.of("rich_text", List.of(Map.of("type", "text", "text", Map.of("content", content)))));
+    }
+
+    private List<String> splitRichText(String content) {
+        if (content == null || content.isBlank()) return List.of("");
+        List<String> values = new ArrayList<>();
+        for (int start = 0; start < content.length(); start += 1900) {
+            values.add(content.substring(start, Math.min(start + 1900, content.length())));
+        }
+        return values;
+    }
+
+    private String pageTitle(JsonNode page) {
+        for (Map.Entry<String, JsonNode> field : page.path("properties").properties()) {
+            JsonNode property = field.getValue();
+            if ("title".equals(property.path("type").asText())) {
+                StringBuilder title = new StringBuilder();
+                for (JsonNode text : property.path("title")) title.append(text.path("plain_text").asText(""));
+                return title.toString();
+            }
+        }
+        return "";
     }
 
     private JsonNode postOAuthToken(Map<String, Object> body) {

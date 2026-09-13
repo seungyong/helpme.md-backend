@@ -188,4 +188,90 @@ public class PortfolioExportJpaEntity {
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
+
+    public void requeueStuck() {
+        status = PortfolioExportStatus.QUEUED;
+        attempts++;
+        startedAt = null;
+        nextRetryAt = null;
+        errorCode = null;
+        errorMessage = null;
+    }
+
+    public void claim(OffsetDateTime now) {
+        status = PortfolioExportStatus.PROCESSING;
+        startedAt = now;
+        nextRetryAt = null;
+        errorCode = null;
+        errorMessage = null;
+    }
+
+    public void completePdf(String changedStoragePath, String changedFileName,
+                            long changedFileSizeBytes, int changedPageCount,
+                            OffsetDateTime changedExpiresAt, OffsetDateTime now) {
+        status = PortfolioExportStatus.SUCCEEDED;
+        storagePath = changedStoragePath;
+        fileName = changedFileName;
+        fileSizeBytes = changedFileSizeBytes;
+        pageCount = changedPageCount;
+        expiresAt = changedExpiresAt;
+        completedAt = now;
+        startedAt = null;
+        errorCode = null;
+        errorMessage = null;
+    }
+
+    public void completeNotion(String changedPageId, String changedPageUrl, OffsetDateTime now) {
+        status = PortfolioExportStatus.SUCCEEDED;
+        notionPageId = changedPageId;
+        notionPageUrl = changedPageUrl;
+        completedAt = now;
+        startedAt = null;
+        errorCode = null;
+        errorMessage = null;
+        resultMetadata = JsonNodeFactory.instance.objectNode();
+    }
+
+    public void requireConflictAction(String pageId, String pageTitle, String pageUrl) {
+        status = PortfolioExportStatus.NEEDS_ACTION;
+        completedAt = null;
+        startedAt = null;
+        resultMetadata = JsonNodeFactory.instance.objectNode()
+                .put("conflictPageId", pageId)
+                .put("conflictPageTitle", pageTitle)
+                .put("conflictPageUrl", pageUrl);
+    }
+
+    public void retry() {
+        status = PortfolioExportStatus.QUEUED;
+        attempts++;
+        startedAt = null;
+        completedAt = null;
+        nextRetryAt = null;
+        errorCode = null;
+        errorMessage = null;
+    }
+
+    public void resolveConflict(PortfolioConflictAction action) {
+        // API에는 즉시 processing으로 노출하고, startedAt=null인 작업을 worker가 실제 선점
+        status = PortfolioExportStatus.PROCESSING;
+        conflictAction = action;
+        startedAt = null;
+        completedAt = null;
+        errorCode = null;
+        errorMessage = null;
+    }
+
+    public void fail(String code, String message, OffsetDateTime now) {
+        status = PortfolioExportStatus.FAILED;
+        errorCode = code;
+        errorMessage = message;
+        completedAt = now;
+        startedAt = null;
+    }
+
+    public void expire() {
+        status = PortfolioExportStatus.EXPIRED;
+        storagePath = null;
+    }
 }
