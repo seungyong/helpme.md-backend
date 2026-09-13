@@ -61,9 +61,11 @@ public class PortfolioExportWorker {
 
     private void processPdf(PortfolioExport export) {
         RenderedPdf pdf = pdfPortOut.render(export.document(), export.options());
+
         String fileName = safeFileName(export.document().title()) + ".pdf";
         String path = "portfolios/" + export.portfolioId() + "/" + export.id() + ".pdf";
         storagePortOut.upload(path, pdf.bytes(), "application/pdf");
+
         OffsetDateTime completedAt = now();
         exportPortOut.completePdf(export.id(), path, fileName, pdf.bytes().length, pdf.pageCount(),
                 completedAt.plusDays(pdfRetentionDays), completedAt);

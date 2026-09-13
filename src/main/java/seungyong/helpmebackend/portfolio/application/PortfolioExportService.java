@@ -59,15 +59,26 @@ public class PortfolioExportService implements PortfolioExportPortIn {
     @Override
     public PortfolioExportPage getExports(ListPortfolioExportsQuery query) {
         verifyAccess(query.userId(), query.projectId(), query.portfolioId());
+
         int size = query.size() == null ? DEFAULT_PAGE_SIZE : query.size();
         if (size < 1 || size > MAX_PAGE_SIZE) throw new CustomException(GlobalErrorCode.BAD_REQUEST);
+
         ExportCursor cursor = decodeCursor(query.cursor());
         List<PortfolioExport> fetched = exportPortOut.findPage(query.portfolioId(), query.format(), query.status(),
                 cursor == null ? null : cursor.createdAt(), cursor == null ? null : cursor.id(), size + 1);
+
         boolean hasNext = fetched.size() > size;
-        List<PortfolioExport> items = hasNext ? fetched.subList(0, size) : fetched;
-        PortfolioExport last = items.isEmpty() ? null : items.get(items.size() - 1);
-        return new PortfolioExportPage(items, hasNext ? encodeCursor(last.createdAt(), last.id()) : null, hasNext);
+        List<PortfolioExport> items =
+                hasNext ? fetched.subList(0, size) : fetched;
+
+        String nextCursor = null;
+
+        if (hasNext) {
+            PortfolioExport last = items.get(items.size() - 1);
+            nextCursor = encodeCursor(last.createdAt(), last.id());
+        }
+
+        return new PortfolioExportPage(items, nextCursor, hasNext);
     }
 
     @Override
@@ -105,9 +116,11 @@ public class PortfolioExportService implements PortfolioExportPortIn {
             NotionConnection connection = notionConnectionPortOut.getByUserId(command.userId())
                     .filter(NotionConnection::isConnected)
                     .orElseThrow(() -> new CustomException(NotionErrorCode.NOTION_CONNECTION_NOT_FOUND));
+
             notionConnectionId = connection.getId();
             notionParentPageId = StringUtils.hasText(command.notionParentPageId())
                     ? command.notionParentPageId().trim() : connection.getDefaultParentPageId();
+
             if (!StringUtils.hasText(notionParentPageId)) {
                 throw new CustomException(NotionErrorCode.NOTION_PARENT_PAGE_NOT_FOUND);
             }
@@ -126,13 +139,16 @@ public class PortfolioExportService implements PortfolioExportPortIn {
     @Override
     public PortfolioDownload getDownload(Long userId, Long projectId, Long portfolioId, Long exportId) {
         verifyAccess(userId, projectId, portfolioId);
+
         PortfolioExport export = findExport(portfolioId, exportId);
+
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         if (export.isExpired(now)) throw new CustomException(PortfolioExportErrorCode.PDF_EXPIRED);
         if (export.format() != PortfolioExportFormat.PDF || export.status() != PortfolioExportStatus.SUCCEEDED
                 || !StringUtils.hasText(export.storagePath())) {
             throw new CustomException(PortfolioExportErrorCode.INVALID_EXPORT_STATE);
         }
+
         Duration ttl = Duration.ofSeconds(downloadUrlTtlSeconds);
         return new PortfolioDownload(storagePortOut.createSignedUrl(export.storagePath(), ttl),
                 export.fileName(), now.plus(ttl));
@@ -150,17 +166,19 @@ public class PortfolioExportService implements PortfolioExportPortIn {
     public PortfolioExport resolveConflict(Long userId, Long projectId, Long portfolioId, Long exportId,
                                            PortfolioConflictAction action) {
         verifyAccess(userId, projectId, portfolioId);
+
         PortfolioExport export = findExport(portfolioId, exportId);
         if (export.format() != PortfolioExportFormat.NOTION || action == null) {
             throw new CustomException(PortfolioExportErrorCode.INVALID_EXPORT_STATE);
         }
+
         return exportPortOut.resolveConflict(exportId, action)
                 .orElseThrow(() -> new CustomException(PortfolioExportErrorCode.INVALID_EXPORT_STATE));
     }
 
-    private Portfolio verifyAccess(Long userId, Long projectId, Long portfolioId) {
+    private void verifyAccess(Long userId, Long projectId, Long portfolioId) {
         projectAccessResolver.resolveActive(userId, projectId);
-        return portfolioPortOut.getByProjectIdAndId(projectId, portfolioId)
+        portfolioPortOut.getByProjectIdAndId(projectId, portfolioId)
                 .orElseThrow(() -> new CustomException(PortfolioErrorCode.PORTFOLIO_NOT_FOUND));
     }
 
@@ -191,6 +209,7 @@ public class PortfolioExportService implements PortfolioExportPortIn {
     private boolean sameRequest(PortfolioExport existing, StartPortfolioExportCommand command) {
         PortfolioExportOptions options = command.options() == null
                 ? PortfolioExportOptions.defaults(command.format()) : command.options();
+
         return Objects.equals(existing.projectId(), command.projectId())
                 && Objects.equals(existing.portfolioId(), command.portfolioId())
                 && existing.format() == command.format()
