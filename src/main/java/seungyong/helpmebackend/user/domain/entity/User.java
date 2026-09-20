@@ -75,6 +75,22 @@ public class User {
         return status.allowsAuthentication();
     }
 
+    public void requestDeletion(OffsetDateTime requestedAt) {
+        OffsetDateTime firstRequestedAt = deletion.isRequested()
+                ? deletion.requestedAt()
+                : Objects.requireNonNull(requestedAt, "탈퇴 요청 시각은 null일 수 없습니다.");
+        this.status = UserStatus.DELETING;
+        this.deletion = new UserDeletion(firstRequestedAt, null, null);
+    }
+
+    public void recordDeletionFailure(String errorCode, String errorMessage) {
+        if (!deletion.isRequested()) {
+            throw new IllegalStateException("탈퇴 요청 전에는 정리 실패를 기록할 수 없습니다.");
+        }
+        this.status = UserStatus.DELETE_FAILED;
+        this.deletion = new UserDeletion(deletion.requestedAt(), errorCode, errorMessage);
+    }
+
     /**
      * 사용자가 성공적으로 로그인했음을 기록하는 메서드
      * @param authenticatedGithubUser 인증된 GitHub 사용자 정보

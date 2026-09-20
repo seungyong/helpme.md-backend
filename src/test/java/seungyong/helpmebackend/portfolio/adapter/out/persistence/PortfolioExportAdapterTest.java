@@ -44,6 +44,9 @@ class PortfolioExportAdapterTest {
         Project project = projectPortOut.save(project(user.getId()));
         Portfolio portfolio = portfolioPortOut.createIfAbsent(portfolio(project.getId())).portfolio();
         PortfolioExport created = exportPortOut.save(export(portfolio));
+        // 아직 storagePath가 없는 export도 업로드 예정 경로로 정리 대상에 포함
+        assertThat(exportPortOut.findPdfStoragePathsByProjectId(project.getId()))
+                .containsExactly("portfolios/" + portfolio.id() + "/" + created.id() + ".pdf");
 
         PortfolioExport claimed = exportPortOut.claimNext(
                 OffsetDateTime.parse("2026-09-06T00:00:00Z"),

@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import seungyong.helpmebackend.portfolio.adapter.out.persistence.entity.PortfolioExportJpaEntity;
 import seungyong.helpmebackend.portfolio.domain.type.PortfolioExportFormat;
 import seungyong.helpmebackend.portfolio.domain.type.PortfolioExportStatus;
+import seungyong.helpmebackend.project.domain.type.ProjectStatus;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -44,24 +45,28 @@ interface PortfolioExportJpaRepository extends JpaRepository<PortfolioExportJpaE
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             select e from PortfolioExport e
-            where e.status = :status
-               or (e.status = :processingStatus and e.startedAt is null)
+            where e.portfolio.project.status = :projectStatus
+              and (e.status = :status
+               or (e.status = :processingStatus and e.startedAt is null))
             order by e.createdAt asc, e.id asc
             """)
     List<PortfolioExportJpaEntity> findClaimable(
             @Param("status") PortfolioExportStatus status,
             @Param("processingStatus") PortfolioExportStatus processingStatus,
+            @Param("projectStatus") ProjectStatus projectStatus,
             Pageable pageable
     );
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             select e from PortfolioExport e
-            where e.status = :status and e.startedAt < :stuckBefore
+            where e.portfolio.project.status = :projectStatus
+              and e.status = :status and e.startedAt < :stuckBefore
             order by e.startedAt asc
             """)
     List<PortfolioExportJpaEntity> findStuck(
             @Param("status") PortfolioExportStatus status,
+            @Param("projectStatus") ProjectStatus projectStatus,
             @Param("stuckBefore") OffsetDateTime stuckBefore
     );
 
@@ -77,4 +82,13 @@ interface PortfolioExportJpaRepository extends JpaRepository<PortfolioExportJpaE
             @Param("now") OffsetDateTime now,
             Pageable pageable
     );
+
+    @Query("""
+            select e.id as exportId, e.portfolio.id as portfolioId, e.storagePath as storagePath
+            from PortfolioExport e
+            where e.portfolio.project.id = :projectId and e.format = :format
+            """)
+    List<seungyong.helpmebackend.portfolio.adapter.out.persistence.projection.PortfolioPdfAssetProjection>
+    findPdfAssetsByProjectId(@Param("projectId") Long projectId,
+                            @Param("format") PortfolioExportFormat format);
 }

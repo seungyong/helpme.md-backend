@@ -211,6 +211,59 @@ class NotionServiceTest {
         );
     }
 
+    @Test
+    @DisplayName("회원 탈퇴 cleanup은 Notion token을 revoke한 뒤 로컬 연결을 삭제")
+    void deleteUserConnection_revokeThenDelete() {
+        NotionConnection connection = connection();
+        given(notionConnectionPortOut.getByUserId(USER_ID)).willReturn(Optional.of(connection));
+        given(cipherPortOut.decrypt("encrypted-access")).willReturn("access");
+
+        service.deleteUserConnection(USER_ID);
+
+        var order = org.mockito.Mockito.inOrder(
+                notionProviderPortOut, notionConnectionPortOut
+        );
+        order.verify(notionProviderPortOut).revokeAccessToken("access");
+        order.verify(notionConnectionPortOut).deleteByUserId(USER_ID);
+    }
+
+    @Test
+    @DisplayName("이미 회수된 Notion token은 정리 완료로 보고 로컬 연결을 삭제")
+    void deleteUserConnection_alreadyRevoked() {
+        NotionConnection connection = connection();
+        given(notionConnectionPortOut.getByUserId(USER_ID)).willReturn(Optional.of(connection));
+        given(cipherPortOut.decrypt("encrypted-access")).willReturn("old-access");
+        given(cipherPortOut.decrypt("encrypted-refresh")).willReturn("old-refresh");
+        org.mockito.Mockito.doThrow(new NotionProviderException(
+                        NotionProviderException.Failure.UNAUTHORIZED))
+                .when(notionProviderPortOut).revokeAccessToken("old-access");
+        given(notionProviderPortOut.refreshAccessToken("old-refresh"))
+                .willThrow(new NotionProviderException(
+                        NotionProviderException.Failure.UNAUTHORIZED));
+
+        service.deleteUserConnection(USER_ID);
+
+        verify(notionConnectionPortOut).deleteByUserId(USER_ID);
+    }
+
+    @Test
+    @DisplayName("Notion upstream 장애면 연결 행을 보존해 다음 배치가 재시도")
+    void deleteUserConnection_upstreamFailureKeepsConnection() {
+        NotionConnection connection = connection();
+        given(notionConnectionPortOut.getByUserId(USER_ID)).willReturn(Optional.of(connection));
+        given(cipherPortOut.decrypt("encrypted-access")).willReturn("access");
+        org.mockito.Mockito.doThrow(new NotionProviderException(
+                        NotionProviderException.Failure.UPSTREAM))
+                .when(notionProviderPortOut).revokeAccessToken("access");
+
+        assertThatThrownBy(() -> service.deleteUserConnection(USER_ID))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue(
+                        "errorCode", NotionErrorCode.NOTION_UPSTREAM_ERROR
+                );
+        verify(notionConnectionPortOut, never()).deleteByUserId(USER_ID);
+    }
+
     private NotionConnection connection() {
         return NotionConnection.builder()
                 .id(10L)

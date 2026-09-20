@@ -235,34 +235,4 @@ public class UserServiceTest {
         Mockito.verifyNoInteractions(redisPortOut);
     }
 
-    @Test
-    @DisplayName("회원 탈퇴 - 성공")
-    void withdraw_success() {
-        Long userId = 1L;
-        User user = user(userId, "valid-github-token");
-
-        Mockito
-                .when(userPortOut.getById(Mockito.eq(userId)))
-                .thenReturn(user);
-
-        Mockito
-                .doNothing()
-                .when(userPortOut)
-                .delete(Mockito.eq(user));
-
-        Mockito
-                .doNothing()
-                .when(redisPortOut)
-                .delete(Mockito.anyString());
-
-        userService.withdraw(1L, "refresh-token");
-
-        Mockito
-                .verify(userPortOut)
-                .delete(Mockito.eq(user));
-
-        Mockito
-                .verify(redisPortOut)
-                .delete(Mockito.eq(RedisKey.REFRESH_KEY.getValue() + "refresh-token"));
-    }
 }

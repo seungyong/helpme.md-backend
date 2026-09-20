@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import seungyong.helpmebackend.reflection.adapter.out.persistence.entity.ReflectionJpaEntity;
 import seungyong.helpmebackend.reflection.domain.type.ReflectionKind;
 import seungyong.helpmebackend.reflection.domain.type.ReflectionStatus;
+import seungyong.helpmebackend.project.domain.type.ProjectStatus;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -63,22 +64,24 @@ interface ReflectionJpaRepository extends JpaRepository<ReflectionJpaEntity, Lon
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             select r from Reflection r
-            where r.status = :queued
+            where r.project.status = :projectStatus and r.status = :queued
             order by r.createdAt asc, r.id asc
             """)
     List<ReflectionJpaEntity> findClaimable(
             @Param("queued") ReflectionStatus queued,
+            @Param("projectStatus") ProjectStatus projectStatus,
             Pageable pageable
     );
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             select r from Reflection r
-            where r.status = :generating
+            where r.project.status = :projectStatus and r.status = :generating
               and r.generationStartedAt < :stuckBefore
             """)
     List<ReflectionJpaEntity> findStuck(
             @Param("generating") ReflectionStatus generating,
+            @Param("projectStatus") ProjectStatus projectStatus,
             @Param("stuckBefore") OffsetDateTime stuckBefore
     );
 }

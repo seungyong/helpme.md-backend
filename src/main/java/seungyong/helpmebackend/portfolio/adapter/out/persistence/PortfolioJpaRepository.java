@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import seungyong.helpmebackend.portfolio.adapter.out.persistence.entity.PortfolioJpaEntity;
 import seungyong.helpmebackend.portfolio.domain.type.PortfolioStatus;
+import seungyong.helpmebackend.project.domain.type.ProjectStatus;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -42,19 +43,25 @@ interface PortfolioJpaRepository extends JpaRepository<PortfolioJpaEntity, Long>
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             select p from Portfolio p
-            where p.status = :queued
+            where p.project.status = :projectStatus and p.status = :queued
             order by p.createdAt asc, p.id asc
             """)
-    List<PortfolioJpaEntity> findClaimable(@Param("queued") PortfolioStatus queued, Pageable pageable);
+    List<PortfolioJpaEntity> findClaimable(
+            @Param("queued") PortfolioStatus queued,
+            @Param("projectStatus") ProjectStatus projectStatus,
+            Pageable pageable
+    );
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             select p from Portfolio p
-            where p.status = :generating and p.generationStartedAt < :stuckBefore
+            where p.project.status = :projectStatus
+              and p.status = :generating and p.generationStartedAt < :stuckBefore
             order by p.generationStartedAt asc, p.id asc
             """)
     List<PortfolioJpaEntity> findStuck(
             @Param("generating") PortfolioStatus generating,
+            @Param("projectStatus") ProjectStatus projectStatus,
             @Param("stuckBefore") OffsetDateTime stuckBefore
     );
 }

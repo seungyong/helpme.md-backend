@@ -27,5 +27,6 @@ public interface PortfolioExportPortOut {
     Optional<PortfolioExport> resolveConflict(Long exportId, PortfolioConflictAction action);
     void fail(Long exportId, String errorCode, String errorMessage, OffsetDateTime completedAt);
     List<PortfolioExport> findExpiredPdf(OffsetDateTime now, int limit);
+    List<String> findPdfStoragePathsByProjectId(Long projectId);
     void markExpired(Long exportId);
 }

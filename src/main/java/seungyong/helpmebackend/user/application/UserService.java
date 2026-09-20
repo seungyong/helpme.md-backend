@@ -106,12 +106,4 @@ public class UserService implements UserPortIn {
         redisPortOut.delete(refreshTokenKey);
     }
 
-    @Override
-    public void withdraw(Long userId, String refreshToken) {
-        User user = userPortOut.getById(userId);
-        userPortOut.delete(user);
-
-        String refreshTokenKey = RedisKey.REFRESH_KEY.getValue() + refreshToken;
-        redisPortOut.delete(refreshTokenKey);
-    }
 }

@@ -190,35 +190,4 @@ public class UserControllerTest {
                 .clearTokenCookie(Mockito.any(HttpServletResponse.class));
     }
 
-    @Test
-    @DisplayName("회원탈퇴 - 성공")
-    void withdraw_success() throws Exception {
-        Long userId = 1L;
-        String username = "test-user";
-        CustomUserDetails userDetails = new CustomUserDetails(userId, username);
-
-        Mockito
-                .when(cookieUtil.getRefreshToken(Mockito.any(HttpServletRequest.class)))
-                .thenReturn("refresh-token");
-
-        mockMvc
-                .perform(
-                        MockMvcRequestBuilders.delete("/api/v1/users")
-                                .with(SecurityMockMvcRequestPostProcessors.user(userDetails))
-                )
-                .andDo(MockMvcResultHandlers.print())
-                .andExpect(MockMvcResultMatchers.status().isNoContent());
-
-        Mockito
-                .verify(userPortIn, Mockito.times(1))
-                .withdraw(ArgumentMatchers.eq(userId), Mockito.anyString());
-
-        Mockito
-                .verify(cookieUtil, Mockito.times(1))
-                .getRefreshToken(Mockito.any(HttpServletRequest.class));
-
-        Mockito
-                .verify(cookieUtil, Mockito.times(1))
-                .clearTokenCookie(Mockito.any(HttpServletResponse.class));
-    }
 }

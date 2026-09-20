@@ -15,6 +15,7 @@ import seungyong.helpmebackend.portfolio.domain.entity.PortfolioDocument;
 import seungyong.helpmebackend.portfolio.domain.entity.PortfolioLastExportSummary;
 import seungyong.helpmebackend.portfolio.domain.entity.PortfolioSourceSnapshot;
 import seungyong.helpmebackend.portfolio.domain.type.PortfolioStatus;
+import seungyong.helpmebackend.project.domain.type.ProjectStatus;
 import seungyong.helpmebackend.portfolio.domain.type.PortfolioTone;
 import seungyong.helpmebackend.global.application.pagination.CursorPagination;
 import seungyong.helpmebackend.project.adapter.out.persistence.entity.ProjectJpaEntity;
@@ -127,7 +128,8 @@ public class PortfolioAdapter implements PortfolioPortOut {
     @Override
     @Transactional
     public Optional<Portfolio> claimNext(OffsetDateTime now, OffsetDateTime stuckBefore) {
-        for (PortfolioJpaEntity stuck : portfolioJpaRepository.findStuck(PortfolioStatus.GENERATING, stuckBefore)) {
+        for (PortfolioJpaEntity stuck : portfolioJpaRepository.findStuck(
+                PortfolioStatus.GENERATING, ProjectStatus.ACTIVE, stuckBefore)) {
             if (stuck.getGenerationAttempts() >= MAX_ATTEMPTS) {
                 stuck.failGeneration("PORTFOLIO_50001", "중단된 포트폴리오 생성 작업이 최대 재시도 횟수를 초과했습니다.");
             } else {
@@ -135,7 +137,7 @@ public class PortfolioAdapter implements PortfolioPortOut {
             }
         }
         List<PortfolioJpaEntity> claimable = portfolioJpaRepository.findClaimable(
-                PortfolioStatus.QUEUED, PageRequest.of(0, 1)
+                PortfolioStatus.QUEUED, ProjectStatus.ACTIVE, PageRequest.of(0, 1)
         );
         if (claimable.isEmpty()) {
             return Optional.empty();

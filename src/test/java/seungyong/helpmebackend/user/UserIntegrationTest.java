@@ -262,7 +262,7 @@ public class UserIntegrationTest {
     }
 
     @Test
-    @DisplayName("회원 탈퇴 - 성공")
+    @DisplayName("회원 탈퇴 - 202 이후 즉시 API 차단하고 반복 요청은 같은 작업 반환")
     void withdraw_success() throws Exception {
         User user = user(null, "test");
         User savedUser = userPortOut.save(user);
@@ -272,21 +272,34 @@ public class UserIntegrationTest {
         String refreshKey = RedisKey.REFRESH_KEY.getValue() + jwt.getRefreshToken();
         redisAdapter.set(refreshKey, String.valueOf(savedUser.getId()), jwt.getRefreshTokenExpireTime());
 
-        mockMvc
+        String firstBody = mockMvc
                 .perform(
-                        MockMvcRequestBuilders.delete("/api/v1/users")
+                        MockMvcRequestBuilders.delete("/api/v1/users/me")
                                 .cookie(
                                         new Cookie("accessToken", jwt.getAccessToken()),
                                         new Cookie("refreshToken", jwt.getRefreshToken())
                                 )
+                                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                                .content("{\"confirmed\":true}")
                 )
                 .andDo(MockMvcResultHandlers.print())
-                .andExpect(MockMvcResultMatchers.status().isNoContent())
+                .andExpect(MockMvcResultMatchers.status().isAccepted())
+                .andExpect(MockMvcResultMatchers.jsonPath("$.status").value("deleting"))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.requiredAction").value("sign_out"))
                 .andExpect(MockMvcResultMatchers.cookie().maxAge("accessToken", 0))
-                .andExpect(MockMvcResultMatchers.cookie().maxAge("refreshToken", 0));
+                .andExpect(MockMvcResultMatchers.cookie().maxAge("refreshToken", 0))
+                .andReturn().getResponse().getContentAsString();
 
-        assertThatThrownBy(() -> userPortOut.getById(savedUser.getId()))
-                .isInstanceOf(CustomException.class)
-                .hasFieldOrPropertyWithValue("errorCode", UserErrorCode.USER_NOT_FOUND);
+        User deleting = userPortOut.getById(savedUser.getId());
+        assertThat(deleting.getStatus()).isEqualTo(UserStatus.DELETING);
+        assertThat(deleting.getDeletion().requestedAt()).isNotNull();
+        assertThat(redisAdapter.get(refreshKey)).isNull();
+
+        mockMvc.perform(MockMvcRequestBuilders.delete("/api/v1/users/me")
+                        .cookie(new Cookie("accessToken", jwt.getAccessToken()))
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"confirmed\":true}"))
+                .andExpect(MockMvcResultMatchers.status().isAccepted())
+                .andExpect(MockMvcResultMatchers.content().json(firstBody));
     }
 }

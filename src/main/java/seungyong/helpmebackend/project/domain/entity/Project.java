@@ -15,11 +15,11 @@ public class Project {
     private final Long githubInstallationId;
     private final String defaultBranch;
     private final boolean privateRepository;
-    private final ProjectStatus status;
+    private ProjectStatus status;
     private final ProjectSync sync;
     private final ProjectWebhook webhook;
     private ProjectSettings settings;
-    private final ProjectDeletion deletion;
+    private ProjectDeletion deletion;
     private final OffsetDateTime createdAt;
     private OffsetDateTime updatedAt;
 
@@ -89,5 +89,23 @@ public class Project {
 
     public void recordUpdatedAt(OffsetDateTime changedAt) {
         this.updatedAt = changedAt;
+    }
+
+    public void requestDeletion(OffsetDateTime requestedAt) {
+        OffsetDateTime firstRequestedAt = deletion.isRequested()
+                ? deletion.requestedAt()
+                : java.util.Objects.requireNonNull(
+                        requestedAt, "프로젝트 삭제 요청 시각은 null일 수 없습니다."
+                );
+        this.status = ProjectStatus.DELETING;
+        this.deletion = new ProjectDeletion(firstRequestedAt, null);
+    }
+
+    public void recordDeletionFailure(ProjectOperationError error) {
+        if (!deletion.isRequested()) {
+            throw new IllegalStateException("삭제 요청 전에는 정리 실패를 기록할 수 없습니다.");
+        }
+        this.status = ProjectStatus.DELETE_FAILED;
+        this.deletion = new ProjectDeletion(deletion.requestedAt(), error);
     }
 }

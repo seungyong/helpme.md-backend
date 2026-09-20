@@ -15,6 +15,7 @@ import seungyong.helpmebackend.webhook.application.port.out.WebhookDeliveryPortO
 import seungyong.helpmebackend.webhook.application.port.out.WebhookWorkPortOut;
 import seungyong.helpmebackend.webhook.domain.entity.WebhookDelivery;
 import seungyong.helpmebackend.webhook.domain.type.WebhookDeliveryStatus;
+import seungyong.helpmebackend.project.domain.type.ProjectStatus;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -78,7 +79,7 @@ public class WebhookDeliveryAdapter implements WebhookDeliveryPortOut, WebhookWo
         // 중단된 작업을 복구하고, 재시도 횟수가 최대치를 초과한 경우에는 실패 상태로 마킹
         // 재시도 시간이 null인 경우는 더 이상 재시도하지 않도록 함
         for (WebhookDeliveryJpaEntity stuck : webhookDeliveryJpaRepository.findStuck(
-                WebhookDeliveryStatus.PROCESSING, stuckBefore)) {
+                WebhookDeliveryStatus.PROCESSING, ProjectStatus.ACTIVE, stuckBefore)) {
 
             // MAX_ATTEMPTS 이상이면 terminal 상태로 간주하고, 그렇지 않으면 재시도 가능 상태로 간주
             boolean terminal = stuck.getAttempts() >= MAX_ATTEMPTS;
@@ -109,6 +110,7 @@ public class WebhookDeliveryAdapter implements WebhookDeliveryPortOut, WebhookWo
         List<WebhookDeliveryJpaEntity> claimable = webhookDeliveryJpaRepository.findClaimable(
                 WebhookDeliveryStatus.RECEIVED,
                 WebhookDeliveryStatus.FAILED,
+                ProjectStatus.ACTIVE,
                 now,
                 PageRequest.of(0, 1)
         );

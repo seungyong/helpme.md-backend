@@ -11,6 +11,7 @@ import seungyong.helpmebackend.global.exception.CustomException;
 import seungyong.helpmebackend.global.exception.GlobalErrorCode;
 import seungyong.helpmebackend.notion.application.port.out.exception.NotionProviderException;
 import seungyong.helpmebackend.notion.application.port.in.NotionPortIn;
+import seungyong.helpmebackend.notion.application.port.in.NotionDeletionPortIn;
 import seungyong.helpmebackend.notion.application.port.in.command.StartNotionAuthorizationCommand;
 import seungyong.helpmebackend.notion.application.port.in.command.UpdateNotionDefaultPageCommand;
 import seungyong.helpmebackend.notion.application.port.in.result.NotionAuthorizationResult;
@@ -39,7 +40,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-public class NotionService implements NotionPortIn {
+public class NotionService implements NotionPortIn, NotionDeletionPortIn {
     private static final int DEFAULT_PAGE_SIZE = 30;
     private static final int MAX_PAGE_SIZE = 100;
     private static final TypeReference<NotionOAuthState> STATE_TYPE = new TypeReference<>() { };
@@ -203,6 +204,28 @@ public class NotionService implements NotionPortIn {
             notionProviderPortOut.revokeAccessToken(token);
             return null;
         }, NotionErrorCode.NOTION_CONNECTION_EXPIRED, NotionErrorCode.NOTION_UPSTREAM_ERROR);
+        notionConnectionPortOut.deleteByUserId(userId);
+    }
+
+    @Override
+    public void deleteUserConnection(Long userId) {
+        NotionConnection connection = notionConnectionPortOut.getByUserId(userId).orElse(null);
+        if (connection == null) {
+            return;
+        }
+
+        try {
+            withRefresh(connection, token -> {
+                notionProviderPortOut.revokeAccessToken(token);
+                return null;
+            }, NotionErrorCode.NOTION_CONNECTION_EXPIRED,
+                    NotionErrorCode.NOTION_CONNECTION_EXPIRED);
+        } catch (CustomException exception) {
+            if (exception.getErrorCode() != NotionErrorCode.NOTION_CONNECTION_EXPIRED) {
+                throw exception;
+            }
+            // 이미 만료·회수된 token은 외부 정리가 끝난 것과 동일하게 취급
+        }
         notionConnectionPortOut.deleteByUserId(userId);
     }
 

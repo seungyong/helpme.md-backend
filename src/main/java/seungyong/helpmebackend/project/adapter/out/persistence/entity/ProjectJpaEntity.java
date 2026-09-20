@@ -136,6 +136,12 @@ public class ProjectJpaEntity {
     @Column(name = "webhook_error_message", columnDefinition = "TEXT")
     private String webhookErrorMessage;
 
+    @Column(name = "deletion_attempts", nullable = false)
+    private int deletionAttempts;
+
+    @Column(name = "deletion_next_retry_at")
+    private OffsetDateTime deletionNextRetryAt;
+
     @Column(name = "deletion_requested_at")
     private OffsetDateTime deletionRequestedAt;
 
@@ -281,5 +287,26 @@ public class ProjectJpaEntity {
         this.webhookLastCheckedAt = checkedAt;
         this.webhookErrorCode = code;
         this.webhookErrorMessage = message;
+    }
+
+    public void requestDeletion(OffsetDateTime requestedAt) {
+        if (this.deletionRequestedAt == null) {
+            this.deletionRequestedAt = requestedAt;
+        }
+        this.status = ProjectStatus.DELETING;
+        this.deletionErrorCode = null;
+        this.deletionErrorMessage = null;
+    }
+
+    public void recordDeletionRetry(OffsetDateTime failedAt) {
+        this.deletionAttempts = Math.min(this.deletionAttempts + 1, 5);
+        this.deletionNextRetryAt = failedAt.plus(
+                seungyong.helpmebackend.global.application.deletion.DeletionRetryPolicy.delay(deletionAttempts));
+    }
+
+    public void markDeletionFailed(String errorCode, String errorMessage) {
+        this.status = ProjectStatus.DELETE_FAILED;
+        this.deletionErrorCode = errorCode;
+        this.deletionErrorMessage = errorMessage;
     }
 }

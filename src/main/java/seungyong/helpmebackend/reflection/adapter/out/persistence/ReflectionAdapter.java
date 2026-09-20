@@ -15,6 +15,7 @@ import seungyong.helpmebackend.reflection.domain.entity.ReflectionDocument;
 import seungyong.helpmebackend.reflection.domain.entity.ReflectionSourceSnapshot;
 import seungyong.helpmebackend.reflection.domain.type.ReflectionKind;
 import seungyong.helpmebackend.reflection.domain.type.ReflectionStatus;
+import seungyong.helpmebackend.project.domain.type.ProjectStatus;
 import seungyong.helpmebackend.reflection.domain.type.SourceQuality;
 import seungyong.helpmebackend.global.application.pagination.CursorPagination;
 
@@ -147,7 +148,7 @@ public class ReflectionAdapter implements ReflectionPortOut {
             OffsetDateTime now, OffsetDateTime stuckBefore
     ) {
         for (ReflectionJpaEntity stuck : reflectionJpaRepository.findStuck(
-                ReflectionStatus.GENERATING, stuckBefore
+                ReflectionStatus.GENERATING, ProjectStatus.ACTIVE, stuckBefore
         )) {
             if (stuck.getGenerationAttempts() >= MAX_ATTEMPTS) {
                 stuck.failGeneration(
@@ -159,7 +160,7 @@ public class ReflectionAdapter implements ReflectionPortOut {
         }
 
         List<ReflectionJpaEntity> claimable = reflectionJpaRepository.findClaimable(
-                ReflectionStatus.QUEUED, PageRequest.of(0, 1)
+                ReflectionStatus.QUEUED, ProjectStatus.ACTIVE, PageRequest.of(0, 1)
         );
         if (claimable.isEmpty()) {
             return Optional.empty();

@@ -17,6 +17,7 @@ import seungyong.helpmebackend.portfolio.domain.type.PortfolioConflictAction;
 import seungyong.helpmebackend.portfolio.domain.type.PortfolioExportFormat;
 import seungyong.helpmebackend.portfolio.domain.type.PortfolioExportStatus;
 import seungyong.helpmebackend.global.application.pagination.CursorPagination;
+import seungyong.helpmebackend.project.domain.type.ProjectStatus;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -75,7 +76,7 @@ public class PortfolioExportAdapter implements PortfolioExportPortOut {
     @Transactional
     public Optional<PortfolioExport> claimNext(OffsetDateTime now, OffsetDateTime stuckBefore) {
         for (PortfolioExportJpaEntity stuck : repository.findStuck(
-                PortfolioExportStatus.PROCESSING, stuckBefore)) {
+                PortfolioExportStatus.PROCESSING, ProjectStatus.ACTIVE, stuckBefore)) {
             if (stuck.getAttempts() >= MAX_ATTEMPTS) {
                 stuck.fail("EXPORT_50001", "내보내기 작업이 제한 시간 안에 완료되지 않았습니다.", now);
             } else {
@@ -83,7 +84,8 @@ public class PortfolioExportAdapter implements PortfolioExportPortOut {
             }
         }
         List<PortfolioExportJpaEntity> claimable = repository.findClaimable(
-                PortfolioExportStatus.QUEUED, PortfolioExportStatus.PROCESSING, PageRequest.of(0, 1));
+                PortfolioExportStatus.QUEUED, PortfolioExportStatus.PROCESSING,
+                ProjectStatus.ACTIVE, PageRequest.of(0, 1));
         if (claimable.isEmpty()) return Optional.empty();
         PortfolioExportJpaEntity entity = claimable.get(0);
         entity.claim(now);
@@ -127,7 +129,8 @@ public class PortfolioExportAdapter implements PortfolioExportPortOut {
     @Override
     @Transactional
     public void fail(Long exportId, String errorCode, String errorMessage, OffsetDateTime completedAt) {
-        getEntity(exportId).fail(errorCode, errorMessage, completedAt);
+        repository.findById(exportId).ifPresent(entity ->
+                entity.fail(errorCode, errorMessage, completedAt));
     }
 
     @Override
@@ -135,6 +138,21 @@ public class PortfolioExportAdapter implements PortfolioExportPortOut {
     public List<PortfolioExport> findExpiredPdf(OffsetDateTime now, int limit) {
         return repository.findExpired(PortfolioExportFormat.PDF, PortfolioExportStatus.SUCCEEDED,
                 now, PageRequest.of(0, limit)).stream().map(this::toDomain).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<String> findPdfStoragePathsByProjectId(Long projectId) {
+        // 업로드 후 DB 저장 실패도 정리하도록 export ID로 재구성한 경로와 저장된 경로 모두 포함
+        java.util.Set<String> paths = new java.util.LinkedHashSet<>();
+        for (var asset : repository.findPdfAssetsByProjectId(projectId, PortfolioExportFormat.PDF)) {
+            paths.add(seungyong.helpmebackend.portfolio.domain.entity.PortfolioPdfStoragePath.of(
+                    asset.getPortfolioId(), asset.getExportId()));
+            if (org.springframework.util.StringUtils.hasText(asset.getStoragePath())) {
+                paths.add(asset.getStoragePath());
+            }
+        }
+        return List.copyOf(paths);
     }
 
     @Override

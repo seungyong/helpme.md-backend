@@ -34,18 +34,22 @@ class PortfolioExportWorkerTest {
     @Mock private PortfolioPdfPortOut pdfPortOut;
     @Mock private PortfolioStoragePortOut storagePortOut;
     @Mock private PortfolioNotionPortOut notionPortOut;
+    @Mock private seungyong.helpmebackend.project.application.port.out.ProjectWorkPortOut projectWorkPortOut;
     private PortfolioExportWorker worker;
 
     @BeforeEach
     void setUp() {
-        worker = new PortfolioExportWorker(exportPortOut, pdfPortOut, storagePortOut, notionPortOut);
-        ReflectionTestUtils.setField(worker, "pdfRetentionDays", 7);
+        PortfolioExportPublisher publisher = new PortfolioExportPublisher(projectWorkPortOut, exportPortOut, storagePortOut, notionPortOut);
+        ReflectionTestUtils.setField(publisher, "pdfRetentionDays", 7);
+        worker = new PortfolioExportWorker(exportPortOut, pdfPortOut, publisher);
     }
 
     @Test
     @DisplayName("PDF worker는 claim된 snapshot을 렌더링·업로드하고 성공 정보 저장")
     void runOnce_pdfSuccess() {
         PortfolioExport export = export();
+        given(projectWorkPortOut.lockActive(101L)).willReturn(true);
+        given(exportPortOut.getByPortfolioIdAndId(501L, 701L)).willReturn(Optional.of(export));
         given(exportPortOut.claimNext(any(), any())).willReturn(Optional.of(export));
         given(pdfPortOut.render(export.document(), export.options())).willReturn(new RenderedPdf(new byte[]{1, 2}, 2));
 

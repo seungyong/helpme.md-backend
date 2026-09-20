@@ -9,6 +9,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import seungyong.helpmebackend.project.adapter.out.persistence.entity.ProjectJpaEntity;
 import seungyong.helpmebackend.project.application.port.out.ProjectPortOut;
+import seungyong.helpmebackend.project.domain.type.ProjectStatus;
 import seungyong.helpmebackend.webhook.adapter.out.persistence.entity.WebhookDeliveryJpaEntity;
 import seungyong.helpmebackend.webhook.domain.entity.WebhookDelivery;
 import seungyong.helpmebackend.webhook.domain.type.WebhookDeliveryStatus;
@@ -40,11 +41,12 @@ class WebhookDeliveryAdapterTest {
         OffsetDateTime now = OffsetDateTime.parse("2026-08-17T10:00:00Z");
         WebhookDeliveryJpaEntity stuck = delivery((short) 3);
         given(repository.findStuck(
-                WebhookDeliveryStatus.PROCESSING, now.minusMinutes(5)
+                WebhookDeliveryStatus.PROCESSING, ProjectStatus.ACTIVE, now.minusMinutes(5)
         )).willReturn(List.of(stuck));
         given(repository.findClaimable(
                 eq(WebhookDeliveryStatus.RECEIVED),
                 eq(WebhookDeliveryStatus.FAILED),
+                eq(ProjectStatus.ACTIVE),
                 eq(now),
                 any()
         )).willReturn(List.of());
@@ -64,11 +66,12 @@ class WebhookDeliveryAdapterTest {
         OffsetDateTime now = OffsetDateTime.parse("2026-08-17T10:00:00Z");
         WebhookDeliveryJpaEntity stuck = delivery((short) 2);
         given(repository.findStuck(
-                WebhookDeliveryStatus.PROCESSING, now.minusMinutes(5)
+                WebhookDeliveryStatus.PROCESSING, ProjectStatus.ACTIVE, now.minusMinutes(5)
         )).willReturn(List.of(stuck));
         given(repository.findClaimable(
                 eq(WebhookDeliveryStatus.RECEIVED),
                 eq(WebhookDeliveryStatus.FAILED),
+                eq(ProjectStatus.ACTIVE),
                 eq(now),
                 any()
         )).willReturn(List.of(stuck));

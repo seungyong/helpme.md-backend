@@ -37,6 +37,11 @@ public enum ProjectErrorCode implements ErrorCode {
             HttpStatus.INTERNAL_SERVER_ERROR,
             "프로젝트 최초 동기화에 실패했습니다.",
             "PROJECT_50001"
+    ),
+    PROJECT_DELETION_FAILED(
+            HttpStatus.INTERNAL_SERVER_ERROR,
+            "프로젝트 외부 자산 정리에 실패했습니다.",
+            "PROJECT_50002"
     );
 
     private final String name = this.name();

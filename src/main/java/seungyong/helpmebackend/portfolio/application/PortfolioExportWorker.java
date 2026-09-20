@@ -2,15 +2,15 @@ package seungyong.helpmebackend.portfolio.application;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
+
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import seungyong.helpmebackend.notion.domain.exception.NotionErrorCode;
-import seungyong.helpmebackend.portfolio.application.port.out.NotionExportResult;
+
 import seungyong.helpmebackend.portfolio.application.port.out.PortfolioExportPortOut;
-import seungyong.helpmebackend.portfolio.application.port.out.PortfolioNotionPortOut;
+
 import seungyong.helpmebackend.portfolio.application.port.out.PortfolioPdfPortOut;
-import seungyong.helpmebackend.portfolio.application.port.out.PortfolioStoragePortOut;
+
 import seungyong.helpmebackend.portfolio.application.port.out.RenderedPdf;
 import seungyong.helpmebackend.portfolio.domain.entity.PortfolioExport;
 import seungyong.helpmebackend.portfolio.domain.exception.PortfolioExportErrorCode;
@@ -29,11 +29,9 @@ public class PortfolioExportWorker {
 
     private final PortfolioExportPortOut exportPortOut;
     private final PortfolioPdfPortOut pdfPortOut;
-    private final PortfolioStoragePortOut storagePortOut;
-    private final PortfolioNotionPortOut notionPortOut;
+    private final PortfolioExportPublisher publisher;
 
-    @Value("${portfolio.export.pdf-retention-days:7}")
-    private int pdfRetentionDays;
+
 
     @Scheduled(fixedDelayString = "${workers.portfolio-export.fixed-delay-ms:1000}")
     public void runOnce() {
@@ -62,31 +60,13 @@ public class PortfolioExportWorker {
     private void processPdf(PortfolioExport export) {
         RenderedPdf pdf = pdfPortOut.render(export.document(), export.options());
 
-        String fileName = safeFileName(export.document().title()) + ".pdf";
-        String path = "portfolios/" + export.portfolioId() + "/" + export.id() + ".pdf";
-        storagePortOut.upload(path, pdf.bytes(), "application/pdf");
-
-        OffsetDateTime completedAt = now();
-        exportPortOut.completePdf(export.id(), path, fileName, pdf.bytes().length, pdf.pageCount(),
-                completedAt.plusDays(pdfRetentionDays), completedAt);
+        publisher.publishPdf(export, pdf);
     }
 
     private void processNotion(PortfolioExport export) {
-        NotionExportResult result = notionPortOut.export(export.notionConnectionId(),
-                export.notionParentPageId(), export.document(), export.options().checkTitleConflict(),
-                export.conflictAction(), export.conflictPageId());
-        if (result.needsAction()) {
-            exportPortOut.requireConflictAction(export.id(), result.pageId(), result.pageTitle(),
-                    result.pageUrl());
-        } else {
-            exportPortOut.completeNotion(export.id(), result.pageId(), result.pageUrl(), now());
-        }
+        publisher.publishNotion(export);
     }
 
-    private String safeFileName(String title) {
-        String sanitized = title.replaceAll("[\\\\/:*?\"<>|]", "_").trim();
-        return sanitized.isBlank() ? "portfolio" : sanitized;
-    }
 
     private OffsetDateTime now() {
         return OffsetDateTime.now(ZoneOffset.UTC);

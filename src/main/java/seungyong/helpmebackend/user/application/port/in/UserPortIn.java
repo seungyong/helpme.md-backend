@@ -8,5 +8,4 @@ public interface UserPortIn {
     User getCurrentUser(Long userId);
     JWT reissue(String refreshToken);
     void logout(String refreshToken);
-    void withdraw(Long userId, String refreshToken);
 }

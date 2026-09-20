@@ -66,6 +66,12 @@ public class UserJpaEntity {
     @Column(name = "last_login_at")
     private OffsetDateTime lastLoginAt;
 
+    @Column(name = "deletion_attempts", nullable = false)
+    private int deletionAttempts;
+
+    @Column(name = "deletion_next_retry_at")
+    private OffsetDateTime deletionNextRetryAt;
+
     @Column(name = "deletion_requested_at")
     private OffsetDateTime deletionRequestedAt;
 
@@ -118,5 +124,26 @@ public class UserJpaEntity {
         this.deletionErrorMessage = deletionErrorMessage;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
+    }
+
+    public void requestDeletion(OffsetDateTime requestedAt) {
+        if (this.deletionRequestedAt == null) {
+            this.deletionRequestedAt = requestedAt;
+        }
+        this.status = UserStatus.DELETING;
+        this.deletionErrorCode = null;
+        this.deletionErrorMessage = null;
+    }
+
+    public void recordDeletionRetry(OffsetDateTime failedAt) {
+        this.deletionAttempts = Math.min(this.deletionAttempts + 1, 5);
+        this.deletionNextRetryAt = failedAt.plus(
+                seungyong.helpmebackend.global.application.deletion.DeletionRetryPolicy.delay(deletionAttempts));
+    }
+
+    public void markDeletionFailed(String errorCode, String errorMessage) {
+        this.status = UserStatus.DELETE_FAILED;
+        this.deletionErrorCode = errorCode;
+        this.deletionErrorMessage = errorMessage;
     }
 }

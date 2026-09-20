@@ -147,42 +147,4 @@ class UserController {
         return ResponseEntity.noContent().build();
     }
 
-    @Operation(
-            summary = "회원 탈퇴",
-            description = "현재 인증된 사용자의 회원 탈퇴를 처리합니다. 이 작업은 사용자의 데이터를 영구적으로 삭제합니다.",
-            responses = {
-                    @ApiResponse(
-                            responseCode = "204",
-                            description = "회원 탈퇴 성공"
-                    )
-            }
-    )
-    @ApiErrorResponses({
-            @ApiErrorResponse(
-                    responseCode = "401",
-                    description = "인증되지 않은 사용자입니다.",
-                    errorCodeClasses = GlobalErrorCode.class,
-                    errorCodes = { "EXPIRED_ACCESS_TOKEN", "NOT_FOUND_TOKEN" }
-            ),
-            @ApiErrorResponse(
-                    responseCode = "500",
-                    description = "서버 에러입니다.",
-                    errorCodeClasses = GlobalErrorCode.class,
-                    errorCodes = { "INTERNAL_SERVER_ERROR" }
-            )
-    })
-    @UserRoleApiErrors
-    @DeleteMapping
-    public ResponseEntity<Void> withdraw(
-            HttpServletRequest request,
-            HttpServletResponse response,
-            @AuthenticationPrincipal CustomUserDetails details
-    ) {
-        String refreshTokenKey = cookieUtil.getRefreshToken(request);
-        userPortIn.withdraw(details.getUserId(), refreshTokenKey);
-
-        cookieUtil.clearTokenCookie(response);
-
-        return ResponseEntity.noContent().build();
-    }
 }

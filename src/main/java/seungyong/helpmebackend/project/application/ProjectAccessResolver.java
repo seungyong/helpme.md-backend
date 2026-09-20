@@ -20,14 +20,18 @@ public class ProjectAccessResolver {
      * @throws CustomException 프로젝트가 존재하지 않거나, 접근 권한이 없거나, 비활성화된 경우 발생
      */
     public Project resolveActive(Long userId, Long projectId) {
-        Project project = projectPortOut.getById(projectId)
-                .orElseThrow(() -> new CustomException(ProjectErrorCode.PROJECT_NOT_FOUND));
-
-        if (!project.isOwnedBy(userId)) {
-            throw new CustomException(ProjectErrorCode.PROJECT_ACCESS_DENIED);
-        }
+        Project project = resolveOwned(userId, projectId);
         if (!project.isActive()) {
             throw new CustomException(ProjectErrorCode.PROJECT_NOT_ACTIVE);
+        }
+        return project;
+    }
+
+    public Project resolveOwned(Long userId, Long projectId) {
+        Project project = projectPortOut.getById(projectId)
+                .orElseThrow(() -> new CustomException(ProjectErrorCode.PROJECT_NOT_FOUND));
+        if (!project.isOwnedBy(userId)) {
+            throw new CustomException(ProjectErrorCode.PROJECT_ACCESS_DENIED);
         }
         return project;
     }

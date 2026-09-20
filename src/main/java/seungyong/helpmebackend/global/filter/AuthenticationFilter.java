@@ -69,7 +69,10 @@ public class AuthenticationFilter extends OncePerRequestFilter {
         }
 
         try {
-            Authentication authentication = getAuthentication(accessToken);
+            Authentication authentication = getAuthentication(
+                    accessToken,
+                    !isUserDeletionRequest(request)
+            );
             SecurityContextHolder.getContext().setAuthentication(authentication);
         } catch (CustomException e) {
             if (e.getErrorCode() == GlobalErrorCode.INVALID_TOKEN
@@ -105,9 +108,11 @@ public class AuthenticationFilter extends OncePerRequestFilter {
         return accessToken;
     }
 
-    private Authentication getAuthentication(String accessToken) {
+    private Authentication getAuthentication(String accessToken, boolean requireActiveUser) {
         JWTUser jwtUser = jwtProvider.getUserByToken(accessToken);
-        userPortIn.ensureActiveUser(jwtUser.getId());
+        if (requireActiveUser) {
+            userPortIn.ensureActiveUser(jwtUser.getId());
+        }
 
         CustomUserDetails customUser = new CustomUserDetails(
                 jwtUser.getId(),
@@ -119,5 +124,10 @@ public class AuthenticationFilter extends OncePerRequestFilter {
                 null,
                 customUser.getAuthorities()
         );
+    }
+
+    private boolean isUserDeletionRequest(HttpServletRequest request) {
+        return request.getRequestURI().equals("/api/v1/users/me")
+                && request.getMethod().equals("DELETE");
     }
 }

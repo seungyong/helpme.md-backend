@@ -9,4 +9,8 @@ public record ProjectDeletion(
     public static ProjectDeletion none() {
         return new ProjectDeletion(null, null);
     }
+
+    public boolean isRequested() {
+        return requestedAt != null;
+    }
 }

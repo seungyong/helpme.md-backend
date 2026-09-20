@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 import seungyong.helpmebackend.portfolio.application.port.out.PortfolioStoragePortOut;
 import seungyong.helpmebackend.portfolio.domain.exception.PortfolioExportErrorCode;
 import seungyong.helpmebackend.portfolio.domain.exception.PortfolioExportProcessingException;
@@ -51,8 +52,16 @@ public class SupabasePortfolioStorageAdapter implements PortfolioStoragePortOut 
 
     @Override
     public void delete(String path) {
-        execute(() -> client().delete().uri("/object/{bucket}/{path}", bucket, path)
-                .retrieve().toBodilessEntity());
+        try {
+            client().delete().uri("/object/{bucket}/{path}", bucket, path)
+                    .retrieve().toBodilessEntity();
+        } catch (RestClientResponseException exception) {
+            if (exception.getStatusCode().value() != 404) {
+                throw failure();
+            }
+        } catch (RestClientException exception) {
+            throw failure();
+        }
     }
 
     private RestClient client() {
